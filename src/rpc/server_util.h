@@ -8,7 +8,6 @@
 #include <any>
 
 class ArgsManager;
-class CBlockPolicyEstimator;
 class CConnman;
 class CTxMemPool;
 class ChainstateManager;

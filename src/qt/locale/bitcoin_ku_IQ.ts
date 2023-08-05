@@ -184,6 +184,38 @@ Signing is only possible with addresses of the type 'legacy'.</source>
         <translation type="unfinished">به راستی اون هشیارن کا دخازن بو کیف خو یه پاره رمزه دانین</translation>
     </message>
     <message>
+        <source>Show passphrase</source>
+        <translation type="unfinished">نیشان دانا ناوه چونه</translation>
+    </message>
+    <message>
+        <source>Encrypt wallet</source>
+        <translation type="unfinished">کیف خو یه پاره رمزه دانینه بر</translation>
+    </message>
+    <message>
+        <source>This operation needs your wallet passphrase to unlock the wallet.</source>
+        <translation type="unfinished">او شوله بو ور کرنا کیف پاره گرکه رمزا کیفه وؤ یه پاره بزانی</translation>
+    </message>
+    <message>
+        <source>Unlock wallet</source>
+        <translation type="unfinished">Kilîda cizdên veke</translation>
+    </message>
+    <message>
+        <source>Change passphrase</source>
+        <translation type="unfinished">Pêborînê biguherîne</translation>
+    </message>
+    <message>
+        <source>Confirm wallet encryption</source>
+        <translation type="unfinished">Şîfrekirina cizdên bipejirîne</translation>
+    </message>
+    <message>
+        <source>Are you sure you wish to encrypt your wallet?</source>
+        <translation type="unfinished">به راستی اون هشیارن کا دخازن بو کیف خو یه پاره رمزه دانین</translation>
+    </message>
+    <message>
+        <source>Wallet encrypted</source>
+        <translation type="unfinished">Cizdan hate şîfrekirin</translation>
+    </message>
+    <message>
         <source>Enter the new passphrase for the wallet.&lt;br/&gt;Please use a passphrase of &lt;b&gt;ten or more random characters&lt;/b&gt;, or &lt;b&gt;eight or more words&lt;/b&gt;.</source>
         <translation type="unfinished">دەستەواژەی تێپەڕەوی نوێ بنووسە بۆ جزدان. &lt;br/&gt;تکایە دەستەواژەی تێپەڕێک بەکاربێنە لە &lt;b&gt;دە یان زیاتر لە هێما هەڕەمەکییەکان&lt;/b&gt;یان &lt;b&gt;هەشت یان وشەی زیاتر&lt;/b&gt;.</translation>
     </message>
@@ -286,6 +318,10 @@ Signing is only possible with addresses of the type 'legacy'.</source>
     <message>
         <source>&amp;About %1</source>
         <translation type="unfinished">&amp;دەربارەی %1</translation>
+    </message>
+    <message>
+        <source>Wallet:</source>
+        <translation type="unfinished">Cizdan:</translation>
     </message>
     <message>
         <source>&amp;Send</source>
@@ -396,6 +432,27 @@ Signing is only possible with addresses of the type 'legacy'.</source>
 <context>
     <name>Intro</name>
     <message numerus="yes">
+        <source>%n GB of space available</source>
+        <translation type="unfinished">
+            <numerusform />
+            <numerusform />
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>(of %n GB needed)</source>
+        <translation type="unfinished">
+            <numerusform />
+            <numerusform />
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>(%n GB needed for full chain)</source>
+        <translation type="unfinished">
+            <numerusform />
+            <numerusform />
+        </translation>
+    </message>
+    <message numerus="yes">
         <source>(sufficient to restore backups %n day(s) old)</source>
         <extracomment>Explanatory text on the capability of the current prune target.</extracomment>
         <translation type="unfinished">
@@ -414,10 +471,6 @@ Signing is only possible with addresses of the type 'legacy'.</source>
     <message>
         <source>Welcome</source>
         <translation type="unfinished">بەخێربێن</translation>
-    </message>
-    <message>
-        <source>When you click OK, %1 will begin to download and process the full %4 block chain (%2GB) starting with the earliest transactions in %3 when %4 initially launched.</source>
-        <translation type="unfinished">کاتێک کرتە لە پەسەندە دەکەیت، %1 دەست دەکات بە داگرتن و پرۆسەی زنجیرەبلۆکی %4 (%2GB) بە سەرەتاییترین مامەڵەکان لە %3 دەست پێدەکات کاتێک %4 لە سەرەتادا دەستی پێکرد.</translation>
     </message>
     <message>
         <source>Reverting this setting requires re-downloading the entire blockchain. It is faster to download the full chain first and prune it later. Disables some advanced features.</source>
@@ -666,6 +719,10 @@ Signing is only possible with addresses of the type 'legacy'.</source>
     <message>
         <source>Message:</source>
         <translation type="unfinished">پەیام:</translation>
+    </message>
+    <message>
+        <source>Wallet:</source>
+        <translation type="unfinished">Cizdan:</translation>
     </message>
     </context>
 <context>

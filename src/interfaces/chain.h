@@ -18,6 +18,7 @@
 
 class ArgsManager;
 class CBlock;
+class CBlockUndo;
 class CFeeRate;
 class CRPCCommand;
 class CScheduler;
@@ -30,14 +31,16 @@ namespace node {
 struct NodeContext;
 } // namespace node
 
-class ChainstateManager;
-class CTxMemPool;
-class CBlockIndex;
-class CCoinsViewCache;
 namespace interfaces {
 
 class Handler;
 class Wallet;
+
+//! Hash/height pair to help track and identify blocks.
+struct BlockKey {
+    uint256 hash;
+    int height = -1;
+};
 
 //! Helper for findBlock to selectively return pieces of block data. If block is
 //! found, data will be returned by setting specified output variables. If block
@@ -52,6 +55,8 @@ public:
     FoundBlock& mtpTime(int64_t& mtp_time) { m_mtp_time = &mtp_time; return *this; }
     //! Return whether block is in the active (most-work) chain.
     FoundBlock& inActiveChain(bool& in_active_chain) { m_in_active_chain = &in_active_chain; return *this; }
+    //! Return locator if block is in the active chain.
+    FoundBlock& locator(CBlockLocator& locator) { m_locator = &locator; return *this; }
     //! Return next block in the active chain if current block is in the active chain.
     FoundBlock& nextBlock(const FoundBlock& next_block) { m_next_block = &next_block; return *this; }
     //! Read block data from disk. If the block exists but doesn't have data
@@ -64,9 +69,24 @@ public:
     int64_t* m_max_time = nullptr;
     int64_t* m_mtp_time = nullptr;
     bool* m_in_active_chain = nullptr;
+    CBlockLocator* m_locator = nullptr;
     const FoundBlock* m_next_block = nullptr;
     CBlock* m_data = nullptr;
     mutable bool found = false;
+};
+
+//! Block data sent with blockConnected, blockDisconnected notifications.
+struct BlockInfo {
+    const uint256& hash;
+    const uint256* prev_hash = nullptr;
+    int height = -1;
+    int file_number = -1;
+    unsigned data_pos = 0;
+    const CBlock* data = nullptr;
+    const CBlockUndo* undo_data = nullptr;
+    bool is_pos = false;
+
+    BlockInfo(const uint256& hash LIFETIMEBOUND) : hash(hash) {}
 };
 
 //! Interface giving clients (wallet processes, maybe other analysis tools in
@@ -98,12 +118,6 @@ class Chain
 public:
     virtual ~Chain() {}
 
-    //! Get chain state manager
-    virtual ChainstateManager& chainman() = 0;
-
-    //! Get mempool
-    virtual const CTxMemPool& mempool() = 0;
-
     //! Get current chain height, not including genesis block (returns 0 if
     //! chain only contains genesis block, nullopt if chain does not contain
     //! any blocks)
@@ -117,6 +131,10 @@ public:
 
     //! Get locator for the current chain tip.
     virtual CBlockLocator getTipLocator() = 0;
+
+    //! Return a locator that refers to a block in the active chain.
+    //! If specified block is not in the active chain, return locator for the latest ancestor that is in the chain.
+    virtual CBlockLocator getActiveChainLocator(const uint256& block_hash) = 0;
 
     //! Return height of the highest block on chain in common with the locator,
     //! which will either be the original block used to create the locator,
@@ -224,8 +242,8 @@ public:
         virtual ~Notifications() {}
         virtual void transactionAddedToMempool(const CTransactionRef& tx, uint64_t mempool_sequence) {}
         virtual void transactionRemovedFromMempool(const CTransactionRef& tx, MemPoolRemovalReason reason, uint64_t mempool_sequence) {}
-        virtual void blockConnected(const CBlock& block, int height) {}
-        virtual void blockDisconnected(const CBlock& block, int height) {}
+        virtual void blockConnected(const BlockInfo& block) {}
+        virtual void blockDisconnected(const BlockInfo& block) {}
         virtual void updatedBlockTip() {}
         virtual void chainStateFlushed(const CBlockLocator& locator) {}
     };
@@ -281,6 +299,12 @@ public:
     virtual Span<const CRPCCommand> getStakingRPCCommands() = 0;
 #endif
 
+    //! Return true if an assumed-valid chain is in use.
+    virtual bool hasAssumedValidChain() = 0;
+
+    //! Get internal node context. Useful for testing, but not
+    //! accessible across processes.
+    virtual node::NodeContext* context() { return nullptr; }
 };
 
 //! Interface to let node manage chain clients (wallets, or maybe tools for

@@ -10,14 +10,12 @@
 #include <consensus/merkle.h>
 #include <deploymentinfo.h>
 #include <hash.h> // for signet block challenge hash
-#include <key_io.h>
-#include <script/standard.h>
+#include <key_io.h> // for DecodeDestination()
+#include <script/interpreter.h>
+#include <util/string.h>
 #include <util/system.h>
 
 #include <assert.h>
-
-#include <boost/algorithm/string/classification.hpp>
-#include <boost/algorithm/string/split.hpp>
 
 static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesisOutputScript, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
 {
@@ -82,7 +80,7 @@ public:
         consensus.nMaxReorganizationDepth = 500;
         consensus.CSVHeight = std::numeric_limits<int>::max(); // std::numeric_limits<int>::max()
         consensus.SegwitHeight = std::numeric_limits<int>::max(); // std::numeric_limits<int>::max()
-        consensus.MinBIP9WarningHeight = std::numeric_limits<int>::max(); // CSV activation height + miner confirmation window
+        consensus.MinBIP9WarningHeight = std::numeric_limits<int>::max(); // segwit activation height + miner confirmation window
         consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.posLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.posLimitV2 = uint256S("000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffff");
@@ -133,7 +131,6 @@ public:
         pchMessageStart[2] = 0x22;
         pchMessageStart[3] = 0x05;
         nDefaultPort = 15714;
-        nPruneAfterHeight = 100000;
         m_assumed_blockchain_size = 15;
 
         genesis = CreateGenesisBlock(1393221600, 164482, 0x1e0fffff, 1, 0);
@@ -184,9 +181,9 @@ public:
 
         chainTxData = ChainTxData{
             // Data from RPC: getchaintxstats 40500 ae0c2a9bd13746e2887ca57bf1046b3c787a5ed1068fd1633a3575f08ee291fc
-            /* nTime    */ 1668631296,
-            /* nTxCount */ 13562393,
-            /* dTxRate  */ 0.030
+            .nTime    = 1668631296,
+            .nTxCount = 13562393,
+            .dTxRate  = 0.030,
         };
 
         // A vector of p2sh addresses
@@ -253,7 +250,6 @@ public:
         consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000003aaf405e01eda716e7");
         consensus.defaultAssumeValid = uint256S("0x9583676625157dc0405bbd48b9220157eeabb7d9460fa234d31b49ea7014de2f"); // 90235
 
-        nPruneAfterHeight = 1000;
         m_assumed_blockchain_size = 2;
 
         genesis = CreateGenesisBlock(1393221600, 216178, 0x1f00ffff, 1, 0);
@@ -292,9 +288,9 @@ public:
 
         chainTxData = ChainTxData{
             // Data from RPC: getchaintxstats 40500 9583676625157dc0405bbd48b9220157eeabb7d9460fa234d31b49ea7014de2f
-            /* nTime    */ 1674153488,
-            /* nTxCount */ 2833624,
-            /* dTxRate  */ 0.029
+            .nTime    = 1674153488,
+            .nTxCount = 2833624,
+            .dTxRate  = 0.029,
         };
         // A vector of p2sh addresses
         vDevFundAddress = { "n14L5xqAs7QRzNiTLPNaPeqaF9CRoxzVnU" };
@@ -320,15 +316,15 @@ public:
             vSeeds.emplace_back("178.128.221.177");
             vSeeds.emplace_back("v7ajjeirttkbnt32wpy3c6w3emwnfr3fkla7hpxcfokr3ysd3kqtzmqd.onion:38333");
 
-            consensus.nMinimumChainWork = uint256S("0x000000000000000000000000000000000000000000000000000000de26b0e471");
-            consensus.defaultAssumeValid = uint256S("0x00000112852484b5fe3451572368f93cfd2723279af3464e478aee35115256ef"); // 78788
+            consensus.nMinimumChainWork = uint256S("0x000000000000000000000000000000000000000000000000000001291fc22898");
+            consensus.defaultAssumeValid = uint256S("0x000000d1a0e224fa4679d2fb2187ba55431c284fa1b74cbc8cfda866fd4d2c09"); // 105495
             */
             m_assumed_blockchain_size = 1;
             chainTxData = ChainTxData{
                 // Data from RPC: getchaintxstats 4096 000000187d4440e5bff91488b700a140441e089a8aaea707414982460edbfe54
-                /* nTime    */ 0,
-                /* nTxCount */ 0,
-                /* dTxRate  */ 0.0,
+                .nTime    = 0,
+                .nTxCount = 0,
+                .dTxRate  = 0.0,
             };
         } else {
             const auto signet_challenge = args.GetArgs("-signetchallenge");
@@ -355,7 +351,10 @@ public:
         strNetworkID = CBaseChainParams::SIGNET;
         consensus.signet_blocks = true;
         consensus.signet_challenge.assign(bin.begin(), bin.end());
-        consensus.CSVHeight = 1;
+        consensus.BIP34Height = 1;
+        consensus.BIP34Hash = uint256{};
+        consensus.BIP65Height = 1;
+        consensus.BIP66Height = 1;
         consensus.SegwitHeight = std::numeric_limits<int>::max();
         consensus.nTargetTimespan = 14 * 24 * 60 * 60; // two weeks
         consensus.nTargetSpacing = 10 * 60;
@@ -383,13 +382,12 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].min_activation_height = 0; // No activation delay
 
         // message start is defined as the first 4 bytes of the sha256d of the block script
-        CHashWriter h(SER_DISK, 0);
+        HashWriter h{};
         h << consensus.signet_challenge;
         uint256 hash = h.GetHash();
         memcpy(pchMessageStart, hash.begin(), 4);
 
         nDefaultPort = 38333;
-        nPruneAfterHeight = 1000;
 
         genesis = CreateGenesisBlock(1393221600, 216178, 0x1f00ffff, 1, 0);
         consensus.hashGenesisBlock = genesis.GetHash();
@@ -472,7 +470,6 @@ public:
         pchMessageStart[2] = 0x22;
         pchMessageStart[3] = 0x06;
         nDefaultPort = 35714;
-        nPruneAfterHeight = args.GetBoolArg("-fastprune", false) ? 100 : 1000;
         m_assumed_blockchain_size = 0;
 
         UpdateActivationParametersFromArgs(args);
@@ -558,8 +555,7 @@ void CRegTestParams::UpdateActivationParametersFromArgs(const ArgsManager& args)
     if (!args.IsArgSet("-vbparams")) return;
 
     for (const std::string& strDeployment : args.GetArgs("-vbparams")) {
-        std::vector<std::string> vDeploymentParams;
-        boost::split(vDeploymentParams, strDeployment, boost::is_any_of(":"));
+        std::vector<std::string> vDeploymentParams = SplitString(strDeployment, ':');
         if (vDeploymentParams.size() < 3 || 4 < vDeploymentParams.size()) {
             throw std::runtime_error("Version bits parameters malformed, expecting deployment:start:end[:min_activation_height]");
         }

@@ -9,8 +9,8 @@
 #include <interfaces/wallet.h>
 #include <net.h>
 #include <node/context.h>
+#include <node/interface_ui.h>
 #include <node/miner.h>
-#include <node/ui_interface.h>
 #include <outputtype.h>
 #include <univalue.h>
 #include <util/check.h>
@@ -75,9 +75,9 @@ void WalletInit::AddWalletOptions(ArgsManager& argsman) const
 #endif
 
 #ifdef USE_BDB
-    argsman.AddArg("-dblogsize=<n>", strprintf("Flush wallet database activity from memory to disk log every <n> megabytes (default: %u)", DEFAULT_WALLET_DBLOGSIZE), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::WALLET_DEBUG_TEST);
+    argsman.AddArg("-dblogsize=<n>", strprintf("Flush wallet database activity from memory to disk log every <n> megabytes (default: %u)", DatabaseOptions().max_log_mb), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::WALLET_DEBUG_TEST);
     argsman.AddArg("-flushwallet", strprintf("Run a thread to flush wallet periodically (default: %u)", DEFAULT_FLUSHWALLET), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::WALLET_DEBUG_TEST);
-    argsman.AddArg("-privdb", strprintf("Sets the DB_PRIVATE flag in the wallet db environment (default: %u)", DEFAULT_WALLET_PRIVDB), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::WALLET_DEBUG_TEST);
+    argsman.AddArg("-privdb", strprintf("Sets the DB_PRIVATE flag in the wallet db environment (default: %u)", !DatabaseOptions().use_shared_memory), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::WALLET_DEBUG_TEST);
 #else
     argsman.AddHiddenArgs({"-dblogsize", "-flushwallet", "-privdb"});
 #endif
@@ -95,6 +95,7 @@ void WalletInit::AddWalletOptions(ArgsManager& argsman) const
         wallet::MIN_DONATION_PERCENTAGE, wallet::MAX_DONATION_PERCENTAGE, wallet::DEFAULT_DONATION_PERCENTAGE), ArgsManager::ALLOW_ANY, OptionsCategory::WALLET);
 
     argsman.AddArg("-walletrejectlongchains", strprintf("Wallet will not create transactions that violate mempool chain limits (default: %u)", DEFAULT_WALLET_REJECT_LONG_CHAINS), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::WALLET_DEBUG_TEST);
+    argsman.AddArg("-walletcrosschain", strprintf("Allow reusing wallet files across chains (default: %u)", DEFAULT_WALLETCROSSCHAIN), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::WALLET_DEBUG_TEST);
 
     argsman.AddHiddenArgs({"-zapwallettxes"});
 }

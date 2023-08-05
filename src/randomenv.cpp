@@ -15,7 +15,7 @@
 #include <support/cleanse.h>
 #include <util/time.h> // for GetTime()
 #ifdef WIN32
-#include <compat.h> // for Windows API
+#include <compat/compat.h>
 #endif
 
 #include <algorithm>
@@ -57,8 +57,7 @@
 #include <sys/auxv.h>
 #endif
 
-//! Necessary on some platforms
-extern char** environ;
+extern char** environ; // NOLINT(readability-redundant-declaration): Necessary on some platforms
 
 namespace {
 

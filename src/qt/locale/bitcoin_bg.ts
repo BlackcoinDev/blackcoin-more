@@ -249,6 +249,10 @@ Signing is only possible with addresses of the type 'legacy'.</source>
 <context>
     <name>BitcoinApplication</name>
     <message>
+        <source>Settings file %1 might be corrupt or invalid.</source>
+        <translation type="unfinished">Файлът с настройки %1 може да е повреден или невалиден.</translation>
+    </message>
+    <message>
         <source>Runaway exception</source>
         <translation type="unfinished">Изключи бягащите</translation>
     </message>
@@ -657,14 +661,6 @@ Signing is only possible with addresses of the type 'legacy'.</source>
         <translation type="unfinished">Затвори всички уолети</translation>
     </message>
     <message>
-        <source>&amp;Load PSBT from file…</source>
-        <translation type="unfinished">&amp;Зареди PSBT от файл…</translation>
-    </message>
-    <message>
-        <source>Close All Wallets…</source>
-        <translation type="unfinished">Затвори всички уолети</translation>
-    </message>
-    <message>
         <source>&amp;File</source>
         <translation type="unfinished">&amp;Файл</translation>
     </message>
@@ -694,19 +690,15 @@ Signing is only possible with addresses of the type 'legacy'.</source>
     </message>
     <message>
         <source>Processing blocks on disk…</source>
-        <translation type="unfinished">Обработване на сектори от диска...</translation>
+        <translation type="unfinished">Обработват се блокове на диска...</translation>
     </message>
     <message>
         <source>Reindexing blocks on disk…</source>
-        <translation type="unfinished">Преиндексиране на блокове от диска...</translation>
+        <translation type="unfinished">Преиндексиране на блоково от диска...</translation>
     </message>
     <message>
         <source>Connecting to peers…</source>
         <translation type="unfinished">Свързване с рояк...</translation>
-    </message>
-    <message>
-        <source>Synchronizing with network…</source>
-        <translation type="unfinished">Синхронизиране с мрежа</translation>
     </message>
     <message>
         <source>Request payments (generates QR codes and bitcoin: URIs)</source>
@@ -764,12 +756,16 @@ Signing is only possible with addresses of the type 'legacy'.</source>
         <translation type="unfinished">Актуално</translation>
     </message>
     <message>
+        <source>Ctrl+Q</source>
+        <translation type="unfinished">Ctrl+Q </translation>
+    </message>
+    <message>
         <source>Load Partially Signed Bitcoin Transaction</source>
         <translation type="unfinished">Заредете частично подписана Bitcoin трансакция</translation>
     </message>
     <message>
         <source>Load PSBT from &amp;clipboard…</source>
-        <translation type="unfinished">Заредете PSBT от &amp;клипборд...</translation>
+        <translation type="unfinished">Заредете PSBT (частично подписана Bitcoin трансакция) от &amp;клипборд...</translation>
     </message>
     <message>
         <source>Load Partially Signed Bitcoin Transaction from clipboard</source>
@@ -808,6 +804,16 @@ Signing is only possible with addresses of the type 'legacy'.</source>
         <translation type="unfinished">Затвори портфейла</translation>
     </message>
     <message>
+        <source>Restore Wallet…</source>
+        <extracomment>Name of the menu item that restores wallet from a backup file.</extracomment>
+        <translation type="unfinished">Възстановяване на Портфейл...</translation>
+    </message>
+    <message>
+        <source>Restore a wallet from a backup file</source>
+        <extracomment>Status tip for Restore Wallet menu item</extracomment>
+        <translation type="unfinished">Възстанови портфейла от резервен файл</translation>
+    </message>
+    <message>
         <source>Close all wallets</source>
         <translation type="unfinished">Затвори всички портфейли</translation>
     </message>
@@ -832,8 +838,32 @@ Signing is only possible with addresses of the type 'legacy'.</source>
         <translation type="unfinished">Няма достъпни портфейли</translation>
     </message>
     <message>
+        <source>Wallet Data</source>
+        <extracomment>Name of the wallet data file format.</extracomment>
+        <translation type="unfinished">Данни от портфейла</translation>
+    </message>
+    <message>
+        <source>Load Wallet Backup</source>
+        <extracomment>The title for Restore Wallet File Windows</extracomment>
+        <translation type="unfinished">Зареди резервно копие на портфейл</translation>
+    </message>
+    <message>
+        <source>Restore Wallet</source>
+        <extracomment>Title of pop-up window shown when the user is attempting to restore a wallet.</extracomment>
+        <translation type="unfinished">Възстановяване на Портфейл</translation>
+    </message>
+    <message>
+        <source>Wallet Name</source>
+        <extracomment>Label of the input field where the name of the wallet is entered.</extracomment>
+        <translation type="unfinished">Име на портфейл</translation>
+    </message>
+    <message>
         <source>&amp;Window</source>
         <translation type="unfinished">&amp;Прозорец</translation>
+    </message>
+    <message>
+        <source>Ctrl+M</source>
+        <translation type="unfinished">Ctrl+M </translation>
     </message>
     <message>
         <source>Zoom</source>
@@ -1163,6 +1193,10 @@ Signing is only possible with addresses of the type 'legacy'.</source>
         <source>Can't list signers</source>
         <translation type="unfinished">Не мога да изброя подписите</translation>
     </message>
+    <message>
+        <source>Too many external signers found</source>
+        <translation type="unfinished">Намерени са твърде много външни подписващи</translation>
+    </message>
 </context>
 <context>
     <name>LoadWalletsActivity</name>
@@ -1200,6 +1234,24 @@ Signing is only possible with addresses of the type 'legacy'.</source>
         <source>Opening Wallet &lt;b&gt;%1&lt;/b&gt;…</source>
         <extracomment>Descriptive text of the open wallet progress window which indicates to the user which wallet is currently being opened.</extracomment>
         <translation type="unfinished">Отваряне на портфейл &lt;b&gt;%1&lt;/b&gt;…</translation>
+    </message>
+</context>
+<context>
+    <name>RestoreWalletActivity</name>
+    <message>
+        <source>Restore Wallet</source>
+        <extracomment>Title of progress window which is displayed when wallets are being restored.</extracomment>
+        <translation type="unfinished">Възстановяване на Портфейл</translation>
+    </message>
+    <message>
+        <source>Restore wallet failed</source>
+        <extracomment>Title of message box which is displayed when the wallet could not be restored.</extracomment>
+        <translation type="unfinished">Възстановяването на портфейла не бе успешно</translation>
+    </message>
+    <message>
+        <source>Restore wallet message</source>
+        <extracomment>Title of message box which is displayed when the wallet is successfully restored.</extracomment>
+        <translation type="unfinished">Съобщение портфейлът е възстановен</translation>
     </message>
 </context>
 <context>
@@ -1381,6 +1433,27 @@ Signing is only possible with addresses of the type 'legacy'.</source>
         <source>Bitcoin</source>
         <translation type="unfinished">Биткоин</translation>
     </message>
+    <message numerus="yes">
+        <source>%n GB of space available</source>
+        <translation type="unfinished">
+            <numerusform />
+            <numerusform />
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>(of %n GB needed)</source>
+        <translation type="unfinished">
+            <numerusform>фе</numerusform>
+            <numerusform>(от %n гигабайта са нужни)</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>(%n GB needed for full chain)</source>
+        <translation type="unfinished">
+            <numerusform />
+            <numerusform />
+        </translation>
+    </message>
     <message>
         <source>%1 GB of space available</source>
         <translation type="unfinished">%1 GB налично пространство</translation>
@@ -1436,10 +1509,6 @@ Signing is only possible with addresses of the type 'legacy'.</source>
     <message>
         <source>As this is the first time the program is launched, you can choose where %1 will store its data.</source>
         <translation type="unfinished">Програмата се стартира за първи път вие може да изберете къде %1 ще се запаметят данните.</translation>
-    </message>
-    <message>
-        <source>When you click OK, %1 will begin to download and process the full %4 block chain (%2GB) starting with the earliest transactions in %3 when %4 initially launched.</source>
-        <translation type="unfinished">Когато щракнете върху OK, %1 ще започне да изтегля и обработва пълната %4 блокова верига (%2GB) започвайки с най-ранните трансакции %3 когато %4 първоначално стартира.</translation>
     </message>
     <message>
         <source>Limit block chain storage to</source>
@@ -1554,7 +1623,7 @@ Signing is only possible with addresses of the type 'legacy'.</source>
         <source>Unknown. Syncing Headers (%1, %2%)…</source>
         <translation type="unfinished">Неизвестно. Синхронизиране на Глави (%1, %2%)...</translation>
     </message>
-</context>
+    </context>
 <context>
     <name>OpenURIDialog</name>
     <message>
@@ -1608,6 +1677,10 @@ Signing is only possible with addresses of the type 'legacy'.</source>
     <message>
         <source>Minimize instead of exit the application when the window is closed. When this option is enabled, the application will be closed only after selecting Exit in the menu.</source>
         <translation type="unfinished">Минимизиране вместо излизане от приложението, когато прозорецът е затворен. Когато тази опция е активирана, приложението ще се затвори само след избиране на Изход от менюто.</translation>
+    </message>
+    <message>
+        <source>Options set in this dialog are overridden by the command line:</source>
+        <translation type="unfinished">Опциите, зададени в този диалогов прозорец, се заменят от командния ред:</translation>
     </message>
     <message>
         <source>Open Configuration File</source>
@@ -1816,14 +1889,17 @@ Signing is only possible with addresses of the type 'legacy'.</source>
     </message>
     <message>
         <source>Confirm options reset</source>
+        <extracomment>Window title text of pop-up window shown when the user has chosen to reset options.</extracomment>
         <translation type="unfinished">Потвърдете опциите за нулиране</translation>
     </message>
     <message>
         <source>Client restart required to activate changes.</source>
+        <extracomment>Text explaining that the settings changed will not come into effect until the client is restarted.</extracomment>
         <translation type="unfinished">Изисква се рестартиране на клиента за активиране на извършените промени.</translation>
     </message>
     <message>
         <source>Client will be shut down. Do you want to proceed?</source>
+        <extracomment>Text asking the user to confirm if they would like to proceed with a client shutdown.</extracomment>
         <translation type="unfinished">Клиентът ще бъде изключен. Искате ли да продължите?</translation>
     </message>
     <message>
@@ -2480,10 +2556,6 @@ Signing is only possible with addresses of the type 'legacy'.</source>
         <source>Transaction creation failed!</source>
         <translation type="unfinished">Грешка при създаването на транзакция!</translation>
     </message>
-    <message>
-        <source>Payment request expired.</source>
-        <translation type="unfinished">Заявката за плащане е изтекла.</translation>
-    </message>
     <message numerus="yes">
         <source>Estimated to begin confirmation within %n block(s).</source>
         <translation type="unfinished">
@@ -2538,15 +2610,7 @@ Signing is only possible with addresses of the type 'legacy'.</source>
         <source>Message:</source>
         <translation type="unfinished">Съобщение:</translation>
     </message>
-    <message>
-        <source>Pay To:</source>
-        <translation type="unfinished">Плащане на:</translation>
-    </message>
-    <message>
-        <source>Memo:</source>
-        <translation type="unfinished">Бележка:</translation>
-    </message>
-</context>
+    </context>
 <context>
     <name>SignVerifyMessageDialog</name>
     <message>
@@ -2664,15 +2728,13 @@ Signing is only possible with addresses of the type 'legacy'.</source>
         </translation>
     </message>
     <message>
-        <source>0/unconfirmed, %1</source>
-        <translation type="unfinished">0/непотвърдено, %1</translation>
-    </message>
-    <message>
         <source>%1/unconfirmed</source>
+        <extracomment>Text explaining the current status of a transaction, shown in the status field of the details window for this transaction. This status represents a transaction confirmed in at least one block, but less than 6 blocks.</extracomment>
         <translation type="unfinished">%1/непотвърдени</translation>
     </message>
     <message>
         <source>%1 confirmations</source>
+        <extracomment>Text explaining the current status of a transaction, shown in the status field of the details window for this transaction. This status represents a transaction confirmed in 6 or more blocks.</extracomment>
         <translation type="unfinished">включена в %1 блока</translation>
     </message>
     <message>

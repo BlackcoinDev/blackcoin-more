@@ -30,7 +30,7 @@ static void DuplicateInputs(benchmark::Bench& bench)
     block.nBits = GetNextTargetRequired(pindexPrev, chainparams.GetConsensus(), block.IsProofOfStake());
     block.nNonce = 0;
     auto nHeight = pindexPrev->nHeight + 1;
-    CChainState& chainstate = testing_setup->m_node.chainman->ActiveChainstate();
+    Chainstate& chainstate = testing_setup->m_node.chainman->ActiveChainstate();
 
     // Make a coinbase TX
     coinbaseTx.vin.resize(1);

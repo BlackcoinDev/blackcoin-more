@@ -7,13 +7,14 @@
 #define BITCOIN_CHAIN_H
 
 #include <arith_uint256.h>
+#include <chainparams.h>
 #include <consensus/params.h>
 #include <flatfile.h>
 #include <primitives/block.h>
 #include <sync.h>
-#include <tinyformat.h>
 #include <uint256.h>
-#include <chainparams.h>
+#include <util/time.h>
+
 #include <vector>
 
 /**
@@ -138,7 +139,7 @@ enum BlockStatus : uint32_t {
      * If set, this indicates that the block index entry is assumed-valid.
      * Certain diagnostics will be skipped in e.g. CheckBlockIndex().
      * It almost certainly means that the block's full validation is pending
-     * on a background chainstate. See `doc/assumeutxo.md`.
+     * on a background chainstate. See `doc/design/assumeutxo.md`.
      */
     BLOCK_ASSUMED_VALID      =   256,
 };
@@ -292,6 +293,7 @@ public:
 
     uint256 GetBlockHash() const
     {
+        assert(phashBlock != nullptr);
         return *phashBlock;
     }
 
@@ -307,6 +309,11 @@ public:
      * Does not imply the transactions are still stored on disk.
      */
     bool HaveTxsDownloaded() const { return nChainTx != 0; }
+
+    NodeSeconds Time() const
+    {
+        return NodeSeconds{std::chrono::seconds{nTime}};
+    }
 
     int64_t GetBlockTime() const
     {
@@ -339,13 +346,7 @@ public:
         }
     }
 
-    std::string ToString() const
-    {
-        return strprintf("CBlockIndex(pprev=%p, nHeight=%d, merkle=%s, hashBlock=%s)",
-            pprev, nHeight,
-            hashMerkleRoot.ToString(),
-            GetBlockHash().ToString());
-    }
+    std::string ToString() const;
 
     //! Check whether this block index entry is valid up to the passed validity level.
     bool IsValid(enum BlockStatus nUpTo = BLOCK_VALID_TRANSACTIONS) const
@@ -449,20 +450,13 @@ public:
         READWRITE(obj.nStakeModifier);
     }
 
-    uint256 GetBlockHash() const
+    uint256 ConstructBlockHash() const
     {
         return nHashBlock;
     }
 
-    std::string ToString() const
-    {
-        std::string str = "CDiskBlockIndex(";
-        str += CBlockIndex::ToString();
-        str += strprintf("\n                hashBlock=%s, hashPrev=%s)",
-            GetBlockHash().ToString(),
-            hashPrev.ToString());
-        return str;
-    }
+    uint256 GetBlockHash() = delete;
+    std::string ToString() = delete;
 };
 
 /** An in-memory indexed chain of blocks. */
@@ -518,10 +512,10 @@ public:
     }
 
     /** Set/initialize a chain with a given tip. */
-    void SetTip(CBlockIndex* pindex);
+    void SetTip(CBlockIndex& block);
 
-    /** Return a CBlockLocator that refers to a block in this chain (by default the tip). */
-    CBlockLocator GetLocator(const CBlockIndex* pindex = nullptr) const;
+    /** Return a CBlockLocator that refers to the tip in of this chain. */
+    CBlockLocator GetLocator() const;
 
     /** Find the last common block between this chain and a block index entry. */
     const CBlockIndex* FindFork(const CBlockIndex* pindex) const;
@@ -530,6 +524,13 @@ public:
     CBlockIndex* FindEarliestAtLeast(int64_t nTime, int height) const;
 };
 
+/** Get the last block index entry. */
 const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake);
+
+/** Get a locator for a block index entry. */
+CBlockLocator GetLocator(const CBlockIndex* index);
+
+/** Construct a list of hash entries to put in a locator.  */
+std::vector<uint256> LocatorEntries(const CBlockIndex* index);
 
 #endif // BITCOIN_CHAIN_H

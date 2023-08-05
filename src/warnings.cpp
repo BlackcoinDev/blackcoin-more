@@ -14,7 +14,7 @@
 
 std::string strMintWarning;
 
-static Mutex g_warnings_mutex;
+static GlobalMutex g_warnings_mutex;
 static bilingual_str g_misc_warnings GUARDED_BY(g_warnings_mutex);
 static bool fLargeWorkInvalidChainFound GUARDED_BY(g_warnings_mutex) = false;
 

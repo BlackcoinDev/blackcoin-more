@@ -6,14 +6,17 @@
 #define BITCOIN_POLICY_FEES_H
 
 #include <consensus/amount.h>
+#include <fs.h>
 #include <policy/feerate.h>
-#include <uint256.h>
 #include <random.h>
 #include <sync.h>
+#include <threadsafety.h>
+#include <uint256.h>
 
 #include <array>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 

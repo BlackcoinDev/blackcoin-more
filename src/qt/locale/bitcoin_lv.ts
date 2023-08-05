@@ -88,7 +88,7 @@
     <message>
         <source>There was an error trying to save the address list to %1. Please try again.</source>
         <extracomment>An error message. %1 is a stand-in argument for the name of the file we attempted to save to.</extracomment>
-        <translation type="unfinished">Mēģinot saglabāt adrešu sarakstu %1 radās kļūda. Mēģiniet vēlreiz.</translation>
+        <translation type="unfinished">Mēģinot saglabāt adrešu sarakstu %1 radās kļūda. Lūdzu mēģiniet vēlreiz.</translation>
     </message>
     <message>
         <source>Exporting Failed</source>
@@ -126,7 +126,7 @@
     </message>
     <message>
         <source>Repeat new passphrase</source>
-        <translation type="unfinished">Jaunā parole vēlreiz</translation>
+        <translation type="unfinished">Ievadiet jauno paroli vēlreiz</translation>
     </message>
     <message>
         <source>Show passphrase</source>
@@ -350,10 +350,6 @@
         <translation type="unfinished">&amp;Par %1</translation>
     </message>
     <message>
-        <source>&amp;About %1</source>
-        <translation type="unfinished">&amp;Par %1</translation>
-    </message>
-    <message>
         <source>Show information about %1</source>
         <translation type="unfinished">Rādīt informāciju par %1</translation>
     </message>
@@ -424,10 +420,6 @@
     <message>
         <source>Tabs toolbar</source>
         <translation type="unfinished">Ciļņu rīkjosla</translation>
-    </message>
-    <message>
-        <source>Synchronizing with network…</source>
-        <translation type="unfinished">Sinhronizē ar tīklu</translation>
     </message>
     <message>
         <source>Synchronizing with network…</source>
@@ -605,6 +597,30 @@
 </context>
 <context>
     <name>Intro</name>
+    <message numerus="yes">
+        <source>%n GB of space available</source>
+        <translation type="unfinished">
+            <numerusform />
+            <numerusform />
+            <numerusform />
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>(of %n GB needed)</source>
+        <translation type="unfinished">
+            <numerusform />
+            <numerusform />
+            <numerusform />
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>(%n GB needed for full chain)</source>
+        <translation type="unfinished">
+            <numerusform />
+            <numerusform />
+            <numerusform />
+        </translation>
+    </message>
     <message numerus="yes">
         <source>(sufficient to restore backups %n day(s) old)</source>
         <extracomment>Explanatory text on the capability of the current prune target.</extracomment>
@@ -796,6 +812,7 @@
     </message>
     <message>
         <source>Confirm options reset</source>
+        <extracomment>Window title text of pop-up window shown when the user has chosen to reset options.</extracomment>
         <translation type="unfinished">Apstiprināt iestatījumu atiestatīšanu</translation>
     </message>
     <message>
@@ -871,7 +888,7 @@
     </message>
     <message>
         <source>Save…</source>
-        <translation type="unfinished">Seiv</translation>
+        <translation type="unfinished">Saglabāt...</translation>
     </message>
     <message>
         <source>Close</source>
@@ -1171,10 +1188,6 @@
     <message>
         <source>Message:</source>
         <translation type="unfinished">Ziņojums:</translation>
-    </message>
-    <message>
-        <source>Pay To:</source>
-        <translation type="unfinished">Maksāt:</translation>
     </message>
     </context>
 <context>

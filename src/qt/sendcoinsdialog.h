@@ -5,6 +5,7 @@
 #ifndef BITCOIN_QT_SENDCOINSDIALOG_H
 #define BITCOIN_QT_SENDCOINSDIALOG_H
 
+#include <qt/clientmodel.h>
 #include <qt/walletmodel.h>
 
 #include <QDialog>
@@ -12,7 +13,6 @@
 #include <QString>
 #include <QTimer>
 
-class ClientModel;
 class PlatformStyle;
 class SendCoinsEntry;
 class SendCoinsRecipient;
@@ -92,7 +92,7 @@ private Q_SLOTS:
     void sendButtonClicked(bool checked);
     void removeEntry(SendCoinsEntry* entry);
     void useAvailableBalance(SendCoinsEntry* entry);
-    void updateDisplayUnit();
+    void refreshBalance();
     void coinControlFeatureChanged(bool);
     void coinControlButtonClicked();
     void coinControlChangeChecked(int);

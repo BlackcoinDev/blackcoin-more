@@ -39,7 +39,7 @@ static inline bool InsecureRandBool()
 
 static inline CAmount InsecureRandMoneyAmount()
 {
-    return static_cast<CAmount>(InsecureRandRange(MAX_MONEY + 1));
+    return static_cast<CAmount>(InsecureRandRange(MAX_MONEY + 1ull));
 }
 
 #endif // BITCOIN_TEST_UTIL_RANDOM_H

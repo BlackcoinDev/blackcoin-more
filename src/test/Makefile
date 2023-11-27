@@ -1,6 +1,6 @@
 all:
-	$(MAKE) -C .. blackmore_test
+	$(MAKE) -C .. bitcoin_test
 clean:
-	$(MAKE) -C .. blackmore_test_clean
+	$(MAKE) -C .. bitcoin_test_clean
 check:
-	$(MAKE) -C .. blackmore_test_check
+	$(MAKE) -C .. bitcoin_test_check

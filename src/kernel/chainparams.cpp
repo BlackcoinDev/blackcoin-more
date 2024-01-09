@@ -120,7 +120,7 @@ public:
         consensus.nProtocolV1RetargetingFixedTime = 1395631999;
         consensus.nProtocolV2Time = 1407053625;
         consensus.nProtocolV3Time = 1444028400;
-        consensus.nProtocolV3_1Time = 4102437600;
+        consensus.nProtocolV3_1Time = 1704830400;
         consensus.nLastPOWBlock = 10000;
         consensus.nStakeTimestampMask = 0xf; // 15
         consensus.nCoinbaseMaturity = 500;
@@ -133,11 +133,11 @@ public:
          * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
          * a large 32-bit integer with any alignment.
          */
-        pchMessageStart[0] = 0x70;
-        pchMessageStart[1] = 0x35;
-        pchMessageStart[2] = 0x22;
-        pchMessageStart[3] = 0x05;
-        nDefaultPort = 15714;
+        pchMessageStart[0] = 0x71;
+        pchMessageStart[1] = 0x36;
+        pchMessageStart[2] = 0x23;
+        pchMessageStart[3] = 0x06;
+        nDefaultPort = 15724;
         m_assumed_blockchain_size = 20;
 
         genesis = CreateGenesisBlock(1393221600, 164482, 0x1e0fffff, 1, 0);
@@ -461,7 +461,7 @@ public:
         consensus.nProtocolV1RetargetingFixedTime = 1395631999;
         consensus.nProtocolV2Time = 1407053625;
         consensus.nProtocolV3Time = 1444028400;
-        consensus.nProtocolV3_1Time = 4102437600;
+        consensus.nProtocolV3_1Time = 1704830400;
         consensus.nLastPOWBlock = 0x7fffffff;
         consensus.nStakeTimestampMask = 0xf;
         consensus.nCoinbaseMaturity = 10;
@@ -469,11 +469,11 @@ public:
         consensus.nMinimumChainWork = uint256{};
         consensus.defaultAssumeValid = uint256{};
 
-        pchMessageStart[0] = 0x70;
-        pchMessageStart[1] = 0x35;
-        pchMessageStart[2] = 0x22;
-        pchMessageStart[3] = 0x06;
-        nDefaultPort = 35714;
+        pchMessageStart[0] = 0x72;
+        pchMessageStart[1] = 0x37;
+        pchMessageStart[2] = 0x24;
+        pchMessageStart[3] = 0x08;
+        nDefaultPort = 35724;
         m_assumed_blockchain_size = 0;
 
         for (const auto& [dep, height] : opts.activation_heights) {

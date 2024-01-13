@@ -250,10 +250,10 @@ public:
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000429a2e25a9df5acc41"); // 1601588
         consensus.defaultAssumeValid = uint256S("0x5d5c42500cc6057533e249ba9eeb9b5e998aff30468c904bc267ec9bccbc8b39"); // 1415393
 
-        pchMessageStart[0] = 0xcd;
-        pchMessageStart[1] = 0xf2;
-        pchMessageStart[2] = 0xc0;
-        pchMessageStart[3] = 0xef;
+        pchMessageStart[0] = 0xc1;
+        pchMessageStart[1] = 0xf3;
+        pchMessageStart[2] = 0xc1;
+        pchMessageStart[3] = 0xe1;
         nDefaultPort = 25724;
         m_assumed_blockchain_size = 5;
 

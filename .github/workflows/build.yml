@@ -24,11 +24,11 @@ jobs:
       fail-fast: false
       matrix:
         name:
-          - linux-32-bit
+          #- linux-32-bit
           - linux-64-bit
-          - windows-64-bit
-          - macos-64-bit
-          - linux-arm-32-bit
+          #- windows-64-bit
+          #- macos-64-bit
+          #- linux-arm-32-bit
           - linux-arm-64-bit
         include:
           - name: linux-32-bit
@@ -38,7 +38,7 @@ jobs:
             check-security: false
             check-symbols: false
             dep-opts: ""
-            config-opts: "--enable-glibc-back-compat LDFLAGS=-static-libstdc++"
+            config-opts: "--enable-glibc-back-compat -disable-bench -disable-tests -disable-man --enable-fuzz=no --enable-fuzz-binary=no LDFLAGS=-static-libstdc++"
             goal: install
 
           - name: linux-64-bit
@@ -48,7 +48,7 @@ jobs:
             check-security: false
             check-symbols: false
             dep-opts: ""
-            config-opts: "--enable-sse2 --enable-glibc-back-compat LDFLAGS=-static-libstdc++"
+            config-opts: "--enable-sse2 --enable-glibc-back-compat -disable-bench -disable-tests -disable-man --enable-fuzz=no --enable-fuzz-binary=no LDFLAGS=-static-libstdc++"
             goal: install
 
           - name: windows-64-bit
@@ -63,7 +63,7 @@ jobs:
             check-security: false
             check-symbols: false
             dep-opts: ""
-            config-opts: "--enable-sse2 LDFLAGS=-static-libgcc"
+            config-opts: "--enable-sse2 -disable-bench -disable-tests -disable-man --enable-fuzz=no --enable-fuzz-binary=no LDFLAGS=-static-libgcc"
             goal: install
 
           - name: macos-64-bit
@@ -73,7 +73,7 @@ jobs:
             check-security: false
             check-symbols: false
             dep-opts: ""
-            config-opts: "--enable-sse2"
+            config-opts: "--enable-sse2 -disable-bench -disable-tests -disable-man --enable-fuzz=no --enable-fuzz-binary=no"
             goal: deploy
             sdk: 12.2-12B45b
 
@@ -84,7 +84,7 @@ jobs:
             check-security: false
             check-symbols: false
             dep-opts: ""
-            config-opts: "--enable-glibc-back-compat LDFLAGS=-static-libstdc++"
+            config-opts: "--enable-glibc-back-compat -disable-bench -disable-tests -disable-man --enable-fuzz=no --enable-fuzz-binary=no LDFLAGS=-static-libstdc++"
             goal: install
 
           - name: linux-arm-64-bit
@@ -94,7 +94,7 @@ jobs:
             check-security: false
             check-symbols: false
             dep-opts: ""
-            config-opts: "--enable-glibc-back-compat LDFLAGS=-static-libstdc++"
+            config-opts: "--enable-glibc-back-compat -disable-bench -disable-tests -disable-man --enable-fuzz=no --enable-fuzz-binary=no LDFLAGS=-static-libstdc++"
             goal: install
 
     runs-on: ${{ matrix.os }}
@@ -166,14 +166,14 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4.4.0
         with:
-          name: blackmore-${{ github.sha }}-${{ matrix.name }}
+          name: blackcoin-more-segwit-${{ github.sha }}-${{ matrix.name }}
           path: |
             depends/${{ matrix.host }}/bin/blackmore*
             dist/Blackmore-Qt.app
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 14
 
       - name: Download artifacts
         uses: actions/download-artifact@v4.1.8
         with:
-          name: blackmore-${{ github.sha }}-${{ matrix.name }}
+          name: blackcoin-more-segwit-${{ github.sha }}-${{ matrix.name }}

@@ -5,8 +5,8 @@ This document provides essential information for agentic coding agents working i
 ## Build System
 
 **Build System**: Autotools (GNU Autoconf/Automake)
-**Single Source Configuration**: `./configure`
-**Recursive Build**: `make -j$(nproc)`
+**Configuration**: `./configure`
+**Build**: `make -j$(nproc)`
 
 ### Essential Build Commands
 ```bash
@@ -21,6 +21,8 @@ make install                   # Install to system
 make blackmored                # Build daemon only
 make blackmore-cli             # Build CLI only  
 make blackmore-qt              # Build GUI only
+make blackmore-wallet          # Build wallet tool
+make test_blackmore            # Build test binary
 make check                     # Run all tests
 make dist                      # Create source distribution
 ```
@@ -29,7 +31,7 @@ make dist                      # Create source distribution
 - **Required**: libssl-dev, libevent-dev, libboost-dev, libsodium-dev
 - **Wallet**: libdb-dev, libsqlite3-dev
 - **GUI**: qtbase5-dev, qttools5-dev
-- **Tests**: python3, bash, docker
+- **Tests**: python3, bash, docker, gdb
 
 ## Testing
 
@@ -39,18 +41,24 @@ make dist                      # Create source distribution
 make check
 
 # C++ unit tests only
-src/test/test_bitcoin
+src/test/test_blackmore
 
 # Python functional tests
 test/functional/test_runner.py
 
-# Single test
+# Single functional test
 test/functional/test_runner.py wallet_upgradewallet.py
 
-# Debug single test
+# Single test with verbose output
 test/functional/test_runner.py --verbose wallet_upgradewallet.py
 
-# CI test environment locally
+# Run specific test category
+test/functional/test_runner.py --cached wallet_*.py
+
+# Debug failing test
+test/functional/test_runner.py --verbose --failfast <test_name>
+
+# CI test environment locally  
 env -i HOME="$HOME" PATH="$PATH" USER="$USER" bash -c 'FILE_ENV="./ci/test/00_setup_env_native_asan.sh" ./ci/test_run_all.sh'
 ```
 
@@ -59,25 +67,26 @@ env -i HOME="$HOME" PATH="$PATH" USER="$USER" bash -c 'FILE_ENV="./ci/test/00_se
 - **Functional Tests**: Python tests in `test/functional/`
 - **Fuzzing**: `./src/test/fuzz/fuzz_bitcoin`
 - **Benchmarks**: `./src/bench/bench_bitcoin`
+- **Linting**: `./ci/lint/06_script.sh`
 
 ## Code Style
 
 ### C++ Guidelines
 **Style**: Bitcoin Core style (clang-format enforced)
 **Standard**: C++17
-**Linting**: `./ci/lint/06_script.sh`
+**Formatter**: `clang-format` (config in `src/.clang-format`)
 
 **Key Conventions**:
 - **Files**: Use `.cpp` for implementation, `.h` for headers
+- **Imports**: Group by standard library, Bitcoin Core, third-party, local
 - **Naming**: 
   - Classes: `PascalCase` (`CBlock`, `CWallet`)
   - Functions: `PascalCase` (`GetBlockHash()`, `CreateTransaction()`)
   - Variables: `snake_case` (`block_height`, `transaction_fee`)
   - Constants: `UPPER_CASE` (`MAX_BLOCK_SIZE`)
-- **Headers**: Order: standard library, project headers, third-party
-- **Includes**: Use quotes for local headers, angle brackets for system libraries
+- **Headers**: Order: standard library → project headers → third-party
 - **Memory**: Use RAII, smart pointers (`std::unique_ptr`, `std::shared_ptr`)
-- **Error Handling**: Use exceptions for exceptional cases, return values for expected errors
+- **Error Handling**: Use exceptions for exceptional cases, `std::optional`/`Result` for expected errors
 
 ### Python Guidelines  
 **Style**: PEP 8
@@ -101,20 +110,21 @@ env -i HOME="$HOME" PATH="$PATH" USER="$USER" bash -c 'FILE_ENV="./ci/test/00_se
 
 ### Lint Commands
 ```bash
-# Run all linting
+# Run all linting (main CI lint check)
 ./ci/lint/06_script.sh
 
 # Individual lint checks
-test/lint/all-lint.py
-test/lint/check-doc.py
-test/lint/commit-script-check.sh
+test/lint/all-lint.py          # Code style, formatting
+test/lint/check-doc.py         # Documentation consistency
+test/lint/commit-script-check.sh # Commit message validation
 ```
 
 ### Code Quality Tools
-- **Clang Format**: Code formatting (`.clang-format`)
-- **Clang Tidy**: Static analysis
+- **Clang Format**: Code formatting (config: `src/.clang-format`)
+- **Clang Tidy**: Static analysis (config: `src/.clang-tidy`)
 - **Cppcheck**: Static analysis  
 - **Sanitizers**: ASan, UBSan, TSan (in CI)
+- **EditorConfig**: `.editorconfig` for basic formatting
 
 ## Project Structure
 
@@ -146,7 +156,8 @@ make check                    # Run all tests
 make clean && make           # Clean rebuild to catch issues
 
 # For specific areas
-make -j$(nproc) check TESTS="test_bitcoin"  # Unit tests only
+make -j$(nproc) check TESTS="test_blackmore"  # Unit tests only
+make src/test/test_blackmore # Build test binary only
 ```
 
 ### Build Debug Versions
@@ -168,12 +179,15 @@ make
 
 ### Don't Modify
 - **src/secp256k1/**: External library (subtree)
-- **src/leveldb/**: External library (subtree)
+- **src/leveldb/**: External library (subtree) 
 - **src/minisketch/**: External library (subtree)
+- **src/crc32c/**: External library (subtree)
 - **depends/**: Build dependencies (auto-generated)
 
 ### Configuration Files
-- **.clang-format**: C++ formatting rules
+- **src/.clang-format**: C++ formatting rules
+- **src/.clang-tidy**: Static analysis rules
+- **.editorconfig**: Basic formatting rules
 - **.gitignore**: Git ignore patterns
 - **configure.ac**: Build configuration
 - **Makefile.am**: Build rules
@@ -184,7 +198,7 @@ make
 1. Declare in `src/rpc/` header files
 2. Implement in corresponding `.cpp` files
 3. Add tests in `test/functional/`
-4. Update documentation in `doc/`
+4. Update documentation in `doc/JSON-RPC-interface.md`
 
 ### Adding Tests
 1. **Unit Tests**: Add to `src/test/` directory
@@ -215,18 +229,11 @@ make clean && make distclean
 ### Test Failures
 ```bash
 # Run specific failing test with verbose output
-test/functional/test_runner.py --verbose <test_name>
+test/functional/test_runner.py --verbose --failfast <test_name>
 
 # Debug with gdb
-gdb --args src/test/test_bitcoin
+gdb --args src/test/test_blackmore
 ```
 
-## Contact and Resources
-
-- **Repository**: https://github.com/CoinBlack/blackcoin-more
-- **Documentation**: `doc/` directory
-- **Issue Tracker**: GitHub Issues
-- **Contributing**: Follow standard GitHub workflow (fork, branch, PR)
-
 ---
-*Last Updated: December 27, 2025*
+*Last Updated: December 29, 2025*

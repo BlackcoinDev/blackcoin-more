@@ -33,7 +33,7 @@ jobs:
     steps:
     - name: Determine fetch depth
       run: echo "FETCH_DEPTH=$((${{ github.event.pull_request.commits }} + 2))" >> "$GITHUB_ENV"
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6.0.2
       with:
         ref: ${{ github.event.pull_request.head.sha }}
         fetch-depth: ${{ env.FETCH_DEPTH }}
@@ -315,7 +315,7 @@ jobs:
         run: ccache --show-stats
 
       - name: Save Ccache cache
-        uses: actions/cache/save@v4.3.0
+        uses: actions/cache/save@v5.0.2
         if: github.event_name != 'pull_request' && steps.ccache-cache.outputs.cache-hit != 'true'
         with:
           path: ~/AppData/Local/ccache

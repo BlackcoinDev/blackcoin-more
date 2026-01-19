@@ -31,14 +31,14 @@ jobs:
     env:
       MAX_COUNT: 6
     steps:
-      - name: Determine fetch depth
-        run: echo "FETCH_DEPTH=$((${{ github.event.pull_request.commits }} + 2))" >> "$GITHUB_ENV"
-  - uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: ${{ env.FETCH_DEPTH }}
-      - name: Determine commit range
-        run: |
+    - name: Determine fetch depth
+      run: echo "FETCH_DEPTH=$((${{ github.event.pull_request.commits }} + 2))" >> "$GITHUB_ENV"
+    - uses: actions/checkout@v5
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+        fetch-depth: ${{ env.FETCH_DEPTH }}
+    - name: Determine commit range
+      run: |
           # Checkout HEAD~ and find the test base commit
           # Checkout HEAD~ because it would be wasteful to rerun tests on the PR
           # head commit that are already run by other jobs.
@@ -60,14 +60,14 @@ jobs:
           # ancestors from the rev-list output as described in:
           # https://git-scm.com/docs/git-rev-list
           echo "TEST_BASE=$(git rev-list -n$((${{ env.MAX_COUNT }} + 1)) --reverse HEAD ^$(git rev-list -n1 --merges HEAD)^@ | head -1)" >> "$GITHUB_ENV"
-      - run: |
-          sudo apt-get update
-          sudo apt-get install clang ccache build-essential libtool autotools-dev automake pkg-config bsdmainutils python3-zmq libevent-dev libboost-dev libsqlite3-dev libdb++-dev systemtap-sdt-dev libminiupnpc-dev libnatpmp-dev qtbase5-dev qttools5-dev qttools5-dev-tools qtwayland5 libqrencode-dev -y
-      - name: Compile and run tests
-        run: |
-          # Run tests on commits after the last merge commit and before the PR head commit
-          # Use clang++, because it is a bit faster and uses less memory than g++
-          git rebase --exec "echo Running test-one-commit on \$( git log -1 ) && ./autogen.sh && CC=clang CXX=clang++ ./configure && make clean && make -j $(nproc) check && ./test/functional/test_runner.py -j $(( $(nproc) * 2 ))" ${{ env.TEST_BASE }}
+    - run: |
+        sudo apt-get update
+        sudo apt-get install clang ccache build-essential libtool autotools-dev automake pkg-config bsdmainutils python3-zmq libevent-dev libboost-dev libsqlite3-dev libdb++-dev systemtap-sdt-dev libminiupnpc-dev libnatpmp-dev qtbase5-dev qttools5-dev qttools5-dev-tools qtwayland5 libqrencode-dev -y
+    - name: Compile and run tests
+      run: |
+        # Run tests on commits after the last merge commit and before the PR head commit
+        # Use clang++, because it is a bit faster and uses less memory than g++
+        git rebase --exec "echo Running test-one-commit on \$( git log -1 ) && ./autogen.sh && CC=clang CXX=clang++ ./configure && make clean && make -j $(nproc) check && ./test/functional/test_runner.py -j $(( $(nproc) * 2 ))" ${{ env.TEST_BASE }}
 
   macos-native-x86_64:
     name: 'macOS 13 native, x86_64, no depends, sqlite only, gui'
@@ -86,7 +86,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6.0.2
 
       - name: Clang version
         run: |
@@ -106,7 +106,7 @@ jobs:
 
       - name: Restore Ccache cache
         id: ccache-cache
-        uses: actions/cache/restore@v4.3.0
+        uses: actions/cache/restore@v5.0.2
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ github.job }}-ccache-${{ github.run_id }}
@@ -116,7 +116,7 @@ jobs:
         run: ./ci/test_run_all.sh
 
       - name: Save Ccache cache
-        uses: actions/cache/save@v4.3.0
+        uses: actions/cache/save@v5.0.2
         if: github.event_name != 'pull_request' && steps.ccache-cache.outputs.cache-hit != 'true'
         with:
           path: ${{ env.CCACHE_DIR }}
@@ -143,7 +143,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6.0.2
 
       - name: Fix Visual Studio installation
         # Avoid toolset ambiguity that MSVC can't handle.
@@ -196,7 +196,7 @@ jobs:
 
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         # Using microsoft/setup-msbuild is not enough.
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@v1.13.0
         with:
           arch: x64
 
@@ -209,7 +209,7 @@ jobs:
 
       - name: Restore static Qt cache
         id: static-qt-cache
-        uses: actions/cache/restore@v4.3.0
+        uses: actions/cache/restore@v5.0.2
         with:
           path: C:\Qt_static
           key: ${{ github.job }}-static-qt-${{ hashFiles('msbuild_version', 'qt_url', 'qt_conf') }}
@@ -252,14 +252,14 @@ jobs:
 
       - name: Save static Qt cache
         if: steps.static-qt-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4.3.0
+        uses: actions/cache/save@v5.0.2
         with:
           path: C:\Qt_static
           key: ${{ github.job }}-static-qt-${{ hashFiles('msbuild_version', 'qt_url', 'qt_conf') }}
 
       - name: Ccache installation cache
         id: ccache-installation-cache
-        uses: actions/cache@v4.3.0
+        uses: actions/cache@v5.0.2
         with:
           path: |
             C:\ProgramData\chocolatey\lib\ccache
@@ -276,7 +276,7 @@ jobs:
 
       - name: Restore Ccache cache
         id: ccache-cache
-        uses: actions/cache/restore@v4.3.0
+        uses: actions/cache/restore@v5.0.2
         with:
           path: ~/AppData/Local/ccache
           key: ${{ github.job }}-ccache-${{ github.run_id }}
@@ -291,13 +291,13 @@ jobs:
           Get-Content -Path "$env:GITHUB_WORKSPACE\vcpkg_commit"
 
       - name: vcpkg tools cache
-        uses: actions/cache@v4.3.0
+        uses: actions/cache@v5.0.2
         with:
           path: C:/vcpkg/downloads/tools
           key: ${{ github.job }}-vcpkg-tools
 
       - name: vcpkg binary cache
-        uses: actions/cache@v4.3.0
+        uses: actions/cache@v5.0.2
         with:
           path: ~/AppData/Local/vcpkg/archives
           key: ${{ github.job }}-vcpkg-binary-${{ hashFiles('vcpkg_commit', 'msbuild_version', 'build_msvc/vcpkg.json') }}

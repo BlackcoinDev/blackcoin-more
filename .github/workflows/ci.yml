@@ -30,10 +30,12 @@ jobs:
     timeout-minutes: 360  # Use maximum time, see https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idtimeout-minutes. Assuming a worst case time of 1 hour per commit, this leads to a --max-count=6 below.
     env:
       MAX_COUNT: 6
+      FETCH_DEPTH: '0'
+      TEST_BASE: ''
     steps:
     - name: Determine fetch depth
       run: echo "FETCH_DEPTH=$((${{ github.event.pull_request.commits }} + 2))" >> "$GITHUB_ENV"
-    - uses: actions/checkout@v6.0.2
+    - uses: actions/checkout@v6.0.1
       with:
         ref: ${{ github.event.pull_request.head.sha }}
         fetch-depth: ${{ env.FETCH_DEPTH }}
@@ -83,10 +85,12 @@ jobs:
     env:
       FILE_ENV: './ci/test/00_setup_env_mac_native.sh'
       BASE_ROOT_DIR: ${{ github.workspace }}
+      CCACHE_DIR: ${{ github.workspace }}/.ccache_dir
+      
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6.0.1
 
       - name: Clang version
         run: |
@@ -102,7 +106,7 @@ jobs:
           brew install automake libtool pkg-config gnu-getopt ccache boost libevent miniupnpc libnatpmp zeromq qt@5 qrencode
 
       - name: Set Ccache directory
-        run: echo "CCACHE_DIR=${RUNNER_TEMP}/ccache_dir" >> "$GITHUB_ENV"
+        run: echo "CCACHE_DIR=${{ github.workspace }}/.ccache_dir" >> "$GITHUB_ENV"
 
       - name: Restore Ccache cache
         id: ccache-cache

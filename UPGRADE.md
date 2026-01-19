@@ -14,15 +14,29 @@ This document outlines the upgrade path from Blackcoin More 26.2.0 (based on Bit
 
 ### 1.1 Blackcoin-Specific Files (MUST PRESERVE)
 
-#### Core PoS Implementation
-| File | Purpose | Priority |
-|------|---------|----------|
-| `src/pos.cpp` | PoS block validation, stake mining | CRITICAL |
-| `src/pos.h` | PoS declarations | CRITICAL |
-| `src/wallet/staking.cpp` | Wallet staking logic | CRITICAL |
-| `src/wallet/staking.h` | Staking declarations | CRITICAL |
-| `src/wallet/rpc/staking.cpp` | Staking RPC methods | CRITICAL |
-| `src/wallet/rpc/staking.h` | Staking RPC declarations | CRITICAL |
+#### Core PoS Implementation (PORTED FROM PEERCOIN/QTUM)
+| File | Origin | Purpose | Priority |
+|------|--------|---------|----------|
+| `src/pos.cpp` | Peercoin/Qtum | PoS block validation, stake mining | CRITICAL |
+| `src/pos.h` | Peercoin/Qtum | PoS declarations | CRITICAL |
+| `src/validation.cpp` | Qtum | PoS validation logic | CRITICAL |
+| `src/validation.h` | Qtum | Validation declarations | HIGH |
+| `src/node/miner.cpp` | Peercoin/Qtum | PoS block creation, staking | CRITICAL |
+| `src/node/miner.h` | Peercoin/Qtum | Mining declarations | HIGH |
+| `src/wallet/staking.cpp` | Qtum | Wallet staking logic | CRITICAL |
+| `src/wallet/staking.h` | Qtum | Staking declarations | CRITICAL |
+| `src/wallet/rpc/staking.cpp` | Qtum | Staking RPC methods | CRITICAL |
+| `src/wallet/rpc/staking.h` | Qtum | Staking RPC declarations | CRITICAL |
+| `src/net_processing.cpp` | Qtum | PoS network handling | HIGH |
+| `src/net_processing.h` | Qtum | Network processing declarations | MEDIUM |
+
+**Copyright Headers Confirm Porting:**
+- `src/pos.cpp` - Copyright (c) 2011-2013 The PPCoin developers, Copyright (c) 2016-2018 The Qtum developers
+- `src/pos.h` - Copyright (c) 2011-2013 The PPCoin developers, Copyright (c) 2016-2018 The Qtum developers
+- `src/node/miner.cpp` - Copyright (c) 2020-2022 The Peercoin developers, Copyright (c) 2016-2023 The Qtum developers
+- `src/node/miner.h` - Copyright (c) 2020-2022 The Peercoin developers, Copyright (c) 2016-2023 The Qtum developers
+- `src/validation.cpp` - Copyright (c) 2016-2018 The Qtum developers
+- `src/wallet/staking.cpp` - Copyright (c) 2016-2023 The Qtum developers
 
 #### Chain Parameters
 | File | Purpose | Priority |
@@ -58,7 +72,7 @@ This document outlines the upgrade path from Blackcoin More 26.2.0 (based on Bit
 | `src/primitives/transaction.h` | IsCoinStake(), IsCoinBase() | CRITICAL |
 | `src/primitives/block.h` | IsProofOfStake(), IsProofOfWork() | CRITICAL |
 
-#### CRITICAL: Block Serialization Differences
+#### CRITICAL: Block Serialization Differences (Peercoin/Qtum Port)
 
 **Blackcoin has DIFFERENT block serialization than Bitcoin:**
 
@@ -143,6 +157,46 @@ uint256 CBlockHeader::GetPoWHash() const
 - `src/validation.cpp` - CheckBlockSignature() using vchBlockSig
 - `src/crypto/scrypt.cpp` - Scrypt implementation for GetPoWHash()
 - `src/crypto/scrypt-sse2.cpp` - SSE2-optimized Scrypt
+
+### 1.X Peercoin/Qtum Ported Features (MUST PRESERVE)
+
+These features were ported from Peercoin and Qtum and are critical to Blackcoin's PoS implementation:
+
+#### Stake Modifier (Peercoin Origin)
+**File:** `src/pos.cpp`, `src/chain.h`
+**Purpose:** Prevents txout owners from precomputing future proof-of-stake
+```cpp
+// The stake modifier is calculated from the previous stake modifier and the kernel hash
+uint256 ComputeStakeModifier(const CBlockIndex* pindexPrev, const uint256& kernel);
+```
+**Storage:** `CBlockIndex::nStakeModifier` (must be preserved in serialization)
+
+#### Stake Kernel Protocol v3 (Blackcoin/Qtum)
+**File:** `src/pos.cpp` - `CheckStakeKernelHash()`
+**Formula:** `hash(nStakeModifier + txPrev.nTime + txPrev.vout.hash + txPrev.vout.n + nTime) < bnTarget * nWeight`
+**Purpose:** Proves ownership of stake UTXO for block signing
+
+#### Stake Cache (Qtum)
+**File:** `src/wallet/staking.cpp`, `src/wallet/init.cpp`
+**Purpose:** Caches stake weight and UTXO information for better performance
+**Config:** `-stakecache=<true/false>` (default: false)
+
+#### CheckBlockSignature (Qtum)
+**File:** `src/validation.cpp`
+**Purpose:** Verifies PoS block signature using `vchBlockSig`
+```cpp
+bool CheckBlockSignature(const CBlock& block);
+```
+
+#### PoS Network Handling (Qtum)
+**File:** `src/net_processing.cpp`
+**Purpose:** Handles PoS block propagation and validation over P2P network
+
+#### PoS Block Creation (Peercoin/Qtum)
+**File:** `src/node/miner.cpp` - `CreateNewBlock()`
+**Purpose:** Creates both PoW and PoS blocks with correct coinstake transaction
+
+**All these files must be preserved exactly as-is from the Peercoin/Qtum port.**
 
 #### RPC Extensions
 | File | Purpose | Priority |

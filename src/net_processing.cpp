@@ -3,6 +3,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+// UPGRADE NOTE: Blackcoin More P2P network processing
+// CRITICAL DIFFERENCES FROM BITCOIN CORE:
+// - GetAdjustedTime(): REQUIRED for PoS timestamp validation (used in sync checks)
+// - RBF: DISABLED - Bitcoin Core's RBF signaling not applicable
+// - Static fees: 100,000 sat/kvB - fee estimation not used in networking
+// See UPGRADE.md for complete details.
+
 // Header spam protection by Qtum
 // Copyright (c) 2016-2019 The Qtum developers
 

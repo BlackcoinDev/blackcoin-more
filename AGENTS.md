@@ -1,148 +1,421 @@
-# Agent Coding Guidelines for Blackcoin More
+# Blackcoin More — Agent Knowledge Base
 
-## Build System
+**Generated:** 2026-01-20
+**Commit:** 13addfc8
+**Branch:** (current)
+**Project:** Blackcoin More (PoS cryptocurrency fork from Bitcoin Core)
 
-**Build System**: Autotools (GNU Autoconf/Automake)
+---
+
+## ⚠️ CRITICAL: Bitcoin 26.x → 30.x Upgrade Context
+
+### Non-Negotiable Blackcoin More Differences
+
+| Feature | Bitcoin Core | Blackcoin More | Never Port |
+|---------|--------------|----------------|------------|
+| **RBF** | Enabled | **DISABLED** | ✅ Never enable |
+| **Fees** | Dynamic | **Static (100k sat/kvB)** | ✅ Never port estimation |
+| **BDB** | Removed in 30.x | **REQUIRED (6.2)** | ✅ Never remove |
+| **GetAdjustedTime()** | Removed in 28.x | **REQUIRED** | ✅ Never remove |
+| **PoS Block Header** | Standard | **Extended** | ✅ Preserve exactly |
+| **SegWit Threshold** | 95% | **80%** | ✅ Keep 80% |
+| **Taproot** | Active | **NEVER_ACTIVE** | ✅ Never enable |
+| **C++ Standard** | C++20 | C++17 → C++20 | Upgrade required |
+| **Build System** | CMake | Autotools | Migration planned |
+| **nStakeModifier** | Not present | **REQUIRED** | ✅ Must preserve |
+
+### Never-Port List (Critical)
+
+1. **❌ RBF Implementation**
+   - Blackcoin uses first-seen rule only
+   - `mempoolreplacement` policy must remain disabled
+   - Never add `opt_in_rbf` transaction signaling
+
+2. **❌ Dynamic Fee Estimation**
+   - Static 100,000 sat/kvB only
+   - Never port `fee_estimates.dat` system
+   - Never implement `estimateSmartFee`
+
+3. **❌ BDB Removal**
+   - Bitcoin 30.x removed BDB wallet support
+   - Blackcoin More MUST preserve BDB 6.2
+   - Never force SQLite/descriptor migration
+
+4. **❌ GetAdjustedTime() Removal**
+   - Critical for PoS kernel validation (removed in Bitcoin 28.x)
+   - Never replace with `GetTime()` only
+   - Never remove from `src/timedata.h`
+
+5. **❌ Taproot/Script Versions 1+**
+   - Taproot marked `NEVER_ACTIVE`
+   - Never enable taproot deployment
+   - Never implement future script versions
+
+6. **❌ nStakeModifier Loss**
+   - CBlockIndex::nStakeModifier is CRITICAL for PoS
+   - NOT present in Bitcoin Core
+   - Used in `src/pos.cpp:CheckStakeKernelHash()`
+   - Must preserve this field exactly
+
+### SegWit Status (January 2026)
+
+- **Testnet**: ✅ ACTIVATED September 2024 (80% BIP-9 threshold)
+- **Mainnet**: ⚠️ IN PROGRESS (~65% signaling, needs 80%)
+- **Critical**: 80% threshold is hardcoded, different from Bitcoin's 95%
+
+### Recommended Upgrade Strategy
+
+**Incremental Approach (Recommended)**:
+```
+26.x → 27.x → 28.x → 29.x → 30.x
+```
+Each step smaller, easier to test and debug issues.
+
+**Key Milestones**:
+- 27.x: GetAdjustedTime() removed (must preserve in Blackcoin)
+- 28.x: Txid/Wtxid types, CDataStream→DataStream
+- 29.x: GenTxid→std::variant
+- 30.x: uint256→Txid final, BDB conditional compilation, CMake migration
+
+---
+
+## Upgrade Documentation References
+
+When working on the upgrade, reference these files for critical information:
+
+| File | Purpose |
+|------|---------|
+| `UPGRADE.md` | Complete upgrade plan with phase details |
+| `BLOCK_SERIALIZATION.md` | **CRITICAL**: PoS block serialization (nFlags, vchBlockSig, nStakeModifier) |
+| `CMake_MIGRATION.md` | Build system migration (29.x → 30.x) |
+| `src/primitives/block.h` | PoS header fields (nFlags, vchBlockSig) |
+| `src/chain.h` | nStakeModifier field (CRITICAL) |
+| `src/pos.h` / `src/pos.cpp` | PoS kernel validation |
+| `src/timedata.h` | GetAdjustedTime() (must preserve) |
+| `src/policy/policy.h` | Static fee constants |
+| `src/crypto/scrypt.cpp` | SSE2 for legacy PoW |
+| `src/kernel/chainparams.cpp` | Network ports, config |
+| `configure.ac` | BDB default = yes (changed from auto) |
+
+---
+
+## Overview
+
+Blackcoin More is a Proof-of-Stake 3.1 (PoSV3/BPoS) cryptocurrency derived from Bitcoin Core. C++17 codebase with Qt5 GUI, built via GNU Autotools. Multi-binary architecture: daemon (`blackmored`), CLI (`blackmore-cli`), wallet (`blackmore-wallet`), GUI (`blackmore-qt`), and utilities.
+
+---
+
+## Structure
+
+```
+./                    # Autotools root
+├── configure.ac      # Build configuration (79KB)
+├── Makefile.am       # Top-level makefile
+├── autogen.sh        # Bootstrap script
+├── agent/            # AI agent documentation (THIS REPO)
+├── src/              # C++ source (159 files at root + 29 subdirs)
+│   ├── kernel/       # Core: chain, mempool, validation
+│   ├── wallet/       # BDB/SQLite wallets, key management
+│   ├── rpc/          # JSON-RPC server implementation
+│   ├── consensus/    # Protocol validation rules
+│   ├── qt/           # Qt5 GUI (119 files)
+│   ├── net.cpp       # P2P networking (150KB)
+│   ├── validation.cpp# Block/transaction validation
+│   └── init/         # Application initialization
+├── test/
+│   ├── functional/   # Python integration tests
+│   ├── lint/         # Static analysis
+│   └── unit/         # C++ Boost.Test
+├── ci/               # CI scripts (Linux, macOS, Windows)
+└── doc/              # Build docs, developer notes
+```
+
+---
+
+## Where to Look
+
+| Task | Location | Notes |
+|------|----------|-------|
+| **Daemon entry** | `src/bitcoind.cpp` | `main()` for blackmored |
+| **CLI entry** | `src/bitcoin-cli.cpp` | `main()` for blackmore-cli |
+| **Wallet entry** | `src/bitcoin-wallet.cpp` | `main()` for blackmore-wallet |
+| **GUI entry** | `src/qt/bitcoin.cpp` | `main()` for blackmore-qt |
+| **Consensus rules** | `src/consensus/` | Validation, merkle, tx_verify |
+| **PoS implementation** | `src/pos.h`, `src/pos.cpp` | Proof-of-Stake logic |
+| **PoW (legacy)** | `src/pow.cpp` | Inactive PoW code preserved |
+| **P2P networking** | `src/net.cpp`, `src/net_processing.cpp` | 150KB, 298KB respectively |
+| **RPC server** | `src/rpc/server.cpp`, `src/rpc/blockchain.cpp` | 129KB blockchain.cpp |
+| **Wallet storage** | `src/wallet/bdb.cpp`, `src/wallet/db.cpp` | BDB/SQLite |
+| **Validation** | `src/validation.cpp` | Block/tx validation |
+| **Chain state** | `src/kernel/chain.h`, `src/kernel/chain.cpp` | Block index, CChain |
+| **Mempool** | `src/kernel/mempool_entry.h`, `src/kernel/mempool_persist.cpp` | Tx pool |
+| **Config parsing** | `src/init/*.cpp` | Startup, args |
+
+---
+
+## Code Map
+
+### Entry Points (binaries)
+
+| Binary | Source | Role |
+|--------|--------|------|
+| `blackmored` | `src/bitcoind.cpp` | Daemon process |
+| `blackmore-cli` | `src/bitcoin-cli.cpp` | CLI tool |
+| `blackmore-wallet` | `src/bitcoin-wallet.cpp` | Wallet CLI |
+| `blackmore-tx` | `src/bitcoin-tx.cpp` | Tx utility |
+| `blackmore-chainstate` | `src/bitcoin-chainstate.cpp` | Chain inspection |
+| `blackmore-qt` | `src/qt/bitcoin.cpp` | GUI application |
+| `test_blackmore` | `src/test/main.cpp` | C++ unit tests |
+
+### Core Classes
+
+| Symbol | Type | Location | Role |
+|--------|------|----------|------|
+| `CChain` | class | `src/kernel/chain.h` | Block index chain |
+| `CBlockIndex` | struct | `src/chain.h` | Block metadata |
+| `CValidationState` | struct | `src/consensus/validation.h` | Validation result |
+| `CTxMemPool` | class | `src/txmempool.h` | Transaction pool |
+| `CWallet` | class | `src/wallet/wallet.h` | Wallet storage |
+| `CKeyStore` | class | `src/key.h` | Key storage |
+| `CChainParams` | class | `src/kernel/chainparams.h` | Chain parameters |
+| `CConnman` | class | `src/net.h` | Connection manager |
+
+---
+
+## Conventions
+
+### C++ Style (Non-Standard)
+
+- **Bracing**: Allman style (`AfterClass: true`, `AfterFunction: true`)
+- **Pointers**: Left-aligned (`Type* var`, NOT `Type *var`)
+- **Column limit**: None (`ColumnLimit: 0`)
+- **Short functions**: Allowed on single line (`AllowShortFunctionsOnASingleLine: All`)
+- **Indentation**: 4 spaces (`IndentWidth: 4`)
+- **Tabs**: Never (`UseTab: Never`)
+
+### Naming
+
+- Classes: `PascalCase` (`CBlock`, `CWallet`, `CChain`)
+- Functions: `PascalCase` (`GetBlockHash`, `ConnectBlock`)
+- Variables: `snake_case` (`block_height`, `tx_fee`)
+- Constants: `UPPER_CASE` (`MAX_BLOCK_SIZE`)
+
+### Imports
+
+Order: Standard library → Project headers → Third-party
+
+### RAII & Smart Pointers
+
+Prefer `std::unique_ptr`, `std::shared_ptr`. Use exceptions for exceptional cases only.
+
+### Error Handling
+
+- `std::optional` / `Result` types for expected errors
+- Exceptions for truly exceptional conditions
+
+---
+
+## Anti-Patterns (THIS PROJECT)
+
+### FORBIDDEN: Never Modify
+
+| Path | Reason |
+|------|--------|
+| `src/secp256k1/*` | External subtree library |
+| `src/leveldb/*` | External subtree library |
+| `src/minisketch/*` | External subtree library |
+| `src/crc32c/*` | External subtree library |
+| `depends/*` | Auto-generated build dependencies |
+| `.github/workflows/*` | CI/CD (keep as-is) |
+
+### FORBIDDEN: Never Enable/Use
+
+| Feature | Reason |
+|---------|--------|
+| **RBF (Replace-By-Fee)** | Disabled in Blackcoin - NEVER enable |
+| **Taproot** | `NEVER_ACTIVE` flag set - NEVER enable |
+| **Dynamic fees** | Static fee structure only - NEVER port estimation |
+| **GUIX** | Incompatible, never adapted |
+| **BDB wallet creation** | Deprecated, will be removed (but BDB READ support MUST be preserved) |
+
+### CRITICAL: Never Port During Upgrade
+
+| Bitcoin Core Feature | Blackcoin More Status | Action |
+|---------------------|----------------------|--------|
+| RBF implementation | Completely disabled | Never port |
+| Fee estimation system | Static 100,000 sat/kvB | Never port |
+| BDB removal | BDB 6.2 required | Never remove BDB |
+| GetAdjustedTime() removal | Required for PoS | Never remove |
+| Taproot activation | NEVER_ACTIVE | Never enable |
+| Descriptor wallet migration | BDB still supported | Never force |
+
+### FORBIDDEN: Never Port
+
+- Bitcoin Core 30.x+ features — not compatible with Blackcoin's PoS model
+- Bitcoin's functional tests — never adapted for PoS, will fail
+
+### Deprecated RPCs (Use Alternatives)
+
+| Deprecated | Use Instead |
+|------------|-------------|
+| `getinfo` | Combined RPC calls |
+| `signrawtransaction` | `signrawtransactionwithwallet` |
+| `addwitnessaddress` | Native segwit addresses |
+| `generate` | `generatetoaddress` |
+| Accounts API | Label system |
+
+### Code Patterns to Avoid
+
+- `vsnprintf` usage outside `src/dbwrapper.cpp`
+- `char` serialization (use `uint8_t`/`int8_t`)
+- Direct `uint256` comparisons (forbidden comparison type)
+- `QDialog::exec()` (use `QDialog::show()`)
+
+---
+
+## Unique Styles
+
+### Proof-of-Stake Hybrid Architecture
+
+- PoS validation in `src/pos.h`/`src/pos.cpp`
+- Legacy PoW code in `src/pow.cpp` (inactive but preserved)
+- Hybrid model: evolved from PoW to PoS
+
+### Wallet Deprecation Path
+
+1. Legacy BDB wallets deprecated
+2. Migration to descriptor wallets via `migratewallet` RPC
+3. BDB support will be removed in future version
+
+### Static Fee Structure
+
+- Unlike Bitcoin's dynamic fees, Blackcoin maintains fixed fees
+- Fee rates defined in chain parameters, not market-based
+
+### AI Agent Documentation
+
+- Non-standard `agent/` directory for AI-assisted development
+- Contains: `STAKING.md`, `COLD_STAKING.md`, `ANALYSIS.md`
+
+---
+
+## Commands
+
+### Build
+
 ```bash
 ./autogen.sh
 ./configure --enable-tests
 make -j$(nproc)
 
 # Specific targets
-make blackmored              # Build daemon
-make blackmore-cli           # Build CLI
-make blackmore-qt            # Build GUI
-make test_blackmore          # Build test binary
-make check                   # Run all tests
+make blackmored              # Daemon
+make blackmore-cli           # CLI
+make blackmore-qt            # GUI
+make test_blackmore          # Test binary
 ```
 
-### Dependencies
-- **Required**: libssl-dev, libevent-dev, libboost-dev, libsodium-dev
-- **Wallet**: libdb-dev, libsqlite3-dev
-- **GUI**: qtbase5-dev, qttools5-dev
-
-## Testing
+### Test
 
 ```bash
 make check                           # All tests
 src/test/test_blackmore              # C++ unit tests
 test/functional/test_runner.py       # Python functional tests
-test/functional/test_runner.py wallet_upgradewallet.py  # Single test
-test/functional/test_runner.py --verbose wallet_upgradewallet.py  # Verbose
-test/functional/test_runner.py --cached wallet_*.py  # Category
-test/functional/test_runner.py --verbose --failfast <test_name>  # Debug
+test/functional/test_runner.py --verbose wallet_*.py  # Verbose wallet tests
+test/functional/test_runner.py --failfast  # Stop on first failure
+
+# CI scripts
+ci/test_run_all.sh                   # All CI test stages
+ci/lint_run_all.sh                   # All linting
 ```
 
-## Code Style
-
-### C++ Guidelines
-**Standard**: C++17 | **Formatter**: `clang-format` (config in `src/.clang-format`)
-
-**Files**: `.cpp` for implementation, `.h` for headers
-**Imports**: Group by standard library → project headers → third-party
-
-**Naming**:
-- Classes: `PascalCase` (`CBlock`, `CWallet`)
-- Functions: `PascalCase` (`GetBlockHash()`, `CreateTransaction()`)
-- Variables: `snake_case` (`block_height`, `transaction_fee`)
-- Constants: `UPPER_CASE` (`MAX_BLOCK_SIZE`)
-
-**Style**:
-- RAII, smart pointers (`std::unique_ptr`, `std::shared_ptr`)
-- Pointer alignment left (`Type* var`)
-- Exceptions for exceptional cases, `std::optional`/`Result` for expected errors
-- Column limit: 0 (no enforced limit)
-
-### Python Guidelines  
-**Style**: PEP 8 | **Version**: Python 3.6+ | **Testing**: `unittest` framework
-
-**Naming**:
-- Classes: `PascalCase`
-- Functions/variables: `snake_case`
-- Constants: `UPPER_CASE`
-
-## Linting
+### Lint
 
 ```bash
-./ci/lint/06_script.sh          # All linting
-test/lint/all-lint.py           # Code style, formatting
-test/lint/check-doc.py          # Documentation
+./ci/lint/06_script.sh               # All linting
+test/lint/all-lint.py                # Style, formatting
+test/lint/check-doc.py               # Documentation
 ```
 
-**Tools**: Clang Format, Clang Tidy, Cppcheck, ASan/UBSan/TSan
-
-## Project Structure
-
-**Key Directories**:
-- `src/`: C++ source code
-- `src/test/`: C++ unit tests
-- `src/bench/`: Performance benchmarks
-- `src/qt/`: Qt GUI
-- `test/functional/`: Python integration tests
-- `ci/`: CI scripts
-
-**Core Components**:
-- `src/consensus/`: Protocol validation
-- `src/validation.cpp`: Block/transaction validation
-- `src/txmempool.cpp`: Transaction pool
-- `src/net/`: Peer-to-peer networking
-- `src/wallet/`: Wallet functionality
-- `src/rpc/`: Remote procedure calls
-
-## Development Workflow
+### Debug Build
 
 ```bash
-make check                    # Run all tests
-./ci/lint/06_script.sh       # Run linting
-make clean && make           # Clean rebuild
-
-./configure CFLAGS="-g -O0" --enable-debug  # Debug build
+./configure CFLAGS="-g -O0" --enable-debug
+make clean && make
 ```
 
-## Repository Rules
-
-### Don't Modify
-- `src/secp256k1/`, `src/leveldb/`, `src/minisketch/`, `src/crc32c/`: External libraries (subtree)
-- `depends/`: Build dependencies (auto-generated)
-
-### Configuration Files
-- `src/.clang-format`: C++ formatting rules
-- `src/.clang-tidy`: Static analysis rules
-- `.editorconfig`: Basic formatting rules
-- `configure.ac`: Build configuration
-
-## Common Agent Tasks
-
-### Adding New RPC Methods
-1. Declare in `src/rpc/` header files
-2. Implement in corresponding `.cpp` files
-3. Add tests in `test/functional/`
-4. Update documentation in `doc/JSON-RPC-interface.md`
-
-### Adding Tests
-- **Unit Tests**: Add to `src/test/`
-- **Functional Tests**: Add to `test/functional/`
-- **Benchmark Tests**: Add to `src/bench/`
-
-### Modifying Consensus
-1. Check `src/consensus/` for consensus rules
-2. Update `src/validation.cpp`
-3. Add comprehensive tests
-4. Consider network upgrade implications
-
-## Emergency Procedures
+### Emergency
 
 ```bash
 git reset --hard HEAD~1       # Revert last commit
-git stash                     # Stash uncommitted changes
-git checkout -- .             # Discard local changes
+git stash                     # Stash changes
+make clean && make distclean  # Full clean rebuild
+gdb --args src/test/test_blackmore  # Debug tests
+```
 
-make clean && make distclean  # Build issues
-./autogen.sh && ./configure && make
+### ⚠️ CMake Migration (29.x → 30.x)
 
-test/functional/test_runner.py --verbose --failfast <test_name>  # Debug test
-gdb --args src/test/test_blackmore
+**Bitcoin Core 30.x migrated from Autotools to CMake. Blackcoin More will follow.**
+
+| Phase | When | Action |
+|-------|------|--------|
+| Autotools | 26.x → 29.x | Current build system |
+| **CMake Migration** | **29.x → 30.x** | **Migrate per `CMake_MIGRATION.md`** |
+| CMake | 30.x+ | New build system |
+
+**Plan**:
+1. Complete Bitcoin upgrade to 30.x using Autotools
+2. Execute CMake migration (see `CMake_MIGRATION.md` for details)
+3. Preserve Blackcoin More differences in CMake configuration:
+   - RBF: DISABLED
+   - Static fees: 100,000 sat/kvB
+   - BDB 6.2: REQUIRED
+   - GetAdjustedTime(): PRESERVED
+   - nStakeModifier: PRESERVED
+
+```bash
+# After completing 29.x → 30.x upgrade:
+# Migration will replace these:
+rm configure.ac Makefile.am
+cmake -B build -S .
+cmake --build build
 ```
 
 ---
-*Last Updated: January 19, 2026*
+
+## Notes
+
+### Testing Reality
+
+- **Functional tests**: Never adapted for Blackcoin's PoS. Expect failures. Manual testing required for staking, transactions, sync.
+- **Higher testing effort**: Due to unadapted tests, expect significant manual validation.
+- **Pre-release warning**: Current builds are pre-release. Do not use for production staking.
+
+### Security Warnings
+
+- **Wallet encryption**: Lost passphrase = lost funds. Always backup.
+- **Scammers**: Console commands can steal funds. Understand before typing.
+- **Import risks**: Untrusted files/metadata can cause unexpected issues.
+- **Low fees**: Risk of never-confirming transactions.
+
+### Development Hacks (TODO/FIXME)
+
+- `src/validation.cpp`: Witness replacement in packages
+- `src/leveldb`: Better compaction implementation
+- `src/qt/bitcoinamountfield.h`: CAmount handling quirk
+- `src/qt/sendcoinsdialog.cpp`: Replace `QDialog::exec()`
+
+---
+
+## File References
+
+- **Build Config**: `configure.ac` (79KB), `src/Makefile.am`
+- **Code Style**: `src/.clang-format`, `src/.clang-tidy`, `.editorconfig`
+- **Upgrade Guide**: `UPGRADE.md` (Bitcoin Core porting warnings)
+- **Developer Notes**: `doc/developer-notes.md`
+- **JSON-RPC API**: `doc/JSON-RPC-interface.md`
+- **Build Instructions**: `doc/build-unix.md`, `doc/build-osx.md`, `doc/build-windows.md`
+
+---
+
+*Generated by /init-deep workflow*

@@ -3,6 +3,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+// UPGRADE NOTE: Blackcoin More blockchain RPC
+// CRITICAL DIFFERENCES FROM BITCOIN CORE:
+// - nStakeModifier: CRITICAL field in CBlockIndex - not present in Bitcoin 30.x
+// - GetAdjustedTime(): REQUIRED for PoS timestamp validation
+// - Static fees: 100,000 sat/kvB - never port fee estimation
+// See UPGRADE.md and src/rpc/AGENTS.md for complete details.
+
 #include <rpc/blockchain.h>
 
 #include <blockfilter.h>

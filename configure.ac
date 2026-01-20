@@ -102,12 +102,9 @@ AC_ARG_ENABLE([c++20],
   [use_cxx20=$enableval],
   [use_cxx20=no])
 
-dnl Require C++17 compiler (no GNU extensions)
-if test "$use_cxx20" = "no"; then
-AX_CXX_COMPILE_STDCXX([17], [noext], [mandatory])
-else
+dnl Require C++20 compiler (no GNU extensions)
+dnl C++20 is required for Blackcoin More v30.x
 AX_CXX_COMPILE_STDCXX([20], [noext], [mandatory])
-fi
 
 dnl Unless the user specified OBJCXX, force it to be the same as CXX. This ensures
 dnl that we get the same -std flags for both.
@@ -155,9 +152,9 @@ AC_ARG_WITH([sqlite],
 
 AC_ARG_WITH([bdb],
   [AS_HELP_STRING([--without-bdb],
-  [disable bdb wallet support (default is enabled if wallet is enabled)])],
+  [disable bdb wallet support (NOT RECOMMENDED: Blackcoin More requires BDB 6.2)])],
   [use_bdb=$withval],
-  [use_bdb=auto])
+  [use_bdb=yes]) dnl Blackcoin More: Default to YES (BDB 6.2 required)
 
 AC_ARG_ENABLE([usdt],
   [AS_HELP_STRING([--enable-usdt],
@@ -1405,6 +1402,11 @@ if test "$enable_wallet" != "no"; then
             AC_MSG_ERROR([wallet functionality requested but no BDB or SQLite support available.])
         fi
         enable_wallet=no
+    fi
+    dnl Blackcoin More: BDB 6.2 is REQUIRED, not optional. Warn if not found.
+    if test "$use_bdb" = "no" && test "$enable_wallet" != "no"; then
+        AC_MSG_WARN([Blackcoin More requires BDB 6.2 for wallet functionality.])
+        AC_MSG_WARN([Use --with-bdb to enable BDB support, or install BerkeleyDB 6.2.x.])
     fi
 fi
 

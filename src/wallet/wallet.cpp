@@ -3,6 +3,14 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+// UPGRADE NOTE: Blackcoin More wallet implementation
+// CRITICAL DIFFERENCES FROM BITCOIN CORE:
+// - BDB 6.2: REQUIRED wallet storage (Bitcoin 30.x removes BDB support)
+// - Static fees: 100,000 sat/kvB - no dynamic fee estimation
+// - RBF: DISABLED - no RBF wallet signaling
+// - GetAdjustedTime(): Used for fee calculations (removed in Bitcoin 28.x)
+// See UPGRADE.md and src/wallet/AGENTS.md for complete details.
+
 #include <wallet/wallet.h>
 
 #if defined(HAVE_CONFIG_H)

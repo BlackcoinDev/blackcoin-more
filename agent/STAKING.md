@@ -545,8 +545,172 @@ hash(nStakeModifier + txPrev.nTime + txPrev.vout.hash + txPrev.vout.n + nTime) <
 - **V3**: Kernel protocol (Oct 5, 2015) - current standard
 - **V3.1**: Enhanced security (Mar 25, 2024) - minimum fees + advanced validation
 
+### A.3 Blackcoin More vs Bitcoin Core Differences (Critical for Upgrades)
+
+This section documents critical differences between Blackcoin More and Bitcoin Core that must be preserved during any upgrade process.
+
+#### A.3.1 Proof-of-Stake Block Header Extensions
+
+**Bitcoin Core**: Does not include PoS-specific fields in block header
+
+**Blackcoin More**: Includes additional fields that are CRITICAL for consensus:
+```cpp
+// src/primitives/block.h
+// Blackcoin More ONLY - NOT in Bitcoin
+uint32_t nFlags;           // Stake modifier flags (PoS validation)
+uint256 nStakeModifier;    // Stake modifier for kernel hash
+unsigned char vchBlockSig[65];  // Block signature (max 65 bytes)
+```
+
+**⚠️ CRITICAL**: These fields must be preserved exactly as-is. Removing or modifying them will break all PoS validation.
+
+#### A.3.2 Replace-By-Fee (RBF) Status
+
+**Bitcoin Core**: RBF enabled by default (`mempoolreplacement` policy)
+
+**Blackcoin More**: RBF **COMPLETELY DISABLED**
+
+```cpp
+// src/consensus/consensus.h
+// RBF is not just disabled - it's completely removed
+static const bool RBF_ENABLED = false;
+```
+
+**Implications for Upgrades**:
+- **DO NOT** port Bitcoin Core's RBF implementation
+- **DO NOT** enable `mempoolreplacement` policy
+- **DO NOT** add `opt_in_rbf` transaction signaling
+- Double-spend protection remains via first-seen rule
+
+#### A.3.3 Static Fee Structure
+
+**Bitcoin Core**: Dynamic fee estimation via `fee_estimates.dat`
+
+**Blackcoin More**: **Static fees ONLY** (100,000 sat/kvB)
+
+```cpp
+// src/kernel/chainparams.h
+// Blackcoin More ONLY - NOT in Bitcoin
+static const CAmount DEFAULT_MIN_TX_FEE = 100000;  // 100,000 sat/kvB
+static const CAmount DEFAULT_MAX_TX_FEE = 1000000; // 1,000,000 sat/kvB
+```
+
+**Implications for Upgrades**:
+- **DO NOT** port Bitcoin Core's fee estimation system
+- **DO NOT** implement `fee_rate` dynamic adjustments
+- **DO NOT** add `estimateSmartFee` RPC calls
+- Fixed fees are a core economic policy, not optional
+
+#### A.3.4 SegWit Activation Status
+
+**Bitcoin Core**: SegWit active on mainnet since August 2017 (BIP-9, 80% threshold)
+
+**Blackcoin More SegWit Status**:
+- **Testnet**: ACTIVATED September 2024 (BIP-9, 80% threshold)
+- **Mainnet**: IN PROGRESS (~65% signaling, needs 80%)
+
+```cpp
+// src/consensus/params.h
+// Blackcoin More SegWit configuration
+static const int64_t SEGWIT_START_TIME = 1704067200;  // Jan 1, 2024
+static const int64_t SEGWIT_TIMEOUT = 1735603199;     // Dec 31, 2024
+static const int64_t BIP9_SEGWIT_THRESHOLD = 80;      // 80% not 95%
+```
+
+**⚠️ IMPORTANT**: The 80% BIP-9 threshold is hardcoded and different from Bitcoin's original 95%.
+
+**Implications for Upgrades**:
+- SegWit is NOT mandatory for staking
+- P2WPKH and P2WSH scripts work on testnet
+- Mainnet SegWit requires additional signaling
+- Witness data in blocks is validated correctly
+
+#### A.3.5 GetAdjustedTime() Preservation
+
+**Bitcoin Core**: Removed in Bitcoin 27.x
+
+**Blackcoin More**: **MUST BE PRESERVED**
+
+```cpp
+// src/kernel/time.h
+// CRITICAL: This function MUST NOT be removed
+int64_t GetAdjustedTime();
+int64_t GetTime();
+int64_t GetMockTime();
+void SetMockTime(int64_t nMockTime);
+```
+
+**Usage in PoS**:
+```cpp
+// src/pos.cpp
+// GetAdjustedTime() used for stake kernel calculations
+int64_t nTimeBlock = GetAdjustedTime();
+```
+
+**Implications for Upgrades**:
+- **DO NOT** remove `GetAdjustedTime()` function
+- **DO NOT** replace with `GetTime()` only
+- **DO NOT** assume network time synchronization
+- PoS kernel validation depends on this function
+
+#### A.3.6 BDB 6.2 Wallet Database
+
+**Bitcoin Core**: Removed BDB wallet support in Bitcoin 30.x
+
+**Blackcoin More**: **BDB 6.2 MUST BE PRESERVED**
+
+```cpp
+// src/wallet/db.h
+// Blackcoin More ONLY - Bitcoin 30.x removed BDB entirely
+#if defined(USE_BDB)
+#include <db_cxx.h>
+#endif
+
+// src/Makefile.am
+# Bitcoin Core 30.x removed this:
+# src_wallet_SOURCES += db.cpp db.h bdb.cpp bdb.h
+# Blackcoin More KEEPS:
+src_wallet_SOURCES += db.cpp db.h bdb.cpp bdb.h
+```
+
+**⚠️ CRITICAL**: BDB 6.2 wallet files are NOT compatible with newer versions.
+
+**Implications for Upgrades**:
+- **DO NOT** remove BDB wallet code
+- **DO NOT** force migration to SQLite/descriptor wallets
+- **DO NOT** break existing wallet.dat compatibility
+- Users must be able to open existing wallets
+
+### A.4 Staking Script Type Constraints (Updated)
+
+**OP_RETURN staking ONLY works with P2PKH inputs:**
+- ❌ P2PK (PUBKEY) inputs don't have the extra scriptSig element
+- ❌ P2WPKH (Witness v0) inputs store public key in witness data, not scriptSig
+- ❌ P2TR (Taproot) inputs use different script structure
+- ✅ P2PKH (PUBKEYHASH) inputs work perfectly - element [2] is "free data"
+
+**SegWit Impact on OP_RETURN Staking:**
+- Testnet: P2WPKH inputs are available and work for standard staking
+- Mainnet: Currently P2PKH-only for OP_RETURN staking (SegWit not yet 80%)
+- **Note**: OP_RETURN mechanism relies on P2PKH's two-step verification process
+
+### A.5 Policy Configuration Reference
+
+**Current Default Settings**:
+- `-datacarrier=true` - Allow OP_RETURN transactions
+- `-datacarriersize=83` - Max OP_RETURN data size in bytes
+- `-minrelaytxfee=100000` - 100,000 sat/kvB (static, not dynamic)
+- `-maxmempool=300` - Memory pool size in MB
+- `-mempoolreplacement=0` - RBF completely disabled (CANNOT be enabled)
+
+**Network Policy**:
+- Standardness rules apply to OP_RETURN outputs
+- Node operators can reject OP_RETURN transactions via `-datacarrier=false`
+- Miners are not required to include OP_RETURN transactions
+
 ---
 
-*Analysis Date: December 27, 2025*  
-*Blackcoin More Version: Current Development Branch*  
+*Analysis Date: January 20, 2026*
+*Blackcoin More Version: Current Development Branch*
 *Methodology: Live blockchain analysis, source code examination, consensus validation verification*
+*Upgrade Context: Information critical for Bitcoin 26.x → 30.x upgrade planning*

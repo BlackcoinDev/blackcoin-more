@@ -17,6 +17,10 @@
  * to everyone and the block is added to the block chain.  The first transaction
  * in the block is a special one that creates a new coin owned by the creator
  * of the block.
+ *
+ * UPGRADE NOTE: This file contains PoS-specific fields (nFlags, vchBlockSig)
+ * that MUST be preserved during Bitcoin 26.x → 30.x upgrade.
+ * See UPGRADE.md Section 2.1 for details.
  */
 class CBlockHeader
 {
@@ -30,6 +34,11 @@ public:
     uint32_t nNonce;
 
     // peercoin: A copy from CBlockIndex.nFlags from other clients. We need this information because we are using headers-first syncronization.
+    // UPGRADE NOTE: nFlags is CRITICAL for PoS validation.
+    // NOT PRESENT in Bitcoin Core - this is a Blackcoin/Peercoin extension.
+    // Used to mark blocks as Proof-of-Stake (BLOCK_PROOF_OF_STAKE flag).
+    // Preserved in CBlockIndex::nFlags during sync.
+    // Value: BLOCK_PROOF_OF_STAKE = (1 << 2) in chain.h
     uint32_t nFlags;
 
     CBlockHeader()
@@ -42,7 +51,7 @@ public:
         READWRITE(obj.nVersion, obj.hashPrevBlock, obj.hashMerkleRoot, obj.nTime, obj.nBits, obj.nNonce);
 
         // peercoin: do not serialize nFlags when computing hash
-        if (!(s.GetType() & SER_GETHASH) && s.GetType() & SER_POSMARKER)
+        if (!(s.GetType() & SER_GETHASH) && (s.GetType() & SER_POSMARKER))
             READWRITE(obj.nFlags);
     }
 
@@ -85,6 +94,11 @@ public:
     std::vector<CTransactionRef> vtx;
 
     // network and disk
+    // UPGRADE NOTE: vchBlockSig is CRITICAL for PoS block validation.
+    // NOT PRESENT in Bitcoin Core - this is a Blackcoin/Peercoin extension.
+    // Contains the cryptographic signature proving the block stake owner.
+    // Verified by CheckBlockSignature() in src/validation.cpp.
+    // Signature is created by signing the block hash with the coinstake input key.
     std::vector<unsigned char> vchBlockSig;
 
     // Memory-only flags for caching expensive checks

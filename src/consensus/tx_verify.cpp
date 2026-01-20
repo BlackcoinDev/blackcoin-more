@@ -2,6 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+// UPGRADE NOTE: Blackcoin More transaction verification
+// CRITICAL DIFFERENCES FROM BITCOIN CORE:
+// - GetAdjustedTime(): REQUIRED for v2 transaction timestamps (removed in Bitcoin 28.x)
+// - Static fees: 100,000 sat/kvB - no dynamic fee estimation
+// - RBF: DISABLED - Bitcoin Core's RBF validation not applicable
+// See UPGRADE.md and src/consensus/AGENTS.md for complete details.
+
 #include <consensus/tx_verify.h>
 
 #include <chain.h>
@@ -174,6 +181,8 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
                          strprintf("%s: inputs missing/spent", __func__));
     }
 
+    // UPGRADE NOTE: GetAdjustedTime() is used for v2 transaction timestamps
+    // GetAdjustedTime() is REMOVED in Bitcoin 28.x - MUST preserve in Blackcoin More
     // Blackcoin: in v2 transactions use GetAdjustedTime() as nTimeTx
     int64_t nTimeTx = tx.nTime;
     if (!nTimeTx && tx.nVersion >= 2)

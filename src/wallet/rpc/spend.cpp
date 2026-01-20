@@ -2,6 +2,14 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+// UPGRADE NOTE: Blackcoin More wallet spend RPC
+// CRITICAL DIFFERENCES FROM BITCOIN CORE:
+// - GetAdjustedTimeSeconds(): Used for fee calculations (removed in Bitcoin 28.x)
+// - Static fees: 100,000 sat/kvB - no dynamic fee estimation
+// - RBF: DISABLED - no RBF fee bumping
+// - BDB 6.2: REQUIRED wallet storage (Bitcoin 30.x removes BDB)
+// See UPGRADE.md and src/wallet/AGENTS.md for complete details.
+
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
 #include <core_io.h>
@@ -437,6 +445,8 @@ RPCHelpMan optimizeutxoset()
     int nBytesPerOut = tx_sizes.vsize - nBytes;
 
     CAmount fee = GetMinFee(nBytes + (unsigned int)(remaining / amount) * nBytesPerOut, GetAdjustedTimeSeconds());
+    // UPGRADE NOTE: GetAdjustedTimeSeconds() is used for fee calculations
+    // GetAdjustedTime() is REMOVED in Bitcoin 28.x - MUST preserve in Blackcoin More
     while (remaining > amount + fee) {
         recipients.push_back(recipient);
         remaining -= amount;
@@ -1396,6 +1406,8 @@ RPCHelpMan sendall()
                 }
             }
 
+            // UPGRADE NOTE: GetAdjustedTimeSeconds() is used for fee rate calculations
+            // GetAdjustedTime() is REMOVED in Bitcoin 28.x - MUST preserve in Blackcoin More
             CFeeRate fee_rate{GetMinimumFeeRate(*pwallet, coin_control, GetAdjustedTimeSeconds())};
             // Do not, ever, assume that it's fine to change the fee rate if the user has explicitly
             // provided one
@@ -1439,6 +1451,8 @@ RPCHelpMan sendall()
 
             // estimate final size of tx
             const TxSize tx_size{CalculateMaximumSignedTxSize(CTransaction(rawTx), pwallet.get())};
+            // UPGRADE NOTE: GetAdjustedTimeSeconds() is used for fee calculations
+            // GetAdjustedTime() is REMOVED in Bitcoin 28.x - MUST preserve in Blackcoin More
             const CAmount fee_from_size{std::max(GetMinFee(static_cast<size_t>(tx_size.vsize), GetAdjustedTimeSeconds()), fee_rate.GetFee(tx_size.vsize))};
             const CAmount effective_value{total_input_value - fee_from_size};
 

@@ -6,6 +6,15 @@
 #ifndef BITCOIN_POLICY_POLICY_H
 #define BITCOIN_POLICY_POLICY_H
 
+// UPGRADE NOTE: Blackcoin More uses STATIC FEES, NOT Bitcoin's dynamic fee estimation.
+// See UPGRADE.md Section 2.5 for details.
+//
+// Bitcoin 30.x has dynamic fee estimation (fee_estimates.dat, estimateSmartFee RPC).
+// Blackcoin More MUST NOT port these features - fees are fixed at 100,000 sat/kvB.
+//
+// RATIONALE: Blackcoin's economic policy requires predictable transaction costs.
+// The static fee structure simplifies user experience and prevents fee volatility.
+
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
 #include <primitives/transaction.h>
@@ -21,7 +30,10 @@ class CScript;
 
 /** Default for -blockmaxweight, which controls the range of block weights the mining code will create **/
 static constexpr unsigned int DEFAULT_BLOCK_MAX_WEIGHT{MAX_BLOCK_WEIGHT - 4000};
-/** Default for -blockmintxfee, which sets the minimum feerate for a transaction in blocks created by mining code **/
+/** Default for -blockmintxfee, which sets the minimum feerate for a transaction in blocks created by mining code
+ * UPGRADE NOTE: This is a STATIC fee of 100,000 sat/kvB.
+ * Bitcoin Core uses dynamic fee estimation - do NOT port that feature.
+ */
 static constexpr unsigned int DEFAULT_BLOCK_MIN_TX_FEE{100000};
 /** The maximum weight for transactions we're willing to relay/mine */
 static constexpr int32_t MAX_STANDARD_TX_WEIGHT{400000};
@@ -51,9 +63,17 @@ static const unsigned int MAX_STANDARD_WITNESS_SIZE{100000};
  * Changing the dust limit changes which transactions are
  * standard and should be done with care and ideally rarely. It makes sense to
  * only increase the dust limit after prior releases were already not creating
- * outputs below the new threshold */
+ * outputs below the new threshold.
+ *
+ * UPGRADE NOTE: This is a STATIC fee of 100,000 sat/kvB.
+ * Bitcoin Core uses dynamic fee estimation - do NOT port that feature.
+ */
 static constexpr unsigned int DUST_RELAY_TX_FEE{100000};
-/** Default for -minrelaytxfee, minimum relay fee for transactions */
+/** Default for -minrelaytxfee, minimum relay fee for transactions
+ * UPGRADE NOTE: This is a STATIC fee of 100,000 sat/kvB.
+ * Bitcoin Core uses dynamic fee estimation - do NOT port that feature.
+ * This is the RELAY minimum - transactions below this will not be relayed.
+ */
 static constexpr unsigned int DEFAULT_MIN_RELAY_TX_FEE{100000};
 /** Default for -limitancestorcount, max number of in-mempool ancestors */
 static constexpr unsigned int DEFAULT_ANCESTOR_LIMIT{25};

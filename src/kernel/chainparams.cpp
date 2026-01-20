@@ -133,12 +133,16 @@ public:
          * The message start string is designed to be unlikely to occur in normal data.
          * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
          * a large 32-bit integer with any alignment.
+         *
+         * UPGRADE NOTE: These are Blackcoin More network identifiers.
+         * Bitcoin 30.x uses different magic bytes - DO NOT change these.
+         * See UPGRADE.md Section 2.9 for network configuration details.
          */
-        pchMessageStart[0] = 0x70;
-        pchMessageStart[1] = 0x35;
-        pchMessageStart[2] = 0x22;
-        pchMessageStart[3] = 0x05;
-        nDefaultPort = 15714;
+        pchMessageStart[0] = 0x70;  // 'p'
+        pchMessageStart[1] = 0x35;  // '5'
+        pchMessageStart[2] = 0x22;  // '"'
+        pchMessageStart[3] = 0x05;  // Different from Bitcoin
+        nDefaultPort = 15714;  // UPGRADE NOTE: Bitcoin uses 8333. DO NOT change.
         m_assumed_blockchain_size = 20;
 
         genesis = CreateGenesisBlock(1393221600, 164482, 0x1e0fffff, 1, 0);
@@ -250,11 +254,13 @@ public:
         consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000005e076ec35dd78945ce"); // block 2139564
         consensus.defaultAssumeValid = uint256S("0xade1c1bd7d6b75cd95b5ec841ffaff24f79ab71c084a3fe8374c2680c72f6b4e"); // block 2139564
 
+        // UPGRADE NOTE: Testnet uses different magic bytes and ports.
+        // See UPGRADE.md Section 2.9 for network configuration details.
         pchMessageStart[0] = 0xcd;
         pchMessageStart[1] = 0xf2;
         pchMessageStart[2] = 0xc0;
         pchMessageStart[3] = 0xef;
-        nDefaultPort = 25714;
+        nDefaultPort = 25714;  // UPGRADE NOTE: Bitcoin testnet uses 18333. DO NOT change.
         m_assumed_blockchain_size = 5;
 
         genesis = CreateGenesisBlock(1393221600, 216178, 0x1f00ffff, 1, 0);

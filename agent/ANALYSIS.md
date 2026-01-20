@@ -1,5 +1,61 @@
 # Blackcoin More OP_RETURN Staking Protocol Analysis
 
+## ⚠️ CRITICAL UPGRADE CONTEXT (January 2026)
+
+This analysis was performed in December 2025. The following critical information must be considered for any Bitcoin 26.x → 30.x upgrade:
+
+### Blackcoin More vs Bitcoin Core - Non-Negotiable Differences
+
+| Feature | Bitcoin Core | Blackcoin More | Upgrade Implication |
+|---------|--------------|----------------|---------------------|
+| **RBF** | Enabled by default | **COMPLETELY DISABLED** | Never port RBF code |
+| **Fee Structure** | Dynamic estimation | **Static (100,000 sat/kvB)** | Never port fee estimation |
+| **BDB Wallets** | Removed in 30.x | **Required (6.2)** | Never remove BDB code |
+| **GetAdjustedTime()** | Removed in 27.x | **REQUIRED** | Never remove this function |
+| **PoS Block Header** | Standard | **Extended** (nFlags, nStakeModifier, vchBlockSig) | Must preserve exactly |
+| **SegWit Threshold** | 95% | **80%** | Testnet activated Sept 2024 |
+| **C++ Standard** | C++20 required | C++17 → C++20 | Upgrade required |
+
+### Critical Warning: Never Port These Bitcoin Core Features
+
+1. **❌ RBF (Replace-By-Fee)**
+   - Blackcoin More uses first-seen rule only
+   - `mempoolreplacement` policy must remain disabled
+   - Never add `opt_in_rbf` transaction signaling
+
+2. **❌ Dynamic Fee Estimation**
+   - Blackcoin More uses static 100,000 sat/kvB
+   - Never port `fee_estimates.dat` system
+   - Never implement `estimateSmartFee` RPC
+
+3. **❌ BDB Removal**
+   - Bitcoin 30.x removed BDB wallet support
+   - Blackcoin More MUST preserve BDB 6.2
+   - Never force SQLite/descriptor migration
+
+4. **❌ GetAdjustedTime() Removal**
+   - Critical for PoS kernel validation
+   - Never replace with GetTime() only
+   - Never remove from time.h
+
+5. **❌ Taproot/Script Versions 1+**
+   - Taproot is marked `NEVER_ACTIVE` in Blackcoin More
+   - Never enable taproot deployment
+   - Never implement future script versions
+
+### SegWit Status Update (January 2026)
+
+**Testnet**: ✅ ACTIVATED September 2024 (80% BIP-9 threshold)
+
+**Mainnet**: ⚠️ IN PROGRESS
+- Current signaling: ~65%
+- Required: 80%
+- Timeout: December 31, 2024 (may be extended)
+
+**Critical**: The 80% threshold is hardcoded and different from Bitcoin's original 95%.
+
+---
+
 ## Executive Summary
 
 Analysis of OP_RETURN staking mechanism in Blackcoin More reveals a **consensus-compliant mechanism** that operates within existing network policies but depends on **network policy acceptance** rather than being protected by hard consensus rules. The mechanism is technically valid but its long-term viability depends on continued policy support from node operators and miners.
@@ -730,6 +786,130 @@ The analysis demonstrates that **protocol flexibility and security are not mutua
 
 ---
 
+## Upgrade Considerations for Bitcoin 26.x → 30.x
+
+### Critical Differences Summary
+
+| Aspect | Bitcoin Core | Blackcoin More | Action Required |
+|--------|--------------|----------------|-----------------|
+| **Consensus Model** | PoW | **PoSV3/BPoS** | Preserve PoS logic |
+| **RBF** | Enabled | **Disabled** | Never enable |
+| **Fees** | Dynamic | **Static** | Never port estimation |
+| **BDB** | Removed | **Required** | Never remove |
+| **GetAdjustedTime()** | Removed | **Required** | Never remove |
+| **PoS Header** | N/A | **Extended** | Preserve fields |
+| **SegWit Threshold** | 95% | **80%** | Keep 80% |
+| **Taproot** | Active | **Never** | Never enable |
+| **C++ Standard** | C++20 | C++17→C++20 | Upgrade required |
+
+### Risk Areas for Upgrade
+
+#### High Risk (Consensus-Adjacent)
+
+1. **Network Time Functions**
+   - `GetAdjustedTime()` is used in PoS kernel validation
+   - Bitcoin 27.x removed this function
+   - **Must preserve or recreate**
+
+2. **Static Fee Structure**
+   - Blackcoin More has hardcoded 100,000 sat/kvB
+   - Bitcoin Core uses dynamic fee estimation
+   - **Must not port fee estimation system**
+
+3. **RBF Disabled**
+   - Bitcoin Core's RBF is incompatible
+   - First-seen rule must be maintained
+   - **Never port RBF**
+
+4. **PoS-Specific Block Validation**
+   - `nFlags`, `nStakeModifier`, `vchBlockSig` fields
+   - Bitcoin Core doesn't have these
+   - **Must preserve exactly**
+
+#### Medium Risk (Build/Test Changes)
+
+1. **C++ Standard Upgrade**
+   - Configure.ac needs C++20 requirement
+   - Some code may need fixes for stricter C++20
+
+2. **BDB 6.2 Preservation**
+   - Bitcoin 30.x removed BDB
+   - Must cherry-pick or preserve BDB code
+   - Cannot use SQLite-only wallet system
+
+#### Lower Risk (API Changes)
+
+1. **Txid/Wtxid Types**
+   - Introduced in Bitcoin 28.x
+   - May require type conversions
+   - Should be manageable
+
+2. **RPC Deprecations**
+   - Standard Bitcoin deprecations apply
+   - Blackcoin-specific RPCs unaffected
+
+### Recommended Upgrade Strategy
+
+#### Option A: Incremental Upgrade (Recommended)
+```
+26.x → 27.x → 28.x → 29.x → 30.x
+```
+**Pros**: Each step is smaller, easier to test
+**Cons**: Takes longer, more testing overall
+
+#### Option B: Direct Merge
+```
+26.x → 30.x (single jump)
+```
+**Pros**: Faster completion
+**Cons**: Very large diff, harder to debug issues
+
+**Recommendation**: Option A (Incremental) - allows testing at each phase and early detection of issues.
+
+### Testing Requirements
+
+#### Critical Tests (Must Pass)
+1. PoS block generation and validation
+2. Stake kernel hash calculation
+3. Block signature verification
+4. Coinstake transaction validation
+5. Wallet staking functionality
+6. Network sync and peer communication
+
+#### Important Tests (Should Pass)
+1. OP_RETURN in coinstake transactions
+2. Static fee enforcement
+3. RBF disabled verification
+4. BDB wallet opening/closing
+5. GetAdjustedTime() usage
+
+#### Functional Tests (Nice to Have)
+1. RPC command compatibility
+2. GUI staking display
+3. Wallet encryption with staking
+
+### Rollback Plan
+
+**If issues discovered after upgrade**:
+
+1. **Immediate Actions**:
+   - Stop accepting new blocks
+   - Alert node operators
+   - Prepare previous version binaries
+
+2. **Recovery Steps**:
+   - Revert to previous version
+   - Re-sync from last known good block
+   - Document root cause
+
+3. **Preventive Measures**:
+   - Add regression tests
+   - Increase test coverage
+   - Implement feature flags
+
+---
+
 *Analysis Date: December 27, 2025*
+*Updated: January 20, 2026 (Upgrade Context Added)*
 *Blackcoin More Version: Current Development Branch*
 *Methodology: Comprehensive source code analysis, consensus rule categorization, cryptographic verification analysis, alternative mechanism risk assessment*

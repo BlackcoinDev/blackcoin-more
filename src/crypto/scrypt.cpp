@@ -27,6 +27,18 @@
  * online backup system.
  */
 
+// UPGRADE NOTE: Scrypt is Blackcoin More-specific for legacy PoW mining.
+// See UPGRADE.md Section 2.8 for details.
+//
+// SCRYPT USAGE:
+// - ONLY used for syncing old historical testnet blocks (nVersion <= 6)
+// - NEW blocks use SHA256 (same as Bitcoin)
+// - SSE2 optimization is Blackcoin More-specific (not in Bitcoin Core)
+// - Controlled by USE_SSE2 compile flag (configure.ac line 1833)
+//
+// Bitcoin 30.x does NOT have scrypt at all - this is Blackcoin-specific.
+// If upgrading, keep scrypt for historical block sync only.
+
 #include <crypto/scrypt.h>
 
 #include <stdlib.h>

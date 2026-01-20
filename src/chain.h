@@ -216,7 +216,12 @@ public:
         BLOCK_STAKE_MODIFIER = (1 << 2),
     };
 
-    //! hash modifier of proof-of-stake
+    //! CRITICAL: Blackcoin More PoS - hash modifier for proof-of-stake
+    //! This field is NOT present in Bitcoin Core and must NEVER be removed.
+    //! Used in stake kernel hash calculation (src/pos.cpp:CheckStakeKernelHash)
+    //! Computed during block validation (src/validation.cpp:2414)
+    //! Persisted to disk (src/node/blockstorage.cpp:129)
+    //! Bitcoin 30.x does NOT have this field - must be preserved as-is.
     uint256 nStakeModifier{};
 
     bool IsProofOfWork() const

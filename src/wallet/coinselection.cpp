@@ -2,6 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+// UPGRADE NOTE: Blackcoin More coin selection
+// CRITICAL DIFFERENCES FROM BITCOIN CORE:
+// - GetAdjustedTimeSeconds(): Used for fee calculations (removed in Bitcoin 28.x)
+// - Static fees: 100,000 sat/kvB - no dynamic fee estimation
+// - BDB 6.2: REQUIRED wallet storage (Bitcoin 30.x removes BDB)
+// See UPGRADE.md and src/wallet/AGENTS.md for complete details.
+
 #include <wallet/coinselection.h>
 
 #include <common/system.h>
@@ -406,6 +413,8 @@ void OutputGroup::Insert(const std::shared_ptr<COutput>& output, size_t ancestor
 
     fee += coin.GetFee();
 
+    // UPGRADE NOTE: GetAdjustedTimeSeconds() is used for fee calculations
+    // GetAdjustedTime() is REMOVED in Bitcoin 28.x - MUST preserve in Blackcoin More
     coin.long_term_fee = coin.input_bytes < 0 ? 0 : GetMinFee(coin.input_bytes, GetAdjustedTimeSeconds());
     long_term_fee += coin.long_term_fee;
 

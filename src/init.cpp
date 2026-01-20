@@ -3,6 +3,14 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+// UPGRADE NOTE: Blackcoin More initialization
+// CRITICAL DIFFERENCES FROM BITCOIN CORE:
+// - GetAdjustedTime(): REQUIRED callback for PoS timestamp validation
+// - BDB 6.2: REQUIRED wallet storage - Bitcoin 30.x removes BDB support
+// - RBF: DISABLED - Bitcoin Core's RBF initialization not applicable
+// - Static fees: 100,000 sat/kvB - fee estimation not initialized
+// See UPGRADE.md for complete details.
+
 #if defined(HAVE_CONFIG_H)
 #include <config/bitcoin-config.h>
 #endif

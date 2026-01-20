@@ -3,6 +3,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+// UPGRADE NOTE: Blackcoin More transaction memory pool
+// CRITICAL DIFFERENCES FROM BITCOIN CORE:
+// - Static fees: 100,000 sat/kvB - no dynamic fee estimation
+// - RBF: DISABLED - Bitcoin Core's RBF mempool logic not applicable
+// - GetAdjustedTime(): Used for fee calculations (removed in Bitcoin 28.x)
+// See UPGRADE.md for complete details.
+
 #include <txmempool.h>
 
 #include <chain.h>

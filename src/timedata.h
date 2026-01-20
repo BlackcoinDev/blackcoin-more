@@ -5,7 +5,7 @@
 #ifndef BITCOIN_TIMEDATA_H
 #define BITCOIN_TIMEDATA_H
 
-#include <util/time.h>
+#include "util/time.h"
 
 #include <algorithm>
 #include <cassert>
@@ -75,6 +75,23 @@ public:
 
 /** Functions to keep track of adjusted P2P time */
 int64_t GetTimeOffset();
+
+/**
+ * CRITICAL: Blackcoin More - Required for PoS kernel validation
+ *
+ * This function returns the adjusted system time using a median filter
+ * over peer-reported timestamps. It is DIFFERENT from GetTime() which
+ * returns raw system time.
+ *
+ * NEVER remove this function during upgrade - Bitcoin 28.x+ removed it
+ * but Blackcoin More requires it for PoS stake kernel calculations.
+ *
+ * Used in:
+ *   - src/consensus/tx_verify.cpp (transaction time validation)
+ *   - src/validation.cpp (block time validation)
+ *   - src/pos.cpp (stake kernel hash calculation)
+ *   - src/net_processing.cpp (peer time filtering)
+ */
 NodeClock::time_point GetAdjustedTime();
 void AddTimeData(const CNetAddr& ip, int64_t nTime);
 
@@ -83,6 +100,16 @@ void AddTimeData(const CNetAddr& ip, int64_t nTime);
  */
 void TestOnlyResetTimeData();
 
+/**
+ * CRITICAL: Blackcoin More - Required for PoS kernel validation
+ *
+ * Returns GetAdjustedTime() as epoch seconds (int64_t).
+ * This is the legacy integer-based interface used throughout
+ * the codebase for transaction and block time operations.
+ *
+ * NEVER remove this function during upgrade.
+ * Equivalent to: TicksSinceEpoch<std::chrono::seconds>(GetAdjustedTime())
+ */
 int64_t GetAdjustedTimeSeconds();
 
 #endif // BITCOIN_TIMEDATA_H

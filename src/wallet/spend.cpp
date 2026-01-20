@@ -1004,6 +1004,8 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
         coin_selection_params.change_spend_size = (size_t)change_spend_size;
     }
 
+    // UPGRADE NOTE: GetAdjustedTimeSeconds() is used for fee calculations
+    // GetAdjustedTime() is REMOVED in Bitcoin 28.x - MUST preserve in Blackcoin More
     // Get current time
     int64_t current_time = GetAdjustedTimeSeconds();
 

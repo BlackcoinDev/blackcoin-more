@@ -3,6 +3,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+// UPGRADE NOTE: Blackcoin More transaction primitives
+// CRITICAL DIFFERENCES FROM BITCOIN CORE:
+// - GetAdjustedTime(): Used in CMutableTransaction constructor (removed in Bitcoin 28.x)
+// - nTime field: Used in v2 transactions for PoS timestamp validation
+// - Extended transaction types: Supports coinstake transactions
+// See UPGRADE.md for complete details.
+
 #include <primitives/transaction.h>
 
 #include <consensus/amount.h>
@@ -65,6 +72,8 @@ std::string CTxOut::ToString() const
     return strprintf("CTxOut(nValue=%d.%08d, scriptPubKey=%s)", nValue / COIN, nValue % COIN, HexStr(scriptPubKey).substr(0, 30));
 }
 
+// UPGRADE NOTE: GetAdjustedTimeSeconds() is used for transaction timestamping
+// GetAdjustedTime() is REMOVED in Bitcoin 28.x - MUST preserve in Blackcoin More
 CMutableTransaction::CMutableTransaction() : nVersion(CTransaction::CURRENT_VERSION), nTime(GetAdjustedTimeSeconds()), nLockTime(0) {}
 CMutableTransaction::CMutableTransaction(const CTransaction& tx) : vin(tx.vin), vout(tx.vout), nVersion(tx.nVersion), nTime(tx.nTime), nLockTime(tx.nLockTime) {}
 

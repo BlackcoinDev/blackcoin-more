@@ -3,6 +3,14 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+// UPGRADE NOTE: Blackcoin More PoS miner
+// CRITICAL DIFFERENCES FROM BITCOIN CORE:
+// - GetAdjustedTimeSeconds(): REQUIRED for PoS block timestamping
+// - PoS kernel: Uses nStakeModifier from CBlockIndex (not in Bitcoin 30.x)
+// - Static fees: 100,000 sat/kvB - no fee estimation needed
+// - RBF: DISABLED - Bitcoin Core's coinbase selection not applicable
+// See UPGRADE.md and src/pos.cpp for complete PoS details.
+
 // PoSMiner by Peercoin
 // Copyright (c) 2020-2022 The Peercoin developers
 

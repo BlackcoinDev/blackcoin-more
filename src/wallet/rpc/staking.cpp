@@ -2,6 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+// UPGRADE NOTE: Blackcoin More PoS staking RPC
+// CRITICAL DIFFERENCES FROM BITCOIN CORE:
+// - GetAdjustedTimeSeconds(): REQUIRED for PoS kernel validation (removed in Bitcoin 28.x)
+// - nStakeModifier: CRITICAL field in CBlockIndex (not in Bitcoin 30.x)
+// - PoS kernel: Unique Proof-of-Stake validation algorithm
+// See UPGRADE.md and src/pos.cpp for complete PoS details.
+
 #include <rpc/util.h>
 #include <rpc/blockchain.h>
 #include <rpc/server.h>
@@ -268,6 +275,8 @@ static RPCHelpMan checkkernel()
     COutPoint kernel;
     CBlockIndex* pindexPrev = active_chain.Tip();
     unsigned int nBits = GetNextTargetRequired(pindexPrev, Params().GetConsensus(), true);
+    // UPGRADE NOTE: GetAdjustedTimeSeconds() is used for PoS kernel search
+    // GetAdjustedTime() is REMOVED in Bitcoin 28.x - MUST preserve in Blackcoin More
     int64_t nTime = GetAdjustedTimeSeconds();
     nTime &= ~Params().GetConsensus().nStakeTimestampMask;
 

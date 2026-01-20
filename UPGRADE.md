@@ -2,11 +2,28 @@
 
 ## Overview
 
-This document outlines the upgrade path from Blackcoin More 26.2.0 (based on Bitcoin 26.2) to Bitcoin 30.2.0. The upgrade involves integrating 4 major Bitcoin Core releases (~1500+ commits) while preserving Blackcoin's PoS consensus and features.
+This document outlines the upgrade path from **Blackcoin More v26.2.0** (based on Bitcoin 26.2) to **Bitcoin 30.2.0**. The upgrade involves integrating 4 major Bitcoin Core releases (~1500+ commits) while preserving Blackcoin's PoS consensus and features.
 
-**Target**: Bitcoin 30.2.0
-**Source**: Blackcoin More 26.2.0 (commit: `b0ed2edc55`)
-**Scope**: Full protocol upgrade with PoS preservation
+**⚠️ IMPORTANT: PoS Consensus & Soft-Forks**
+
+Blackcoin is a Proof-of-Stake blockchain. Unlike PoW chains where miners can force soft-forks, **any consensus rule change requires stakeholder agreement**.
+
+**Recommended Approach**: Incremental upgrade through 4 phases (26.x → 27.x → 28.x → 29.x → 30.x)
+
+**Current State**: Blackcoin More v26.2.0 (C++17, Bitcoin 26.2 base)  
+**Target State**: Blackcoin More v30.2.0 (C++20, Bitcoin 30.2.0 base)
+
+**Reference Documents:**
+- `BLOCK_SERIALIZATION.md` - Complete PoS block structure details
+- `CMake_MIGRATION.md` - Build system migration plan
+- `AGENTS.md` - Agent knowledge base for AI assistants
+- `src/pos.cpp`, `src/pos.h` - PoS kernel implementation
+
+**SegWit Status:**
+| Network | Status | Threshold |
+|---------|--------|-----------|
+| **Mainnet** | BIP-9 voting IN PROGRESS (~65% signaling) | **80%** |
+| **Testnet** | **ACTIVATED** (Sept 2024) | **75%** |
 
 ---
 
@@ -17,16 +34,16 @@ This document outlines the upgrade path from Blackcoin More 26.2.0 (based on Bit
 #### Core PoS Implementation (PORTED FROM PEERCOIN/QTUM)
 | File | Origin | Purpose | Priority |
 |------|--------|---------|----------|
-| `src/pos.cpp` | Peercoin/Qtum | PoS block validation, stake mining | CRITICAL |
-| `src/pos.h` | Peercoin/Qtum | PoS declarations | CRITICAL |
-| `src/validation.cpp` | Qtum | PoS validation logic | CRITICAL |
+| `src/pos.cpp` | Peercoin/Qtum | PoS block validation, stake mining | **CRITICAL** |
+| `src/pos.h` | Peercoin/Qtum | PoS declarations | **CRITICAL** |
+| `src/validation.cpp` | Qtum | PoS validation logic | **CRITICAL** |
 | `src/validation.h` | Qtum | Validation declarations | HIGH |
-| `src/node/miner.cpp` | Peercoin/Qtum | PoS block creation, staking | CRITICAL |
+| `src/node/miner.cpp` | Peercoin/Qtum | PoS block creation, staking | **CRITICAL** |
 | `src/node/miner.h` | Peercoin/Qtum | Mining declarations | HIGH |
-| `src/wallet/staking.cpp` | Qtum | Wallet staking logic | CRITICAL |
-| `src/wallet/staking.h` | Qtum | Staking declarations | CRITICAL |
-| `src/wallet/rpc/staking.cpp` | Qtum | Staking RPC methods | CRITICAL |
-| `src/wallet/rpc/staking.h` | Qtum | Staking RPC declarations | CRITICAL |
+| `src/wallet/staking.cpp` | Qtum | Wallet staking logic | **CRITICAL** |
+| `src/wallet/staking.h` | Qtum | Staking declarations | HIGH |
+| `src/wallet/rpc/staking.cpp` | Qtum | Staking RPC methods | **CRITICAL** |
+| `src/wallet/rpc/staking.h` | Qtum | Staking RPC declarations | HIGH |
 | `src/net_processing.cpp` | Qtum | PoS network handling | HIGH |
 | `src/net_processing.h` | Qtum | Network processing declarations | MEDIUM |
 
@@ -41,52 +58,60 @@ This document outlines the upgrade path from Blackcoin More 26.2.0 (based on Bit
 #### Chain Parameters
 | File | Purpose | Priority |
 |------|---------|----------|
-| `src/chainparams.cpp` | Blackcoin params, activation heights | CRITICAL |
+| `src/chainparams.cpp` | Blackcoin params, activation heights | **CRITICAL** |
 | `src/chainparamsbase.cpp` | Base chain params | HIGH |
 | `src/chainparams.h` | Chain params declarations | HIGH |
 | `src/chainparamsbase.h` | Base params declarations | MEDIUM |
-| `src/chainparamsseeds.h` | DNS seeds | CRITICAL |
-| `src/kernel/chainparams.cpp` | DevFundAddress, checkpoints | CRITICAL |
+| `src/chainparamsseeds.h` | DNS seeds | **CRITICAL** |
+| `src/kernel/chainparams.cpp` | DevFundAddress, checkpoints | **CRITICAL** |
 | `src/kernel/chainparams.h` | Chain params declarations | HIGH |
 
 #### Consensus Changes
 | File | Purpose | Priority |
 |------|---------|----------|
-| `src/consensus/params.h` | Consensus params (nPowTargetSpacing, etc.) | CRITICAL |
+| `src/consensus/params.h` | Consensus params (nPowTargetSpacing, etc.) | **CRITICAL** |
 | `src/consensus/validation.h` | Validation extensions | HIGH |
-| `src/validation.cpp` | PoS validation logic | CRITICAL |
+| `src/validation.cpp` | PoS validation logic | **CRITICAL** |
 | `src/validation.h` | Validation declarations | HIGH |
 
 #### Wallet Modifications
 | File | Purpose | Priority |
 |------|---------|----------|
-| `src/wallet/wallet.cpp` | PoS transaction handling | CRITICAL |
-| `src/wallet/wallet.h` | Wallet with staking | CRITICAL |
+| `src/wallet/wallet.cpp` | PoS transaction handling | **CRITICAL** |
+| `src/wallet/wallet.h` | Wallet with staking | **CRITICAL** |
 | `src/wallet/transaction.h` | Transaction with IsCoinStake | HIGH |
 | `src/wallet/rpc/spend.cpp` | Spend with coinstake support | HIGH |
-| `src/wallet/rpc/staking.cpp` | **Blackcoin-specific RPC calls** | CRITICAL |
+| `src/wallet/rpc/staking.cpp` | **Blackcoin-specific RPC calls** | **CRITICAL** |
 
 #### Block/Transaction Extensions
 | File | Purpose | Priority |
 |------|---------|----------|
-| `src/primitives/transaction.h` | IsCoinStake(), IsCoinBase() | CRITICAL |
-| `src/primitives/block.h` | IsProofOfStake(), IsProofOfWork() | CRITICAL |
+| `src/primitives/transaction.h` | IsCoinStake(), IsCoinBase() | **CRITICAL** |
+| `src/primitives/block.h` | IsProofOfStake(), IsProofOfWork() | **CRITICAL** |
 
-#### CRITICAL: Block Serialization Differences (Peercoin/Qtum Port)
+---
 
-**Blackcoin has DIFFERENT block serialization than Bitcoin:**
+## 2. Blackcoin-Specific Features (READ FIRST!)
 
-| Component | Bitcoin | Blackcoin | Preserved? |
-|-----------|---------|-----------|------------|
-| **CBlockHeader::nVersion** | 32-bit | 32-bit | YES |
-| **CBlockHeader::hashPrevBlock** | uint256 | uint256 | YES |
-| **CBlockHeader::hashMerkleRoot** | uint256 | uint256 | YES |
-| **CBlockHeader::nTime** | uint32 | uint32 | YES |
-| **CBlockHeader::nBits** | uint32 | uint32 | YES |
-| **CBlockHeader::nNonce** | uint32 | uint32 | YES |
-| **CBlockHeader::nFlags** | **NOT PRESENT** | **uint32 (PoS marker)** | **MUST PRESERVE** |
-| **CBlock::vtx** | vector | vector | YES |
-| **CBlock::vchBlockSig** | **NOT PRESENT** | **vector (PoS signature)** | **MUST PRESERVE** |
+### 2.1 PoS-Specific Block Header (CRITICAL)
+
+**Blackcoin has DIFFERENT block serialization than Bitcoin.**
+
+**Reference**: See `BLOCK_SERIALIZATION.md` for complete details.
+
+| Component | Bitcoin Core | Blackcoin More | Action |
+|-----------|--------------|----------------|--------|
+| `CBlockHeader::nVersion` | 32-bit | 32-bit | YES |
+| `CBlockHeader::hashPrevBlock` | uint256 | uint256 | YES |
+| `CBlockHeader::hashMerkleRoot` | uint256 | uint256 | YES |
+| `CBlockHeader::nTime` | uint32 | uint32 | YES |
+| `CBlockHeader::nBits` | uint32 | uint32 | YES |
+| `CBlockHeader::nNonce` | uint32 | uint32 | YES |
+| `CBlockHeader::nFlags` | **NOT PRESENT** | **uint32 (PoS marker)** | **MUST PRESERVE** |
+| `CBlock::vtx` | vector | vector | YES |
+| `CBlock::vchBlockSig` | **NOT PRESENT** | **vector (PoS signature)** | **MUST PRESERVE** |
+| `CBlockIndex::nStakeModifier` | **NOT PRESENT** | **uint256 (stake modifier)** | **MUST PRESERVE** |
+| `SER_POSMARKER` | **NOT PRESENT** | **Serialization flag** | **MUST PRESERVE** |
 
 **Serialization Logic (src/primitives/block.h):**
 ```cpp
@@ -95,70 +120,27 @@ SERIALIZE_METHODS(CBlockHeader, obj)
     READWRITE(obj.nVersion, obj.hashPrevBlock, obj.hashMerkleRoot, obj.nTime, obj.nBits, obj.nNonce);
 
     // CRITICAL: peercoin: do not serialize nFlags when computing hash
-    if (!(s.GetType() & SER_GETHASH) && s.GetType() & SER_POSMARKER)
+    if (!(s.GetType() & SER_GETHASH) && (s.GetType() & SER_POSMARKER))
         READWRITE(obj.nFlags);
 }
 ```
 
-**Key Differences:**
+**Key Serialization Rules:**
+- `SER_GETHASH` (1 << 2) - For computing hash (excludes nFlags)
+- `SER_POSMARKER` (1 << 18) - For sending block headers with PoS marker
 
-1. **nFlags field** (uint32):
-   - Only present in Blackcoin
-   - Stores PoS block flags (BLOCK_STAKE_INJECTED, etc.)
-   - NOT included in block hash calculation (`SER_GETHASH` excludes it)
-   - Serialized with `SER_POSMARKER` for network transmission
+**Block Signature (vchBlockSig):**
+- PoS blocks MUST have ECDSA signature proving stake ownership
+- Signature created by: `key.Sign(block.GetHash(), block.vchBlockSig, 0)`
+- Verified by `CheckBlockSignature()` in src/validation.cpp
+- Max 65 bytes (compact ECDSA signature)
 
-2. **vchBlockSig** (vector<unsigned char>):
-   - Only present in Blackcoin
-   - Block signature for PoS blocks (proof of stake ownership)
-   - Not present in Bitcoin at all
+**Stake Kernel Hash:**
+- Uses `nStakeModifier` from CBlockIndex (NOT in Bitcoin Core)
+- Formula: `hash(nStakeModifier + txPrev.nTime + txPrev.vout.hash + txPrev.vout.n + nTime)`
+- Critical for PoS proof calculation (src/pos.cpp:85)
 
-3. **GetPoWHash() method** (src/primitives/block.cpp):
-   - Only in Blackcoin for legacy block compatibility
-   - **Scrypt** - Used ONLY for syncing **old historical PoW blocks** (nVersion <= 6)
-   - **SHA256** - Used for all **new blocks** (nVersion > 6) - same as Bitcoin
-   - **NOT used on mainnet** - Mainnet is PoS-only!
-   - **PoW reward on testnet: 10000 BLK**
-
-```cpp
-uint256 CBlockHeader::GetHash() const
-{
-    // New blocks (nVersion > 6): SHA256 - same as Bitcoin
-    if (nVersion > 6)
-        return (CHashWriter{} << *this).GetHash();
-    
-    // Old legacy blocks (nVersion <= 6): Scrypt - for syncing historical data
-    return GetPoWHash();
-}
-
-uint256 CBlockHeader::GetPoWHash() const
-{
-    uint256 thash;
-    scrypt_1024_1_1_256(BEGIN(nVersion), BEGIN(thash));  // Legacy only!
-    return thash;
-}
-```
-
-**Important: Scrypt is ONLY for syncing old historical blocks. New blocks use SHA256 (same as Bitcoin).**
-
-4. **Serialization Flags** (src/serialize.h):
-   - `SER_GETHASH` (1 << 2) - For computing hash (excludes nFlags)
-   - `SER_POSMARKER` (1 << 18) - For sending block headers with PoS marker
-
-**DO NOT PORT from Bitcoin 30.x:**
-- Any changes to CBlockHeader structure
-- Bitcoin's block serialization without nFlags
-- Any removal of vchBlockSig
-
-**Files to restore:**
-- `src/primitives/block.h` - Complete with nFlags and vchBlockSig
-- `src/primitives/block.cpp` - GetHash() and GetPoWHash() with Scrypt
-- `src/serialize.h` - SER_POSMARKER flag definition
-- `src/validation.cpp` - CheckBlockSignature() using vchBlockSig
-- `src/crypto/scrypt.cpp` - Scrypt implementation for GetPoWHash()
-- `src/crypto/scrypt-sse2.cpp` - SSE2-optimized Scrypt
-
-### 1.X Peercoin/Qtum Ported Features (MUST PRESERVE)
+### 2.2 Peercoin/Qtum Ported Features (MUST PRESERVE)
 
 These features were ported from Peercoin and Qtum and are critical to Blackcoin's PoS implementation:
 
@@ -196,16 +178,38 @@ bool CheckBlockSignature(const CBlock& block);
 **File:** `src/node/miner.cpp` - `CreateNewBlock()`
 **Purpose:** Creates both PoW and PoS blocks with correct coinstake transaction
 
-**All these files must be preserved exactly as-is from the Peercoin/Qtum port.**
+### 2.3 GetPoWHash() and Scrypt (Legacy Only)
 
-#### RPC Extensions
-| File | Purpose | Priority |
-|------|---------|----------|
-| `src/rpc/blockchain.cpp` | getblock with PoS info | HIGH |
-| `src/rpc/mining.cpp` | generate, getblocktemplate with PoS | HIGH |
-| `src/wallet/rpc/staking.cpp` | Blackcoin staking RPC methods | CRITICAL |
+**File:** `src/primitives/block.cpp`, `src/crypto/scrypt.cpp`
 
-### 1.2 Blackcoin-Specific RPC Calls (MUST PRESERVE)
+**IMPORTANT**: Scrypt is ONLY for syncing old historical blocks!
+
+```cpp
+uint256 CBlockHeader::GetHash() const
+{
+    // New blocks (nVersion > 6): SHA256 - same as Bitcoin
+    if (nVersion > 6)
+        return (CHashWriter{} << *this).GetHash();
+    
+    // Old legacy blocks (nVersion <= 6): Scrypt - for syncing historical data
+    return GetPoWHash();
+}
+
+uint256 CBlockHeader::GetPoWHash() const
+{
+    uint256 thash;
+    scrypt_1024_1_1_256(BEGIN(nVersion), BEGIN(thash));  // Legacy only!
+    return thash;
+}
+```
+
+**SSE2 Optimization:**
+- File: `src/crypto/scrypt-sse2.cpp`
+- Configure option: `--enable-sse2` in configure.ac
+- **Purpose**: Accelerates syncing of old historical testnet blocks
+- **NOT used on mainnet** - Mainnet is PoS-only!
+
+### 2.4 Blackcoin-Specific RPC Calls (MUST PRESERVE)
 
 These RPC methods are Blackcoin-specific and MUST be preserved:
 
@@ -219,36 +223,139 @@ These RPC methods are Blackcoin-specific and MUST be preserved:
 | `burnwallet` | Burn all wallet UTXOs | `src/wallet/rpc/spend.cpp` |
 | `optimizeutxoset` | Optimize UTXO set by consolidating inputs | `src/wallet/rpc/spend.cpp` |
 
-**Note**: Staking RPC calls are in `src/wallet/rpc/staking.cpp`. Burn and optimize UTXO calls are in `src/wallet/rpc/spend.cpp`. Both files must be preserved exactly.
+### 2.5 Blackcoin-Specific Settings
 
-### 1.2 Bitcoin Files with Blackcoin Modifications
+| Setting | Default | Purpose | File |
+|---------|---------|---------|------|
+| `-staking` | true | Enable staking | `src/init.cpp` |
+| `-staketimio` | 500 | PoS timeout (ms) | `src/wallet/init.cpp` |
+| `-stakecache` | false | Enable stake cache | `src/wallet/init.cpp` |
+| `-donatetodevfund` | 20 | Dev fund % | `src/wallet/init.cpp` |
+| `-txversion` | 2 | Transaction version | `src/wallet/init.cpp` |
 
-| File | Change Type | Preserve? |
-|------|-------------|-----------|
-| `src/chain.h` | PoS block flags | YES |
-| `src/coins.cpp` | IsCoinStake checks | YES |
-| `src/coins.h` | Coinstake UTXO handling | YES |
-| `src/addresstype.cpp` | Blackcoin address types | PARTIAL |
-| `src/txmempool.cpp` | Coinstake handling | PARTIAL |
-| `src/txmempool.h` | Coinstake tracking | PARTIAL |
-| `src/init.cpp` | Staking startup | YES |
-| `src/net.cpp` | Seeders, ports | YES |
-| `src/net_processing.cpp` | PoS block handling | PARTIAL |
+### 2.6 Static Fee Structure
 
-### 1.3 Files to REPLACE from Bitcoin 30.2.0
+Blackcoin uses **STATIC fees**, NOT Bitcoin's dynamic estimation:
+
+| Constant | Value | Purpose |
+|----------|-------|---------|
+| `DEFAULT_MIN_RELAY_TX_FEE` | 100,000 sat/kvB | Minimum relay threshold |
+| `DUST_RELAY_TX_FEE` | 100,000 sat/kvB | Dust limit threshold |
+| `GetProofOfStakeSubsidy()` | 1.5 BLK (fixed) | Fixed PoS reward |
+
+**RBF (Replace-By-Fee) is DISABLED in Blackcoin:**
+- No `-walletrbf` option
+- No `-enable-rbf` option
+- No `bumpfee` RPC
+- No RBF-related code in wallet initialization
+
+### 2.7 BerkeleyDB 6.2 Required
+
+**CRITICAL**: Existing Blackcoin wallets use BDB 6.2. This MUST be preserved.
+
+| Bitcoin Version | Wallet Database |
+|-----------------|-----------------|
+| 26.x | BDB 4.8 (deprecated) or SQLite |
+| 30.x | Bitcoin removed BDB, Blackcoin MUST keep BDB 6.2 |
+
+**To create new BDB wallets in v30.2.0:**
+```bash
+# In blackmore.conf
+deprecatedrpc=create_bdb
+```
+
+### 2.8 Network Configuration
+
+| Network | P2P Port | RPC Port |
+|---------|----------|----------|
+| Mainnet | 15714 | 15715 |
+| Testnet | 25714 | 25715 |
+| Regtest | 25714 | 25715 |
+
+**Dev Fund Addresses:**
+- Mainnet: `BKDvboD1CzZ5KycP1FRSXRoi7XXhHoQhS1`
+- Testnet: `n14L5xqAs7QRzNiTLPNaPeqaF9CRoxzVnU`
+- Regtest: empty (no dev fund)
+
+### 2.9 Stake Parameters (Consensus)
+
+These parameters are defined in `src/consensus/params.h` and `src/kernel/chainparams.cpp`:
+
+| Parameter | Value | Purpose |
+|-----------|-------|---------|
+| `nCoinbaseMaturity` | 500 | UTXO age required before it can stake |
+| `nMaxReorganizationDepth` | 500 | Maximum reorg depth |
+| `nStakeTimestampMask` | 0xf (15) | Stake timestamp granularity |
+| `nTargetSpacing` | 64 seconds | Block spacing |
+| `nTargetTimespan` | 24 hours | Difficulty adjustment period |
+| `nLastPOWBlock` | Various | Last block where PoW is allowed (testnet only) |
+
+### 2.10 Blackcoin-Specific GUI Quirks
+
+The following GUI files contain Blackcoin-specific modifications that MUST be preserved:
+
+| File | Purpose |
+|------|---------|
+| `src/qt/bitcoingui.cpp` | Main GUI window, staking status, Blackcoin terminology |
+| `src/qt/overviewpage.cpp` | Staking weight display, CanStake() integration |
+| `src/qt/walletmodel.cpp` | Stake weight, coinstake tracking |
+| `src/qt/walletmodel.h` | getStakeWeight(), CanStake() |
+| `src/qt/transactionrecord.cpp` | CoinStake transaction display |
+| `src/qt/transactionrecord.h` | IsCoinStake flag |
+| `src/qt/transactiontablemodel.cpp` | Coinstake filtering/sorting |
+| `src/qt/transactiondesc.cpp` | Coinstake description |
+| `src/qt/res/icons/tx_staked.png` | Staked transaction icon |
+
+**GUI Labels and Terminology:**
+- "BLK" unit instead of "BTC"
+- "Blackcoins" instead of "bitcoins"
+- "Stake" terminology
+- Blackcoin-specific warnings in passphrase dialog
+- Staking weight and status in overview page
+- CoinStake transaction icons
+
+---
+
+## 3. Files: Preserve vs Replace vs Remove
+
+### 3.1 Files to PRESERVE (Blackcoin-specific)
+
+| Category | Files |
+|----------|-------|
+| PoS Core | `src/pos.cpp`, `src/pos.h`, `src/node/miner.cpp`, `src/node/miner.h` |
+| Wallet | `src/wallet/staking.cpp`, `src/wallet/staking.h`, `src/wallet/rpc/staking.cpp`, `src/wallet/rpc/staking.h`, `src/wallet/init.cpp` |
+| Serialization | `src/primitives/block.h`, `src/primitives/block.cpp`, `src/primitives/transaction.h` |
+| Crypto | `src/crypto/scrypt.cpp`, `src/crypto/scrypt-sse2.cpp`, `src/crypto/scrypt.h` |
+| Params | `src/kernel/chainparams.cpp`, `src/kernel/chainparams.h`, `src/consensus/params.h`, `src/chainparams.cpp`, `src/chainparams.h`, `src/chainparamsseeds.h` |
+| Policy | `src/policy/policy.h` (static fees) |
+| Wallet DB | `src/wallet/bdb.cpp`, `src/wallet/db.cpp`, `src/wallet/db.h` |
+| Validation | `src/validation.cpp` (PoS logic), `src/validation.h` |
+
+### 3.2 Files to NOT Change (Blackcoin-specific)
+
+| File/Folder | Reason |
+|-------------|--------|
+| `.github/workflows/build.yml` | Blackcoin CI build configuration |
+| `.github/workflows/docker_build_push_26.yml` | Blackcoin Docker build |
+| `.gitignore` | Blackcoin-specific ignore rules section |
+| `configure.ac` | SSE2 flag for scrypt, BDB 6.2 support |
+| `contrib/init/` | Blackcoin-specific init scripts (blackmored, etc.) |
+| `src/Makefile.am` | Build configuration for Scrypt/SSE2 |
+| `doc/man/*.1` | Blackcoin man pages |
+
+### 3.3 Files to REPLACE from Bitcoin 30.x
 
 | Category | Files |
 |----------|-------|
 | Networking | `src/net.cpp`, `src/net.h`, `src/net_processing.cpp` (most) |
 | Mempool | `src/txmempool.cpp`, `src/txmempool.h` (core logic) |
-| Validation | `src/validation.cpp`, `src/validation.h` (core logic) |
+| Validation | `src/validation.cpp`, `src/validation.h` (core logic, adapt PoS) |
 | Consensus | `src/consensus/*` (adapt params) |
-| RPC | Most of `src/rpc/*` |
+| RPC | Most of `src/rpc/*` (adapt Blackcoin RPCs) |
 | Wallet | `src/wallet/*` (adapt, not replace) |
-| GUI | `src/qt/*` |
-| **Scrypt/SSE2** | `src/crypto/scrypt-sse2.cpp`, configure.ac SSE2 flag | **PRESERVE** |
+| GUI | `src/qt/*` (adapt Blackcoin GUI) |
 
-### 1.4 External Subtrees (UPDATE NORMALLY)
+### 3.4 External Subtrees (UPDATE NORMALLY)
 
 | Directory | Action |
 |-----------|--------|
@@ -257,29 +364,7 @@ These RPC methods are Blackcoin-specific and MUST be preserved:
 | `src/minisketch/` | Pull latest from Bitcoin 30.x |
 | `src/crc32c/` | Pull latest from Bitcoin 30.x |
 
-### 1.5 Files NOT to Change
-
-These files are Blackcoin-specific and should be preserved exactly as-is:
-
-| File/Folder | Reason |
-|-------------|--------|
-| `.github/workflows/build.yml` | Blackcoin CI build configuration |
-| `.github/workflows/docker_build_push_26.yml` | Blackcoin Docker build |
-| `.gitignore` | Blackcoin-specific ignore rules section |
-| `configure.ac` | SSE2 flag for scrypt (speeds up syncing older blocks) |
-| `src/crypto/scrypt-sse2.cpp` | SSE2 optimization for Scrypt |
-| `src/crypto/scrypt.cpp` | Scrypt implementation |
-| `src/wallet/init.cpp` | Blackcoin-specific args: -staketimio, -stakecache, -donatetodevfund |
-| `src/policy/policy.h` | Static fee constants (RBF DISABLED) |
-| `src/kernel/mempool_options.h` | Min relay fee configuration |
-| `src/kernel/chainparams.cpp` | Taproot NEVER_ACTIVE, DevFundAddress |
-| `src/deploymentinfo.cpp` | Taproot deployment info |
-| `test/functional/` | Tests never adapted for Blackcoin - may not work |
-| `contrib/guix/` | GUIX never tested or adapted |
-| `contrib/init/` | Blackcoin-specific init scripts (blackmored, etc.) |
-| `doc/man/*.1` | Blackcoin man pages |
-
-### 1.6 Items NOT to Port from Bitcoin 30.x
+### 3.5 Items NOT to Port from Bitcoin 30.x
 
 These Bitcoin 30.x features must NOT be ported:
 
@@ -289,301 +374,86 @@ These Bitcoin 30.x features must NOT be ported:
 | Fee estimation (`src/kernel/feerate*.cpp`) | Blackcoin uses STATIC fees |
 | Dynamic fee calculation | Blackcoin has hardcoded fee constants |
 | Taproot activation | Taproot is coded but NEVER_ACTIVE |
+| GUIX | Never tested or adapted for Blackcoin |
 
-### 1.7 Blackcoin-Specific GUI Quirks
-
-The following GUI files contain Blackcoin-specific modifications that MUST be preserved:
-
-| File | Purpose | Modification |
-|------|---------|--------------|
-| `src/qt/bitcoingui.cpp` | Main GUI window | Staking status, Blackcoin terminology, wallet actions |
-| `src/qt/overviewpage.cpp` | Overview page | Staking weight display, CanStake() integration |
-| `src/qt/walletmodel.cpp` | Wallet model | Stake weight, coinstake tracking |
-| `src/qt/walletmodel.h` | Wallet model header | getStakeWeight(), CanStake() |
-| `src/qt/transactionrecord.cpp` | Transaction records | CoinStake transaction display |
-| `src/qt/transactionrecord.h` | Transaction record header | IsCoinStake flag |
-| `src/qt/transactiontablemodel.cpp` | Transaction table | Coinstake filtering/sorting |
-| `src/qt/transactiondesc.cpp` | Transaction description | Coinstake description |
-| `src/qt/askpassphrasedialog.cpp` | Passphrase dialog | Blackcoin-specific warnings |
-| `src/qt/res/icons/tx_staked.png` | Staked transaction icon | Custom icon for coinstake txs |
-| `src/qt/locale/*.ts` | Translations | Blackcoin terminology (BLK, staking) |
-| `src/qt/forms/ui_*.h` | UI forms | Blackcoin-specific labels |
-
-#### GUI Labels and Terminology
-- "BLK" unit instead of "BTC"
-- "Blackcoins" instead of "bitcoins"
-- "Stake" instead of "Mint" (or as applicable)
-- Blackcoin-specific warnings in passphrase dialog
-- Staking weight and status in overview page
-- CoinStake transaction icons
-
-**Note**: The GUI contains extensive Blackcoin-specific terminology and staking UI elements. These must be carefully preserved during the upgrade.
-
-**Note**: Functional tests (`test/functional/*`) were never adapted for Blackcoin's PoS implementation. They may fail or be incompatible. Do not attempt to fix them as part of this upgrade - focus on core functionality first.
+**Note**: Functional tests (`test/functional/*`) were never adapted for Blackcoin's PoS implementation. They may fail or be incompatible. Do not attempt to fix them as part of this upgrade.
 
 ---
 
-## Phase 2: Preparation
+## 4. Incremental Upgrade Strategy
 
-### 2.1 Create Upgrade Branches
+### 4.1 Why Incremental?
 
-```bash
-# Main upgrade branch
-git checkout -b upgrade/30.2.0
+| Risk | Impact |
+|------|--------|
+| **API churn** | Txid/Wtxid types, COutPoint changes, mempool API changes |
+| **PoS preservation** | Each version may break consensus-adjacent code |
+| **Testing complexity** | Functional tests never adapted for PoS |
 
-# Temporary branches
-git checkout -b backup/v26.2.0          # Backup original state
-git checkout -b analysis/bitcoin-30.2.0 # Fresh Bitcoin 30.2.0
+**Direct 26.x → 30.x merge is TOO RISKY.**
+
+### 4.2 Upgrade Path
+
+```
+Blackcoin More v26.2.0
+        ↓
+    Phase 1: Bitcoin 27.x [GetAdjustedTime() removed]
+        ↓
+    Phase 2: Bitcoin 28.x [Txid/Wtxid types, CDataStream→DataStream]
+        ↓
+    Phase 3: Bitcoin 29.x [GenTxid→std::variant]
+        ↓
+    Phase 4: Bitcoin 30.x [uint256→Txid, BDB removal, CMake migration]
+        ↓
+    Blackcoin More v30.2.0
 ```
 
-### 2.2 Fetch Bitcoin 30.2.0
+### 4.3 Phase Details
 
-```bash
-# Add Bitcoin remote if not present
-git remote add Bitcoin https://github.com/bitcoin/bitcoin.git
-git fetch Bitcoin
+| Phase | Bitcoin | Key Changes | Risk | Test |
+|-------|---------|-------------|------|------|
+| 1 | 26.x → 27.x | GetAdjustedTime() removed | MEDIUM | Staking, sync |
+| 2 | 27.x → 28.x | Txid/Wtxid types, COutPoint::hash→Txid | HIGH | Build, staking, mempool |
+| 3 | 28.x → 29.x | GenTxid→std::variant | MEDIUM | Mempool, transactions |
+| 4 | 29.x → 30.x | uint256→Txid final, BDB removal, CMake | HIGH | Full validation |
 
-# Track Bitcoin 30.2.0
-git checkout -b bitcoin-30.2.0 Bitcoin/30.2.0
-```
+### 4.4 Effort Estimate
 
-### 2.3 Create File Inventory
-
-```bash
-# Generate list of Blackcoin-specific files
-cat > scripts/file_inventory.py << 'EOF'
-#!/usr/bin/env python3
-import subprocess
-import os
-
-# Get all modified files from Bitcoin 26.x to current
-result = subprocess.run(
-    ['git', 'diff', '--name-only', 'Bitcoin/26.x..HEAD'],
-    capture_output=True, text=True, cwd='/path/to/repo'
-)
-files = result.stdout.strip().split('\n')
-
-# Categorize files
-critical = []   # PoS, staking, chainparams
-high = []       # Wallet modifications
-medium = []     # RPC modifications
-low = []        # Build/config files
-
-for f in files:
-    if any(x in f for x in ['pos.cpp', 'pos.h', 'staking', 'chainparams', 
-                             'consensus/params', 'validation.cpp']):
-        critical.append(f)
-    elif 'wallet' in f:
-        high.append(f)
-    elif 'rpc' in f:
-        medium.append(f)
-    elif any(x in f for x in ['Makefile', 'configure', '.github', 'contrib']):
-        low.append(f)
-
-print("=== CRITICAL (PoS/Staking/Chainparams) ===")
-for f in critical: print(f)
-print("\n=== HIGH (Wallet) ===")
-for f in high: print(f)
-print("\n=== MEDIUM (RPC) ===")
-for f in medium: print(f)
-print("\n=== LOW (Build/Config) ===")
-for f in low: print(f)
-EOF
-```
+| Phase | Duration |
+|-------|----------|
+| Phase 1 (27.x) | 1-2 weeks |
+| Phase 2 (28.x) | 2-4 weeks |
+| Phase 3 (29.x) | 1-2 weeks |
+| Phase 4 (30.x) | 2-3 weeks |
+| **Total** | **6-11 weeks** |
 
 ---
 
-## Phase 3: Incremental Upgrade Strategy
+## 5. API Changes (Reference)
 
-### 3.1 Recommended: Incremental Approach
+### 5.1 Type Changes by Bitcoin Version
 
-Rather than merging 26.x → 30.x directly, consider:
+| Bitcoin Version | Change | Blackcoin Impact |
+|-----------------|--------|------------------|
+| 27.x | `GetAdjustedTime()` removed | **CRITICAL**: PoS validation |
+| 28.x | Txid/Wtxid types (PR #28107) | COutPoint::hash type change |
+| 28.x | CDataStream→DataStream | Stream I/O update |
+| 28.x | vTxHashes→txns_randomized | Mempool API change |
+| 29.x | GenTxid→std::variant | Mempool API change |
+| 30.x | uint256→Txid final | Extensive updates |
 
-```
-26.2.0 → 27.x → 28.x → 29.x → 30.2.0
-```
+### 5.2 Function Changes
 
-Each step is smaller and more manageable.
-
-### 3.2 Direct Merge Approach (Alternative)
-
-If doing direct merge:
-
-```bash
-# Reset to Bitcoin 30.2.0
-git checkout -b merge-30.2.0 bitcoin-30.2.0
-git reset --hard bitcoin-30.2.0
-
-# Merge Blackcoin with strategy ours
-git merge --strategy=ours --no-commit backup/v26.2.0
-
-# Restore Blackcoin-specific files (in order):
-```
-
-### 3.3 File Restoration Order
-
-#### Step 1: Core PoS Files
-```bash
-git checkout backup/v26.2.0 -- \
-  src/pos.cpp src/pos.h \
-  src/primitives/transaction.h src/primitives/block.h
-```
-
-#### Step 2: Consensus Parameters
-```bash
-git checkout backup/v26.2.0 -- \
-  src/consensus/params.h \
-  src/kernel/chainparams.cpp src/kernel/chainparams.h \
-  src/chainparams.cpp src/chainparams.h \
-  src/chainparamsbase.cpp src/chainparamsbase.h \
-  src/chainparamsseeds.h
-```
-
-#### Step 3: Validation Logic
-```bash
-git checkout backup/v26.2.0 -- \
-  src/validation.cpp src/validation.h \
-  src/consensus/validation.h
-```
-
-#### Step 4: Wallet with Staking
-```bash
-git checkout backup/v26.2.0 -- \
-  src/wallet/wallet.cpp src/wallet/wallet.h \
-  src/wallet/transaction.h \
-  src/wallet/staking.cpp src/wallet/staking.h \
-  src/wallet/rpc/staking.cpp src/wallet/rpc/staking.h \
-  src/wallet/init.cpp  # Blackcoin-specific args: -staketimio, -stakecache, -donatetodevfund
-```
-
-#### Step 5: CI/CD (PRESERVE EXACTLY)
-```bash
-git checkout backup/v26.2.0 -- \
-  .github/workflows/build.yml \
-  .github/workflows/docker_build_push_26.yml \
-  .gitignore
-```
-
-#### Step 6: Scrypt/SSE2 (PRESERVE EXACTLY)
-```bash
-git checkout backup/v26.2.0 -- \
-  configure.ac \
-  src/crypto/scrypt-sse2.cpp \
-  src/crypto/scrypt.cpp \
-  src/crypto/scrypt.h \
-  src/Makefile.am
-```
-
-**IMPORTANT**: The SSE2 flag in `configure.ac` (`--enable-sse2`) is critical for speeding up syncing of older blocks that use Scrypt hashing.
-
-#### Step 7: BerkeleyDB 6.2 Support (PRESERVE EXACTLY)
-```bash
-git checkout backup/v26.2.0 -- \
-  configure.ac \
-  src/wallet/db.cpp src/wallet/db.h \
-  src/wallet/bdb.cpp \
-  depends/packages/bdb.mk
-```
-
-**IMPORTANT**: BDB 6.2 is required for existing Blackcoin wallets to open.
-
-#### Step 8: Additional Modifications
-```bash
-git checkout backup/v26.2.0 -- \
-  src/chain.cpp src/chain.h \
-  src/coins.cpp src/coins.h \
-  src/addresstype.cpp \
-  src/init.cpp
-```
-
-#### Step 8: GUI (PRESERVE EXACTLY)
-```bash
-git checkout backup/v26.2.0 -- \
-  src/qt/bitcoingui.cpp \
-  src/qt/overviewpage.cpp \
-  src/qt/walletmodel.cpp src/qt/walletmodel.h \
-  src/qt/transactionrecord.cpp src/qt/transactionrecord.h \
-  src/qt/transactiontablemodel.cpp \
-  src/qt/transactiondesc.cpp \
-  src/qt/askpassphrasedialog.cpp \
-  src/qt/res/icons/tx_staked.png
-```
-
-**IMPORTANT**: GUI contains extensive Blackcoin-specific terminology (BLK units, staking UI, warnings).
-
-#### Step 9: Final Configuration Files
-```bash
-git checkout backup/v26.2.0 -- \
-  src/Makefile.am \
-  src/Makefile.test.include \
-  src/Makefile.qt.include \
-  src/Makefile.qttest.include \
-  src/Makefile.bench.include
-```
-
----
-
-## Phase 4: API Compatibility
-
-### 4.1 Expected Bitcoin 30.x API Changes
-
-#### Type Changes
-| Bitcoin 26.x | Bitcoin 30.x |
-|--------------|--------------|
-| `uint256` | `Txid` / `Wtxid` (typed) |
-| `COutPoint::hash` (uint256) | `COutPoint::hash` (Txid) |
-| `vTxHashes` | `txns_randomized` |
-| `queryHashes()` | `entryAll()` iteration |
-| `CDataStream` | `DataStream` |
-
-#### Function Changes
 | Bitcoin 26.x | Bitcoin 30.x |
 |--------------|--------------|
 | `IsCoinBase()` | (unchanged) |
 | `IsCoinStake()` | ADD THIS |
 | `IsProofOfStake()` | ADD THIS |
-| `IsProofOfWork()` | ADD THIS |
-| `nTargetSpacing` | `nPowTargetSpacing` |
-| `GetAdjustedTime()` | REMOVED |
-| `ShutdownRequested()` | `ShutdownRequested(node)` |
-| `CreateNewBlock()` | Signature changed |
-| `CheckBlock()` | Signature changed |
+| `GetAdjustedTime()` | REMOVED - preserve if needed |
+| `pool.queryHashes(vtxid)` | `for (const CTxMemPoolEntry& e : pool.entryAll())` |
 
-#### New Requirements
-- **C++20** required (no C++17)
-- **Python 3.9+** for tests
-- **Boost 1.77.0+**
+### 5.3 Add to CTransaction
 
-#### CRITICAL: BerkeleyDB 6.2 Support Required
-
-**Blackcoin More uses BDB 6.2** for wallet storage. This MUST be preserved.
-
-| Bitcoin Version | Wallet Database |
-|-----------------|-----------------|
-| 26.x | BDB 4.8 (deprecated) or SQLite |
-| 30.x | Bitcoin removed BDB, Blackcoin MUST keep BDB 6.2 |
-
-**Blackcoin More v30.2.0 Requirements:**
-1. Keep BDB 6.2 wallet support (existing wallets must open)
-2. Keep SQLite wallet support (new wallets can use SQLite)
-3. Add `deprecatedrpc=create_bdb` setting to allow creating new BDB wallets
-
-**Port BDB 6.2 from Blackcoin to Bitcoin 30.x:**
-- Restore `src/wallet/db.h`, `src/wallet/db.cpp` with BDB 6.2 support
-- Restore BDB 6.2 configure options in `configure.ac`
-- Restore `src/wallet/bdb.cpp` with BDB 6.2
-- Add `deprecatedrpc=create_bdb` to allow BDB wallet creation
-
-**Configuration for BDB wallets:**
-```bash
-# In blackmore.conf to create new BDB wallets:
-deprecatedrpc=create_bdb
-```
-- **Clang 15+** or **GCC 12+**
-
-### 4.2 Compatibility Fixes Needed
-
-#### Add to CTransaction
 ```cpp
 // In src/primitives/transaction.h
 bool IsCoinStake() const {
@@ -592,18 +462,8 @@ bool IsCoinStake() const {
 }
 ```
 
-#### Add to CBlock
-```cpp
-// In src/primitives/block.h
-bool IsProofOfStake() const {
-    return (vtx.size() > 1 && vtx[1]->IsCoinStake());
-}
-bool IsProofOfWork() const {
-    return !IsProofOfStake();
-}
-```
+### 5.4 Add to CTxOut
 
-#### Add to CTxOut
 ```cpp
 // In src/primitives/transaction.h
 bool IsEmpty() const {
@@ -611,205 +471,174 @@ bool IsEmpty() const {
 }
 ```
 
-#### Fix Consensus Params
-```cpp
-// In src/consensus/params.h
-int64_t nPowTargetSpacing;  // Changed from nTargetSpacing
-```
+### 5.5 C++ Requirements
 
-#### Fix Mempool RPC
-```cpp
-// In src/rpc/mempool.cpp
-// Before:
-info.pushKV("wtxid", pool.vTxHashes[e.vTxHashesIdx].first.ToString());
-
-// After:
-info.pushKV("wtxid", e.GetTx().GetWitnessHash().ToString());
-
-// Before:
-pool.queryHashes(vtxid);
-
-// After:
-for (const CTxMemPoolEntry& e : pool.entryAll()) {
-    vtxid.push_back(e.GetTx().GetHash());
-}
-```
-
-#### Fix String Conversions
-```cpp
-// Before:
-path.u8string()
-
-// After:
-path.utf8string()
-```
+- **C++20** required
+- **Clang 15+** or **GCC 12+**
+- **Boost 1.77.0+**
+- **Python 3.9+** for tests
 
 ---
 
-## Phase 5: Testing Strategy
+## 6. Build System Migration (Autotools → CMake)
 
-### 5.1 Build Testing
+### 6.1 Why Migrate to CMake?
 
-#### Linux/Standard Build
-```bash
-# Configure with C++20 (DO NOT forget SSE2 for Scrypt!)
-./autogen.sh
-./configure CXXFLAGS="-std=c++20" --enable-tests --enable-sse2
+Bitcoin Core 30.x migrated from GNU Autotools to CMake. Blackcoin More currently uses Autotools.
 
-# Build
-make -j$(nproc)
+| Aspect | Autotools (Current) | CMake (Bitcoin 30.x) |
+|--------|---------------------|----------------------|
+| Build Files | configure.ac, Makefile.am | CMakeLists.txt |
+| Configuration | `./configure --enable-foo` | `cmake -DFOO=ON` |
+| Bitcoin Core Sync | Manual cherry-pick | Direct merge possible |
 
-# Run unit tests (if they pass)
-src/test/test_blackmore
+### 6.2 CMake Migration Plan (Phase 4)
 
-# NOTE: Functional tests were never adapted for Blackcoin
-# They may fail or be incompatible with PoS functionality
-# test/functional/test_runner.py  # May not work
+**CMake Migration occurs in Phase 4 (29.x → 30.x):**
+
+1. Complete Bitcoin upgrade to 30.x using Autotools
+2. Execute CMake migration per `CMake_MIGRATION.md`
+3. Preserve Blackcoin More differences in CMake:
+   - RBF: DISABLED
+   - Static fees: 100,000 sat/kvB
+   - BDB 6.2: REQUIRED
+   - GetAdjustedTime(): PRESERVED
+   - nStakeModifier: PRESERVED
+
+| Build System | Versions | Status |
+|--------------|----------|--------|
+| Autotools | 26.x → 29.x | Current |
+| CMake | 30.x+ | Migrate in Phase 4 |
+
+### 6.3 Blackcoin-Specific CMake Options
+
+```cmake
+# REQUIRED: BDB 6.2 support (Bitcoin 30.x removed this)
+cmake_dependent_option(USE_BDB "Enable BDB 6.2 wallet support." ON "ENABLE_WALLET" OFF)
+
+# REQUIRED: Keep RBF disabled (Bitcoin 30.x has RBF enabled)
+option(RBF_ENABLED "Enable Replace-By-Fee (MUST remain OFF)." OFF)
+
+# REQUIRED: Keep static fees (Bitcoin 30.x has dynamic estimation)
+option(DYNAMIC_FEES "Enable dynamic fee estimation (MUST remain OFF)." OFF)
+
+# Blackcoin More uses SSE2 for scrypt (not in Bitcoin)
+option(USE_SSE2 "Enable SSE2 for scrypt library." OFF)
 ```
 
-#### macOS Build (Using depends/)
-```bash
-# Step 1: Build dependencies in depends folder
-cd depends
-make HOST=x86_64-apple-darwin18 -j$(nproc)
-cd ..
+### 6.4 Critical: nStakeModifier Preservation
 
-# Step 2: Configure using depends (VERSION MUST MATCH the HOST above!)
-CONFIG_SITE=$PWD/depends/x86_64-apple-darwin18/share/config.site \
-  ./configure \
-  --enable-reduce-exports \
-  --disable-bench \
-  --disable-tests \
-  --disable-gui-tests \
-  --disable-man \
-  --enable-upnp-default \
-  --prefix=/
+**Bitcoin 30.x does NOT have `nStakeModifier` in CBlockIndex!** This field is CRITICAL for PoS:
 
-# Step 3: Build
-make -j$(nproc)
+```cpp
+// src/chain.h - MUST PRESERVE THIS FIELD
+struct CBlockIndex {
+    // ...
+    uint256 nStakeModifier{};  // CRITICAL: Not in Bitcoin Core
+    // ...
+};
 ```
 
-**IMPORTANT**: The `HOST=` version in step 1 and the `depends/` directory name in step 2 MUST match exactly.
+Used in `src/pos.cpp:CheckStakeKernelHash()` for stake proof validation.
 
-#### Wallet Configuration for BDB Support
+---
+
+## 7. Testing Strategy
+
+### 7.1 Testnet Testing (FIRST)
+
+**SegWit is ALREADY ACTIVATED on testnet** (Sept 2024). Testnet supports **both PoW mining AND PoS staking**.
+
+| Phase | Test | Description |
+|-------|------|-------------|
+| 1 | Sync from scratch | Download testnet blockchain |
+| 2 | Mining (PoW) | Test PoW block production (reward: 10000 BLK, uses SHA256 for new blocks) |
+| 3 | Staking (PoS) | Test stake generation (SegWit active) |
+| 4 | Transactions | Send regular and coinstake transactions |
+
+**Note**: Scrypt is ONLY for syncing **old historical testnet blocks**. New testnet blocks use **SHA256** (same as Bitcoin). SSE2 accelerates sync of old blocks.
+
+### 7.2 Mainnet Testing (AFTER TESTNET)
+
+**Mainnet is PoS-only - NO mining allowed!**
+
+| Phase | Test | Description |
+|-------|------|-------------|
+| 1 | Sync from scratch | Download mainnet blockchain |
+| 2 | Staking (PoS) | Test stake generation (CRITICAL - mainnet is PoS-only) |
+| 3 | Transactions | Send transactions |
+| 4 | SegWit rules | Monitor BIP-9 voting (80% threshold, activation: June 20, 2025) |
+
+### 7.3 Required Manual Tests
+
 ```bash
-# In blackmore.conf to create new BDB wallets:
-deprecatedrpc=create_bdb
+# PoS tests
+blackmore-cli getstakinginfo
+blackmore-cli staking true
+blackmore-cli checkkernel "<txid>" <output_index>
+blackmore-cli reservebalance 0
+
+# Wallet tests
+blackmore-cli listwallets
+blackmore-cli getwalletinfo
+blackmore-cli getbalance
+
+# Transaction tests
+blackmore-cli sendtoaddress "<addr>" 0.1
+blackmore-cli burn 0.1
+blackmore-cli burnwallet
+blackmore-cli optimizeutxoset
 ```
 
-This allows creating new BDB 6.2 wallets (useful for recovery or legacy use).
+### 7.4 Critical Tests
 
-#### Blackcoin-Specific Configuration Settings
+| Test | Purpose | Status |
+|------|---------|--------|
+| `getstakinginfo` RPC | Returns staking stats | REQUIRED |
+| `staking` RPC | Enable/disable wallet staking | REQUIRED |
+| `reservebalance` RPC | Reserve balance from staking | REQUIRED |
+| `checkkernel` RPC | Check if kernel can stake | REQUIRED |
+| `burn` RPC | Burn coins | REQUIRED |
+| `burnwallet` RPC | Burn all wallet UTXOs | REQUIRED |
+| `optimizeutxoset` RPC | Optimize UTXO set | REQUIRED |
+| Manual staking test | Stake on regtest | REQUIRED |
+| Manual sync test | Sync from scratch | REQUIRED |
+| Manual tx test | Send transactions | REQUIRED |
 
-These settings MUST be preserved in the upgrade:
+**Note**: Functional tests were never adapted for Blackcoin. Do not expect them to pass. Focus on manual testing of core staking and transaction functionality.
 
-| Setting | Purpose | Default | Range | File |
-|---------|---------|---------|-------|------|
-| `-staketimio=<n>` | Proof of stake timeout (ms) | 500 | - | `src/wallet/init.cpp` |
-| `-stakecache=<true/false>` | Enable staking cache | false | - | `src/wallet/init.cpp` |
-| `-donatetodevfund=<n>` | Donate % of staking rewards | 20 | 0-95 | `src/wallet/init.cpp` |
-| `-txversion=<n>` | Transaction version | 2 | - | `src/wallet/init.cpp` |
-| `-staking=<true/false>` | Enable/disable staking | true | - | `src/wallet/init.cpp` |
-| `-checkkernel=<true/false>` | Check if kernel can stake | - | - | `src/wallet/init.cpp` |
-| `-reservebalance=<n>` | Reserve balance from staking | 0 | - | `src/wallet/init.cpp` |
+---
 
-**Dev Fund Configuration:**
-- Dev Fund address is hardcoded in `src/kernel/chainparams.cpp`
-- Mainnet: `BKDvboD1CzZ5KycP1FRSXRoi7XXhHoQhS1`
-- Testnet: `n14L5xqAs7QRzNiTLPNaPeqaF9CRoxzVnU`
-- Regtest: empty (no dev fund)
+## 8. Rollback Plan
 
-#### Blackcoin Network Configuration
+If a phase fails:
 
-**Network Ports:**
-| Network | P2P Port | RPC Port |
-|---------|----------|----------|
-| Mainnet | 15714 | 15715 |
-| Testnet | 25714 | 25715 |
-| Regtest | 25714 | 25715 |
+1. **Identify failure point**: Build, PoS, or transactions
+2. **Preserve working state**: Commit or stash
+3. **Analyze root cause**: Check API changes affecting PoS
+4. **Fix or rollback**: Either fix the issue or rollback to previous version
+5. **Retry**: Once fixed, retry the phase
 
-**Files to restore:**
-- `src/kernel/chainparams.cpp` - Contains port configuration for each network
+**Escape hatch**: If incremental approach fails repeatedly, consider staying on the last working Bitcoin version.
 
-#### Blackcoin Stake Parameters (Consensus)
+---
 
-These parameters are defined in `src/consensus/params.h` and `src/kernel/chainparams.cpp`:
+## 9. Pre-Merge Checklist
 
-| Parameter | Value | Purpose |
-|-----------|-------|---------|
-| `nCoinbaseMaturity` | 500 | UTXO age required before it can stake |
-| `nMaxReorganizationDepth` | 500 | Maximum reorg depth |
-| `nStakeTimestampMask` | 0xf (15) | Stake timestamp granularity (must be divisible by 16 seconds) |
-| `nTargetSpacing` | 64 seconds | Block spacing |
-| `nTargetTimespan` | 24 hours | Difficulty adjustment period |
-| `nLastPOWBlock` | Various | Last block where PoW is allowed (testnet only) |
+- [ ] Backup current v26.2.0 branch
+- [ ] Fetch Bitcoin 30.2.0
+- [ ] Create file inventory of Blackcoin-specific code
+- [ ] Document all API changes between 26.x and 30.x
+- [ ] **Port BDB 6.2 support** from Blackcoin to Bitcoin 30.x (Bitcoin removed BDB!)
+- [ ] Add `deprecatedrpc=create_bdb` to allow BDB wallet creation
+- [ ] **DO NOT** modify CI/CD workflows (build.yml, docker_build_push_26.yml)
+- [ ] **DO NOT** modify GUIX (never adapted for Blackcoin)
+- [ ] Create test environment
 
-**Files to restore:**
-- `src/consensus/params.h` - Stake parameter declarations
-- `src/kernel/chainparams.cpp` - Stake parameter values for each network
+---
 
-#### Blackcoin-Specific Fee and Policy Settings
+## 10. Example blackmore.conf
 
-**RBF (Replace-by-Fee):**
-- **RBF is DISABLED in Blackcoin** - Must stay disabled
-- No `-walletrbf` or `-enable-rbf` option exists
-- All RBF-related code removed from wallet initialization
-
-**Fee Structure:**
-
-| Component | Blackcoin | Bitcoin |
-|-----------|-----------|---------|
-| **PoS Reward** | Fixed 1.5 BLK subsidy + tx fees | N/A (PoS-only) |
-| **PoW Block** | GetBlockSubsidy() + nFees | GetBlockSubsidy() + nFees |
-| **Relay Fee** | Static 100000 satoshis/kvB | Dynamic estimation |
-| **User Fee Setting** | `-paytxfee` (manual) | `-paytxfee` or dynamic |
-| **Fee Estimation** | NONE | Sophisticated algorithm |
-
-**Blackcoin Fee Constants:**
-| Constant | Value | Purpose |
-|----------|-------|---------|
-| `DEFAULT_MIN_RELAY_TX_FEE` | 100000 satoshis/kvB | Minimum relay threshold |
-| `DUST_RELAY_TX_FEE` | 100000 satoshis/kvB | Dust limit threshold |
-| `GetProofOfStakeSubsidy()` | COIN * 3 / 2 | Fixed PoS reward (1.5 BLK) |
-
-**Key Differences from Bitcoin:**
-1. **No dynamic fee estimation** - Blackcoin has NO fee estimation code
-2. **Fixed PoS subsidy** - `GetProofOfStakeSubsidy()` returns exactly 1.5 BLK
-3. **Coinstake tx fees** - The reward is `outputs - inputs` in coinstake transaction
-4. **Static relay fees** - 100000 satoshis/kvB minimum for all transactions
-
-**Files to restore:**
-- `src/policy/policy.h` - Contains fee constants (100000 satoshis/kvB)
-- `src/wallet/init.cpp` - Contains `-paytxfee` argument
-- `src/validation.cpp` - Contains `GetProofOfStakeSubsidy()` (1.5 BLK fixed)
-
-**DO NOT port from Bitcoin 30.x:**
-- Fee estimation code (`src/kernel/feerate*.cpp`, `src/kernel/fee*.cpp`)
-- RBF wallet options (`-walletrbf`, `-enable-rbf`)
-- Dynamic fee estimation logic
-- Any mempool fee priority logic
-
-#### Taproot Configuration
-
-**IMPORTANT:** Taproot code is in place but DISABLED (NEVER_ACTIVE)
-
-| Network | Taproot Status | Activation |
-|---------|----------------|------------|
-| Mainnet | Code present, never activates | `nStartTime = NEVER_ACTIVE` |
-| Testnet | Code present, never activates | `nStartTime = NEVER_ACTIVE` |
-| Signet | Code present, never activates | `nStartTime = NEVER_ACTIVE` |
-| Regtest | Code present, never activates | `nStartTime = NEVER_ACTIVE` |
-
-**Files to preserve:**
-- `src/deploymentinfo.cpp` - Taproot deployment info (exists)
-- `src/kernel/chainparams.cpp` - Taproot config with NEVER_ACTIVE
-
-**Files NOT to change:**
-- `src/consensus/params.h` - DEPLOYMENT_TAPROOT enum (preserve)
-
-**Note:** When SegWit activates on mainnet (June 20, 2025), Taproot can be enabled by changing `nStartTime` from `NEVER_ACTIVE` to a future date.
-
-**Example blackmore.conf:**
 ```bash
 # Blackcoin-specific settings
 staking=true             # Enable staking by default
@@ -824,167 +653,22 @@ deprecatedrpc=create_bdb # Allow creating new BDB wallets
 # Taproot is coded but NEVER_ACTIVE - DO NOT activate
 ```
 
-### 5.2 Critical Tests
-
-| Test | Purpose | Status |
-|------|---------|--------|
-| `getstakinginfo` RPC | Returns staking stats (enabled, staking, pool size, etc.) | REQUIRED |
-| `staking` RPC | Enable/disable wallet staking | REQUIRED |
-| `reservebalance` RPC | Reserve balance from staking | REQUIRED |
-| `checkkernel` RPC | Check if kernel can stake | REQUIRED |
-| `burn` RPC | Burn coins to unspendable address | REQUIRED |
-| `burnwallet` RPC | Burn all wallet UTXOs | REQUIRED |
-| `optimizeutxoset` RPC | Optimize UTXO set consolidation | REQUIRED |
-| Manual staking test | Stake on regtest | REQUIRED |
-| Manual sync test | Sync from scratch | REQUIRED |
-| Manual tx test | Send transactions | REQUIRED |
-| `wallet_staking.py` | Functional test | NOT ADAPTED |
-| `wallet_coinstake.py` | Functional test | NOT ADAPTED |
-| `rpc_getblock.py` | Functional test | NOT ADAPTED |
-
-**Note**: Functional tests were never adapted for Blackcoin. Do not expect them to pass. Focus on manual testing of core staking and transaction functionality.
-
-### 5.3 Network Testing Strategy
-
-#### Testnet Testing (FIRST - PRIORITY)
-Testnet supports **both PoW mining AND PoS staking** (unlike mainnet which is PoS-only).
-
-| Phase | Test | Description |
-|-------|------|-------------|
-| 1 | Sync from scratch | Download and validate entire testnet blockchain |
-| 2 | Mining (PoW) | Test PoW block production (reward: 10000 BLK, uses SHA256) |
-| 3 | Staking (PoS) | Test stake generation and validation |
-| 4 | Transactions | Send regular transactions and coinstakes |
-
-**Note**: Scrypt is ONLY for syncing **old historical testnet blocks**. New testnet blocks use **SHA256** (same as Bitcoin). SSE2 accelerates sync of old blocks.
-
-#### Mainnet Testing (AFTER TESTNET)
-**Mainnet is PoS-only - NO mining allowed!** SegWit BIP-9 softfork is still running (activation: June 20, 2025).
-
-| Phase | Test | Description |
-|-------|------|-------------|
-| 1 | Sync from scratch | Download and validate mainnet blockchain |
-| 2 | Staking (PoS) | Test stake generation (CRITICAL - mainnet is PoS-only) |
-| 3 | Transactions | Send transactions |
-| 4 | SegWit rules | Verify SegWit enforcement (when active) |
-
-**IMPORTANT**: SSE2 flag (`--enable-sse2`) accelerates syncing **old historical blocks** that use Scrypt. **NO PoW on mainnet!**
-
 ---
 
-## Phase 6: Version Bump
-
-### 6.1 Update Version Numbers
-
-File: `configure.ac`
-```diff
-define(_CLIENT_VERSION_MAJOR, 26)
-define(_CLIENT_VERSION_MINOR, 2)
-+define(_CLIENT_VERSION_MAJOR, 27)  # or 30
-+define(_CLIENT_VERSION_MINOR, 2)
-```
-
-### 6.2 Update Branding
-
-| File | Update |
-|------|--------|
-| `src/clientversion.h` | Version strings |
-| `src/qt/res/icons/*.png` | Icons |
-| `doc/man/*.1` | Man pages |
-| `share/examples/*.conf` | Config files |
-
----
-
-## Phase 7: Checklists
-
-### 7.1 Pre-Merge Checklist
-- [ ] Backup current v26.2.0 branch
-- [ ] Fetch Bitcoin 30.2.0
-- [ ] Create file inventory of Blackcoin-specific code
-- [ ] Document all API changes between 26.x and 30.x
-- [ ] **Port BDB 6.2 support** from Blackcoin to Bitcoin 30.x (Bitcoin removed BDB!)
-- [ ] Add `deprecatedrpc=create_bdb` to allow BDB wallet creation
-- [ ] **DO NOT** modify CI/CD workflows (build.yml, docker_build_push_26.yml)
-- [ ] **DO NOT** modify GUIX (never adapted for Blackcoin)
-- [ ] Create test environment
-
-### 7.2 Merge Checklist
-- [ ] Reset to Bitcoin 30.2.0
-- [ ] Merge Blackcoin with strategy=ours
-- [ ] Restore PoS files (pos.cpp, pos.h)
-- [ ] Restore chain parameters
-- [ ] Restore wallet/staking files
-- [ ] **Restore BDB 6.2 support** (db.cpp, db.h, bdb.cpp, configure.ac BDB options)
-- [ ] **Preserve** CI/CD workflows (build.yml, docker_build_push_26.yml)
-- [ ] **Preserve** contrib/init/ (blackmored scripts)
-- [ ] Fix API incompatibilities
-- [ ] Update version to 30.2.0
-- [ ] Build successfully
-- [ ] Pass unit tests (if any pass)
-- [ ] **Manual testing only** for functional tests (never adapted)
-- [ ] Update AGENTS.md
-
-### 7.3 Post-Merge Checklist
-- [ ] Update AGENTS.md with new build/test commands
-- [ ] **DO NOT update CI/CD** (keep as-is)
-- [ ] Create release notes
-- [ ] Update documentation
-- [ ] Test upgrade from v26.2.0 (manual)
-- [ ] Test wallet upgrade path (manual)
-
-#### Testnet Testing (FIRST)
-- [ ] Testnet: Sync from scratch - REQUIRED
-- [ ] Testnet: Mining (PoW) - REQUIRED
-- [ ] Testnet: Staking (PoS) - REQUIRED
-- [ ] Testnet: Send transactions - REQUIRED
-
-#### Mainnet Testing (AFTER TESTNET)
-- [ ] Mainnet: Sync from scratch - REQUIRED
-- [ ] Mainnet: Staking only (PoS-only, NO mining) - CRITICAL
-- [ ] Mainnet: Send transactions - REQUIRED
-- [ ] Mainnet: SegWit enforcement (when activated June 20, 2025)
-
----
-
-## Estimated Effort
-
-| Phase | Effort | Notes |
-|-------|--------|-------|
-| Analysis & Inventory | 2-4 hours | |
-| Preparation | 1-2 hours | |
-| Core Merge | 4-8 hours | |
-| API Fixes | 4-8 hours | |
-| Testing | 8-16 hours | Manual testing only (tests never adapted) |
-| Documentation | 2-4 hours | |
-| **Total** | **21-42 hours** | Mostly manual testing |
-
-**Note**: Testing effort is higher because functional tests were never adapted for Blackcoin. Expect to spend significant time on manual validation of staking, transactions, and sync.
-
----
-
-## Rollback Plan
-
-If issues arise:
-
-```bash
-# Restore from backup
-git checkout backup/v26.2.0
-git branch -D upgrade/30.2.0
-
-# Or revert merge commits
-git revert <merge-commit-1>
-git revert <merge-commit-2>
-```
-
----
-
-## References
+## 11. References
 
 - Bitcoin Core Release Notes: https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes.md
 - Bitcoin Core Git History: https://github.com/bitcoin/bitcoin/commits/master
-- Blackcoin More Repository: https://github.com/CoinBlack/blackcoin-more
+- Blackcoin More Repository: https://github.com/BlackcoinDev/blackcoin-more
+- BLOCK_SERIALIZATION.md - Complete PoS block structure
+- CMake_MIGRATION.md - Build system migration plan
+- AGENTS.md - Agent knowledge base
+- src/pos.cpp - PoS kernel implementation
+- src/pos.h - PoS declarations
+- src/primitives/block.h - Block structure with nFlags, vchBlockSig
+- src/chain.h - CBlockIndex with nStakeModifier
 
 ---
 
-*Last Updated: January 19, 2026*
-*Version: 1.0*
+*Last Updated: January 20, 2026*
+*Version: 2.0 (Merged from agent/UPGRADE.md)*

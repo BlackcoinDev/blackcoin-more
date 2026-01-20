@@ -171,6 +171,8 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
     const ChainstateManager::Options chainman_opts{
         .chainparams = chainparams,
         .datadir = m_args.GetDataDirNet(),
+        // UPGRADE NOTE: GetAdjustedTime callback is REQUIRED for PoS timestamp validation
+        // GetAdjustedTime() is REMOVED in Bitcoin 28.x - MUST preserve in Blackcoin More
         .adjusted_time_callback = GetAdjustedTime,
         .check_block_index = true,
         .notifications = *m_node.notifications,

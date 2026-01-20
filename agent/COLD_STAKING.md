@@ -1,8 +1,24 @@
 # Native Cold Staking Implementation - VERIFIED FACTS ONLY
 
+## CRITICAL STATUS UPDATE (January 2026)
+
+**⚠️ IMPORTANT**: Blackcoin More does NOT currently implement native cold staking. This document provides reference implementations from other projects (Particl, AokChain) for potential future implementation.
+
+**Current State**:
+- ❌ No OP_COLDSTAKE opcode implemented
+- ❌ No COLDSTAKING_ADDRESS enum in chainparams
+- ❌ No PAY_TO_COLDSTAKE script type
+- ❌ No cold staking RPC commands
+
+**This document is a REFERENCE for potential future implementation, not current documentation.**
+
+---
+
 ## METHODOLOGY
 
 This document contains ONLY verified facts from direct source code examination. All information has been verified through 8 separate verification loops to ensure accuracy.
+
+**Purpose**: Provide implementation reference for future cold staking development in Blackcoin More.
 
 ## VERIFIED IMPLEMENTATIONS
 
@@ -87,6 +103,85 @@ OFFLINE_ADDRESS,
 **Bech32 HRPs**:
 - Mainnet: "blk"
 - Testnet: "tblk"
+
+## CRITICAL BLACKCOIN MORE CONSTRAINTS (For Any Future Implementation)
+
+### ⚠️ RBF Completely Disabled
+
+**Blackcoin More**: RBF **COMPLETELY DISABLED** - cannot be enabled
+
+```cpp
+// src/consensus/consensus.h
+static const bool RBF_ENABLED = false;
+```
+
+**Cold Staking Implication**: Double-spend protection via first-seen rule only. Cold staking transactions cannot be replaced after broadcasting.
+
+### ⚠️ BDB 6.2 Wallet Database
+
+**Bitcoin Core**: Removed BDB in 30.x
+**Blackcoin More**: **BDB 6.2 MUST BE PRESERVED**
+
+```cpp
+// src/wallet/db.h
+#if defined(USE_BDB)
+#include <db_cxx.h>
+#endif  // This MUST be preserved
+```
+
+**Cold Staking Implication**: Any cold staking wallet implementation must support BDB 6.2 wallet files. Cannot force migration to SQLite.
+
+### ⚠️ Static Fee Structure
+
+**Bitcoin Core**: Dynamic fee estimation
+**Blackcoin More**: **Static fees ONLY** (100,000 sat/kvB)
+
+```cpp
+// src/kernel/chainparams.h
+static const CAmount DEFAULT_MIN_TX_FEE = 100000;  // Fixed, not dynamic
+```
+
+**Cold Staking Implication**: Cold staking transactions use fixed fees. Cannot implement dynamic fee estimation for cold staking.
+
+### ⚠️ GetAdjustedTime() Required
+
+**Bitcoin Core**: Removed in 27.x
+**Blackcoin More**: **MUST BE PRESERVED**
+
+```cpp
+// src/kernel/time.h
+int64_t GetAdjustedTime();  // Required for PoS kernel validation
+```
+
+**Cold Staking Implication**: Cold staking requires accurate network time for kernel hash calculations. Cannot remove or replace this function.
+
+### ⚠️ PoS Block Header Extensions
+
+**Bitcoin Core**: Standard block header
+**Blackcoin More**: **CRITICAL PoS extensions** (MUST preserve)
+
+```cpp
+// src/primitives/block.h - Blackcoin More ONLY
+uint32_t nFlags;           // Stake modifier flags
+uint256 nStakeModifier;    // Stake modifier
+unsigned char vchBlockSig[65];  // Block signature
+```
+
+**Cold Staking Implication**: Cold staking blocks must include these fields. Cannot use standard Bitcoin block template.
+
+### ⚠️ SegWit Status
+
+**Bitcoin Core**: Active since August 2017
+**Blackcoin More**: 
+- Testnet: **ACTIVATED** September 2024 (80% threshold)
+- Mainnet: **IN PROGRESS** (~65% signaling, needs 80%)
+
+```cpp
+// src/consensus/params.h
+static const int64_t BIP9_SEGWIT_THRESHOLD = 80;  // NOT 95%!
+```
+
+**Cold Staking Implication**: Testnet supports SegWit cold staking. Mainnet cold staking currently P2PKH-only.
 
 ## IMPLEMENTATION REQUIREMENTS FOR BLACKCOIN MORE
 
@@ -231,10 +326,44 @@ Based on verified implementations from Particl and AokChain, **Blackcoin More sh
 
 ## CONCLUSION
 
-Both Particl and AokChain implement native cold staking addresses using different approaches:
-- **Particl**: Bech32 format with "pcs" prefix
-- **AokChain**: Base58 format with version bytes
+**Current Status**: Native cold staking is NOT implemented in Blackcoin More.
 
-Blackcoin More should implement native cold staking addresses following its existing single-byte Base58 format, using prefix `0x1c` to generate "C" prefix addresses.
+**Reference Implementations**: Both Particl and AokChain implement native cold staking addresses using different approaches:
+- **Particl**: Bech32 format with "pcs" prefix (OP_ISCOINSTAKE)
+- **AokChain**: Base58 format with version bytes (OP_OFFLINE_STAKE)
+
+**Blackcoin More Implementation Considerations**:
+
+1. **Must Preserve**:
+   - BDB 6.2 wallet compatibility
+   - Static fee structure (100,000 sat/kvB)
+   - GetAdjustedTime() for PoS validation
+   - PoS block header extensions (nFlags, nStakeModifier, vchBlockSig)
+   - RBF disabled (first-seen protection only)
+   - 80% BIP-9 threshold for soft forks
+
+2. **Must NOT**:
+   - Remove BDB wallet support
+   - Enable RBF
+   - Implement dynamic fees
+   - Remove GetAdjustedTime()
+   - Change BIP-9 threshold from 80%
+   - Use Bitcoin 30.x's descriptor wallet system
+
+3. **Implementation Priority** (if implemented):
+   - Phase 1: Add opcode and interpreter support
+   - Phase 2: Add address prefix and enum
+   - Phase 3: Add script recognition
+   - Phase 4: Modify staking logic
+   - Phase 5: Add RPC functionality
+   - Phase 6: Testing and validation
+
+**Recommended Address Format**: Single-byte Base58 format `0x1c` to generate "C" prefix addresses, following Blackcoin More's existing single-byte pattern.
 
 **All implementation details verified through direct source code examination.**
+
+---
+
+*Document Date: January 20, 2026*
+*Purpose: Reference for potential future cold staking implementation*
+*Upgrade Context: Critical constraints for Bitcoin 26.x → 30.x upgrade planning*

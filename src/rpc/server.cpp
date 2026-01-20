@@ -3,6 +3,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+// UPGRADE NOTE: Blackcoin More RPC layer
+// CRITICAL DIFFERENCES FROM BITCOIN CORE:
+// - RBF (Replace-By-Fee): DISABLED - never implement bumpfee, RBF-related RPCs
+// - Fees: STATIC 100,000 sat/kvB - never port estimateSmartFee, estimatepriority
+// - GetAdjustedTime(): REQUIRED for PoS - used in mining RPCs
+// See UPGRADE.md and src/rpc/AGENTS.md for complete details.
+
 #include <rpc/server.h>
 
 #include <common/args.h>

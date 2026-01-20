@@ -2,6 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+// UPGRADE NOTE: Blackcoin More Qt coin control dialog
+// CRITICAL DIFFERENCES FROM BITCOIN CORE:
+// - GetAdjustedTimeSeconds(): Used for fee calculations (removed in Bitcoin 28.x)
+// - Static fees: 100,000 sat/kvB - no dynamic fee estimation UI
+// - RBF: DISABLED - no RBF checkbox or UI elements
+// See UPGRADE.md and src/qt/AGENTS.md for complete details.
+
 #if defined(HAVE_CONFIG_H)
 #include <config/bitcoin-config.h>
 #endif
@@ -470,6 +477,8 @@ void CoinControlDialog::updateLabels(CCoinControl& m_coin_control, WalletModel *
                 nBytes -= 34;
 
         // Fee
+        // UPGRADE NOTE: GetAdjustedTimeSeconds() is used for fee calculations
+        // GetAdjustedTime() is REMOVED in Bitcoin 28.x - MUST preserve in Blackcoin More
         nPayFee = model->wallet().getMinimumFee(nBytes, m_coin_control, GetAdjustedTimeSeconds());
 
         if (nPayAmount > 0)

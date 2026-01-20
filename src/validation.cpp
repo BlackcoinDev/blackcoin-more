@@ -3,6 +3,14 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+// UPGRADE NOTE: Blackcoin More is being upgraded from Bitcoin 26.x to 30.x
+// CRITICAL DIFFERENCES TO PRESERVE:
+// - RBF (Replace-By-Fee): DISABLED - never port Bitcoin's RBF implementation
+// - Fees: STATIC 100,000 sat/kvB - never port dynamic fee estimation
+// - GetAdjustedTime(): REQUIRED - removed in Bitcoin 28.x, must preserve
+// - nStakeModifier: REQUIRED for PoS - not present in Bitcoin 30.x
+// See UPGRADE.md for complete details.
+
 // Rolling checkpoint check by Qtum
 // Copyright (c) 2016-2018 The Qtum developers
 
@@ -664,6 +672,8 @@ private:
     {
         AssertLockHeld(::cs_main);
         AssertLockHeld(m_pool.cs);
+        // UPGRADE NOTE: GetAdjustedTimeSeconds() is used for static fee calculation
+        // GetAdjustedTime() is REMOVED in Bitcoin 28.x - MUST preserve in Blackcoin More
         CAmount minFee = GetMinFee(package_size, GetAdjustedTimeSeconds());
         if (minFee > 0 && package_fee < minFee) {
             return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "min fee not met", strprintf("%d < %d", package_fee, minFee));
@@ -684,6 +694,9 @@ private:
 
     Chainstate& m_active_chainstate;
 
+    // UPGRADE NOTE: RBF (Replace-By-Fee) is DISABLED in Blackcoin More
+    // Bitcoin Core enables RBF by default - this must NEVER be ported
+    // Blackcoin uses first-seen rule only for transaction replacement
     /** Whether the transaction(s) would replace any mempool transactions. If so, RBF rules apply. */
     /*
     bool m_rbf{false};
@@ -707,6 +720,8 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     TxValidationState& state = ws.m_state;
     std::unique_ptr<CTxMemPoolEntry>& entry = ws.m_entry;
 
+    // UPGRADE NOTE: GetAdjustedTime() is used for v2 transaction timestamps
+    // GetAdjustedTime() is REMOVED in Bitcoin 28.x - MUST preserve in Blackcoin More
     // Blackcoin: in v2 transactions use GetAdjustedTime() as nTimeTx
     int64_t nTimeTx = (int64_t)tx.nTime;
     if (!nTimeTx && tx.nVersion >= 2)
@@ -748,6 +763,8 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     }
 
     // For the same reasons as in the case with non-final transactions
+    // UPGRADE NOTE: GetAdjustedTimeSeconds() is used for FutureDrift calculation
+    // GetAdjustedTime() is REMOVED in Bitcoin 28.x - MUST preserve in Blackcoin More
     if (nTimeTx > FutureDrift(m_active_chainstate, GetAdjustedTimeSeconds())) {
         return state.Invalid(TxValidationResult::TX_PREMATURE_SPEND, "time-too-new");
     }
@@ -766,6 +783,8 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     {
         const CTransaction* ptxConflicting = m_pool.GetConflictTx(txin.prevout);
         if (ptxConflicting) {
+            // UPGRADE NOTE: RBF (Replace-By-Fee) is DISABLED in Blackcoin More
+            // Bitcoin Core implements RBF here - this must NEVER be ported
             // Blackcoin: Disable replacement feature for now
             return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "txn-mempool-conflict");
         }
@@ -3582,6 +3601,8 @@ static bool CheckBlockHeader(const CBlockHeader& block, BlockValidationState& st
     }
 
     // Check timestamp
+    // UPGRADE NOTE: GetAdjustedTimeSeconds() is used for block timestamp validation
+    // GetAdjustedTime() is REMOVED in Bitcoin 28.x - MUST preserve in Blackcoin More
     if (block.GetBlockTime() > FutureDrift(chainstate, GetAdjustedTimeSeconds()))
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "time-too-new", "block timestamp too far in the future");
 

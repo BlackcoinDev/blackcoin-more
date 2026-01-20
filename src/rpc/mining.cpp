@@ -3,6 +3,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+// UPGRADE NOTE: Blackcoin More mining RPC
+// CRITICAL DIFFERENCES FROM BITCOIN CORE:
+// - GetAdjustedTime(): Used for PoS block validation (removed in Bitcoin 28.x)
+// - nStakeModifier: CRITICAL for PoS kernel hash (not in Bitcoin 30.x)
+// - PoS mining: Uses CheckStakeKernelHash() instead of PoW
+// See UPGRADE.md and src/pos.cpp for complete PoS details.
+
 #include <chain.h>
 #include <chainparams.h>
 #include <common/system.h>
@@ -388,6 +395,8 @@ static RPCHelpMan generateblock()
         LOCK(cs_main);
 
         BlockValidationState state;
+        // UPGRADE NOTE: GetAdjustedTime is used for PoS block validation
+        // GetAdjustedTime() is REMOVED in Bitcoin 28.x - MUST preserve in Blackcoin More
         if (!TestBlockValidity(state, chainman.GetParams(), chainman.ActiveChainstate(), block, chainman.m_blockman.LookupBlockIndex(block.hashPrevBlock), GetAdjustedTime, false, false)) {
             throw JSONRPCError(RPC_VERIFY_ERROR, strprintf("TestBlockValidity failed: %s", state.ToString()));
         }

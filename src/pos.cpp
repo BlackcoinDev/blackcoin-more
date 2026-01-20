@@ -61,9 +61,14 @@ bool CheckStakeBlockTimestamp(int64_t nTimeBlock)
 //     hash(nStakeModifier + txPrev.nTime + txPrev.vout.hash + txPrev.vout.n + nTime) < bnTarget * nWeight
 // this ensures that the chance of getting a coinstake is proportional to the
 // amount of coins one owns.
+//
+// CRITICAL: This entire function depends on nStakeModifier from CBlockIndex
+// nStakeModifier is NOT present in Bitcoin Core - this is Blackcoin More PoS-specific.
+// The formula uses: hash(nStakeModifier + txPrev.nTime + txPrev.vout.hash + txPrev.vout.n + nTime)
+//
 // The reason this hash is chosen is the following:
 //   nStakeModifier: scrambles computation to make it very difficult to precompute
-//                   future proof-of-stake
+//                   future proof-of-stake (CRITICAL: This field does NOT exist in Bitcoin 30.x)
 //   txPrev.nTime: slightly scrambles computation
 //   txPrev.vout.hash: hash of txPrev, to reduce the chance of nodes
 //                     generating coinstake at the same time
@@ -73,6 +78,9 @@ bool CheckStakeBlockTimestamp(int64_t nTimeBlock)
 //   block/tx hash should not be used here as they can be generated in vast
 //   quantities so as to generate blocks faster, degrading the system back into
 //   a proof-of-work situation.
+//
+// NEVER port this function to use Bitcoin Core's validation logic.
+// Bitcoin 30.x does NOT have nStakeModifier in CBlockIndex.
 //
 bool CheckStakeKernelHash(const CBlockIndex* pindexPrev, unsigned int nBits, uint32_t blockFromTime, CAmount prevoutValue, const COutPoint& prevout, unsigned int nTimeTx, bool fPrintProofOfStake)
 {

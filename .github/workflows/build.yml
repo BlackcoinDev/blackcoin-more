@@ -43,7 +43,7 @@ jobs:
 
           - name: linux-64-bit
             host: x86_64-pc-linux-gnu
-            os: ubuntu-24.04
+            os: ubuntu-22.04
             packages: python3
             check-security: false
             check-symbols: false
@@ -54,7 +54,7 @@ jobs:
           - name: windows-64-bit
             host: x86_64-w64-mingw32
             arch: "i386"
-            os: ubuntu-24.04
+            os: ubuntu-22.04
             packages: nsis g++-mingw-w64-x86-64 build-essential libtool autotools-dev automake pkg-config bsdmainutils curl git wine-binfmt wine64 wine32
             postinstall: |
               sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
@@ -68,7 +68,7 @@ jobs:
 
           - name: macos-64-bit
             host: x86_64-apple-darwin
-            os: ubuntu-24.04
+            os: ubuntu-22.04
             packages: curl bsdmainutils cmake libz-dev python3-setuptools libtinfo5 xorriso
             check-security: false
             check-symbols: false
@@ -79,7 +79,7 @@ jobs:
 
           - name: linux-arm-32-bit
             host: arm-linux-gnueabihf
-            os: ubuntu-24.04
+            os: ubuntu-22.04
             packages: g++-arm-linux-gnueabihf binutils-arm-linux-gnueabihf
             check-security: false
             check-symbols: false
@@ -89,7 +89,7 @@ jobs:
 
           - name: linux-arm-64-bit
             host: aarch64-linux-gnu
-            os: ubuntu-24.04
+            os: ubuntu-22.04
             packages: g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
             check-security: false
             check-symbols: false

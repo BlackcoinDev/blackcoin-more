@@ -102,9 +102,10 @@ AC_ARG_ENABLE([c++20],
   [use_cxx20=$enableval],
   [use_cxx20=no])
 
-dnl Require C++20 compiler (no GNU extensions)
-dnl C++20 is required for Blackcoin More v30.x
-AX_CXX_COMPILE_STDCXX([20], [noext], [mandatory])
+dnl Require C++17 compiler (no GNU extensions)
+dnl NOTE: C++20 is required for Blackcoin More v30.x (future upgrade)
+dnl       C++17 is required for Blackcoin More v26.x (current version)
+AX_CXX_COMPILE_STDCXX([17], [noext], [mandatory])
 
 dnl Unless the user specified OBJCXX, force it to be the same as CXX. This ensures
 dnl that we get the same -std flags for both.

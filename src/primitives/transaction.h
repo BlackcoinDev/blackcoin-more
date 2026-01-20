@@ -179,6 +179,10 @@ public:
         scriptPubKey.clear();
     }
 
+    //! UPGRADE NOTE: IsEmpty() is used to identify coinstake transactions.
+    //! NOT PRESENT in Bitcoin Core - this is a Blackcoin/Peercoin extension.
+    //! A coinstake tx has vout[0].IsEmpty() == true (the marker output).
+    //! See CTransaction::IsCoinStake() and UPGRADE.md Section 12.
     bool IsEmpty() const
     {
         return (nValue == 0 && scriptPubKey.empty());
@@ -375,6 +379,14 @@ public:
         return (vin.size() == 1 && vin[0].prevout.IsNull());
     }
 
+    //! UPGRADE NOTE: IsCoinStake() is CRITICAL for PoS block validation.
+    //! NOT PRESENT in Bitcoin Core - this is a Blackcoin/Peercoin extension.
+    //! A coinstake transaction has:
+    //!   - At least 1 input (the staking coin - prevout is NOT null)
+    //!   - At least 2 outputs (empty marker + reward)
+    //!   - First output is empty (marker for coinstake)
+    //! Used by CBlock::IsProofOfStake(), CheckProofOfStake(), CheckBlock().
+    //! See UPGRADE.md Section 12 and BLOCK_SERIALIZATION.md for details.
     bool IsCoinStake() const
     {
         // the coin stake transaction is marked with the first output empty

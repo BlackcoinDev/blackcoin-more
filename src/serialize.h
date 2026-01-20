@@ -125,7 +125,12 @@ enum
     SER_NETWORK         = (1 << 0),
     SER_DISK            = (1 << 1),
     SER_GETHASH         = (1 << 2),
-    SER_POSMARKER       = (1 << 18),  // peercoin: for sending block headers with PoS marker, to allow headers-first syncronization
+    // UPGRADE NOTE: SER_POSMARKER is CRITICAL for PoS headers-first sync.
+    // NOT PRESENT in Bitcoin Core - this is a Peercoin/Blackcoin extension.
+    // Used in CBlockHeader serialization to conditionally include nFlags.
+    // WITHOUT THIS FLAG, block headers will be serialized incorrectly
+    // and nodes will fail to sync. See BLOCK_SERIALIZATION.md for details.
+    SER_POSMARKER       = (1 << 18),
 };
 
 /**

@@ -108,7 +108,7 @@ void SetProofOfStake()
 
 ### Serialization Flow
 
-```
+```text
 Network Transmission:
   CBlockHeader → SER_NETWORK | SER_POSMARKER → includes nFlags
                 ↓
@@ -186,9 +186,10 @@ SigningResult res = keystore.SignBlockHash(
 ### Verification (src/validation.cpp:3549)
 
 ```cpp
+// src/validation.cpp:3549-3587 (actual implementation)
 static bool CheckBlockSignature(const CBlock& block)
 {
-    // PoW blocks have no signature
+    // PoW blocks must have empty signature
     if (block.IsProofOfWork())
         return block.vchBlockSig.empty();
 
@@ -198,7 +199,6 @@ static bool CheckBlockSignature(const CBlock& block)
 
     std::vector<valtype> vSolutions;
     const CTxOut& txout = block.vtx[1]->vout[1];  // Second output of coinstake
-
     TxoutType whichType = Solver(txout.scriptPubKey, vSolutions);
 
     if (whichType == TxoutType::PUBKEY) {
@@ -207,8 +207,8 @@ static bool CheckBlockSignature(const CBlock& block)
         return CPubKey(vchPubKey).Verify(block.GetHash(), block.vchBlockSig);
     }
     else {
-        // Public key in OP_RETURN (nonspendable output)
-        // Allows multisig staking without polluting UTXO set
+        // Block signing key can also be in OP_RETURN (nonspendable output)
+        // This allows multisig staking without polluting UTXO set
         const CScript& script = txout.scriptPubKey;
         CScript::const_iterator pc = script.begin();
         opcodetype opcode;
@@ -226,17 +226,35 @@ static bool CheckBlockSignature(const CBlock& block)
             return false;
         return CPubKey(vchPushValue).Verify(hash, block.vchBlockSig);
     }
+
+    return false;  // Unreachable, but matches actual implementation
 }
 ```
 
-### Signature Format
+### Signature Format (DER-Encoded ECDSA)
 
-| Field | Size | Description |
-|-------|------|-------------|
-| `vchBlockSig[0]` | 1 byte | Signature type (usually `0x00` for low-S) |
-| `vchBlockSig[1-33]` | 33 bytes | R component (X coordinate of ECDSA signature) |
-| `vchBlockSig[34-65]` | 32 bytes | S component (Y coordinate of ECDSA signature) |
-| **Total** | **Up to 65 bytes** | Standard ECDSA compact signature |
+The block signature uses **DER-encoded ECDSA** (Distinguished Encoding Rules), the same format used for Bitcoin transaction signatures:
+
+```
+DER Structure:
+┌──────────────────────────────────────────────────────────────┐
+│ 0x30 │ total_len │ 0x02 │ r_len │ R... │ 0x02 │ s_len │ S... │
+└──────────────────────────────────────────────────────────────┘
+```
+
+| Byte | Value | Description |
+|------|-------|-------------|
+| 0 | `0x30` | SEQUENCE tag |
+| 1 | `len` | Length of remaining data (68-70) |
+| 2 | `0x02` | INTEGER tag for R |
+| 3 | `r_len` | Length of R (32 or 33 bytes) |
+| 4-36 | `R` | R component (may have 0x00 prefix if high bit set) |
+| 37 | `0x02` | INTEGER tag for S |
+| 38 | `s_len` | Length of S (32 or 33 bytes) |
+| 39-71 | `S` | S component (low-S enforced) |
+| **Total** | **70-72 bytes** | Typical DER-encoded signature |
+
+**Note**: Bitcoin/Blackcoin enforce "low-S" signatures (BIP-62) where S must be ≤ half the curve order.
 
 ---
 
@@ -382,11 +400,11 @@ SER_POSMARKER = (1 << 18)  // peercoin: for sending block headers
 
 ### Flag Usage
 
-| Flag | When Set | Effect |
-|------|----------|--------|
-| `SER_GETHASH` | Computing block hash | nFlags EXCLUDED from serialization |
-| `SER_POSMARKER` | Network transmission | nFlags INCLUDED in serialization |
-| `SER_NETWORK` | Network message | Includes SER_POSMARKER for PoS blocks |
+| Flag            | When Set             | Effect                                |
+| --------------- | -------------------- | ------------------------------------- |
+| `SER_GETHASH`   | Computing block hash | nFlags EXCLUDED from serialization    |
+| `SER_POSMARKER` | Network transmission | nFlags INCLUDED in serialization      |
+| `SER_NETWORK`   | Network message      | Includes SER_POSMARKER for PoS blocks |
 
 ---
 
@@ -442,20 +460,57 @@ if (block.IsProofOfStake()) {
 
 ### 2. Serialization Rules
 
-| Operation | Flags Used | nFlags | vchBlockSig | Hash |
-|-----------|------------|--------|-------------|------|
-| Compute hash | `SER_GETHASH` | ❌ Excluded | ❌ Excluded | ✅ 80 bytes |
-| Network send | `SER_NETWORK \| SER_POSMARKER` | ✅ Included | ✅ Included | N/A |
-| Network recv | `SER_NETWORK \| SER_POSMARKER` | ✅ Extracted | ✅ Extracted | N/A |
-| Disk storage | Default | ✅ In CBlockIndex | ✅ In CBlock | N/A |
+| Operation    | Flags Used                     | nFlags            | vchBlockSig   | Hash        |
+| ------------ | ------------------------------ | ----------------- | ------------- | ----------- |
+| Compute hash | `SER_GETHASH`                  | ❌ Excluded       | ❌ Excluded   | ✅ 80 bytes  |
+| Network send | `SER_NETWORK \| SER_POSMARKER` | ✅ Included       | ✅ Included   | N/A         |
+| Network recv | `SER_NETWORK \| SER_POSMARKER` | ✅ Extracted      | ✅ Extracted  | N/A         |
+| Disk storage | Default                        | ✅ In CBlockIndex | ✅ In CBlock  | N/A         |
 
-### 3. Block Index Persistence
+### 3. Block Index Disk Persistence (CDiskBlockIndex)
+
+The `CDiskBlockIndex` class (`src/chain.h:423-484`) handles serialization of block index data to LevelDB. This includes critical PoS fields:
 
 ```cpp
-// src/chain.h - CBlockIndex fields persisted
-READWRITE(obj.nFlags);           // BLOCK_PROOF_OF_STAKE flag
-READWRITE(obj.nStakeModifier);   // Stake modifier (CRITICAL for PoS)
+// src/chain.h:449-475
+SERIALIZE_METHODS(CDiskBlockIndex, obj)
+{
+    LOCK(::cs_main);
+    int _nVersion = DUMMY_VERSION;
+    READWRITE(VARINT_MODE(_nVersion, VarIntMode::NONNEGATIVE_SIGNED));
+
+    READWRITE(VARINT_MODE(obj.nHeight, VarIntMode::NONNEGATIVE_SIGNED));
+    READWRITE(VARINT(obj.nStatus));
+    READWRITE(VARINT(obj.nTx));
+    if (obj.nStatus & (BLOCK_HAVE_DATA | BLOCK_HAVE_UNDO)) 
+        READWRITE(VARINT_MODE(obj.nFile, VarIntMode::NONNEGATIVE_SIGNED));
+    if (obj.nStatus & BLOCK_HAVE_DATA) READWRITE(VARINT(obj.nDataPos));
+    if (obj.nStatus & BLOCK_HAVE_UNDO) READWRITE(VARINT(obj.nUndoPos));
+
+    // Block header fields
+    READWRITE(obj.nVersion);
+    READWRITE(obj.hashPrev);
+    READWRITE(obj.hashMerkleRoot);
+    READWRITE(obj.nTime);
+    READWRITE(obj.nBits);
+    READWRITE(obj.nNonce);
+    READWRITE(obj.nHashBlock);
+
+    // ⚠️ CRITICAL: PoS fields - NOT in Bitcoin Core
+    READWRITE(obj.nFlags);           // BLOCK_PROOF_OF_STAKE flag
+    READWRITE(obj.nStakeModifier);   // Stake modifier for PoS kernel
+}
 ```
+
+**PoS Fields Persisted to Disk:**
+
+| Field | Type | Purpose | Bitcoin Core |
+|-------|------|---------|---------------|
+| `nFlags` | `uint32_t` | Block type marker (PoS/PoW) | ❌ Not present |
+| `nStakeModifier` | `uint256` | PoS kernel hash modifier | ❌ Not present |
+
+> [!CAUTION]
+> If these fields are removed during upgrade, existing blockchain databases will fail to load correctly. Always preserve the disk serialization format.
 
 ---
 
@@ -514,7 +569,7 @@ blackmore-cli getblockchaininfo | grep stake
 - **src/pos.cpp**: PoS kernel implementation
 - **src/primitives/block.h**: Block structure definitions
 - **src/chain.h**: CBlockIndex with PoS fields
-- **Bitcoin Wiki - Proof of Stake**: https://en.bitcoin.it/wiki/Proof_of_Stake
+- **Bitcoin Wiki - Proof of Stake**: <https://en.bitcoin.it/wiki/Proof_of_Stake>
 
 ---
 

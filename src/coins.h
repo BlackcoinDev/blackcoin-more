@@ -40,6 +40,10 @@ public:
     unsigned int fCoinBase : 1;
 
     //! whether containing transaction was a coinstake
+    //! UPGRADE NOTE: fCoinStake is CRITICAL for PoS validation.
+    //! NOT PRESENT in Bitcoin Core - this is a Blackcoin/Peercoin extension.
+    //! Used to identify coins from coinstake transactions for maturity checks.
+    //! See UPGRADE.md Section 12 for details.
     unsigned int fCoinStake : 1;
 
     //! at which height this containing transaction was included in the active block chain
@@ -67,6 +71,11 @@ public:
         return fCoinBase;
     }
 
+    //! UPGRADE NOTE: IsCoinStake() is CRITICAL for PoS validation.
+    //! NOT PRESENT in Bitcoin Core - this is a Blackcoin/Peercoin extension.
+    //! Returns true if this coin was created by a coinstake transaction.
+    //! Used in src/validation.cpp, src/consensus/tx_verify.cpp, src/wallet/wallet.cpp.
+    //! See UPGRADE.md Section 12 for details.
     bool IsCoinStake() const {
         return fCoinStake;
     }

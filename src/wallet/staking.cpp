@@ -133,7 +133,7 @@ void AvailableCoinsForStaking(const CWallet& wallet,
 
         for (unsigned int i = 0; i < wtx.tx->vout.size(); i++) {
             const CTxOut& output = wtx.tx->vout[i];
-            const COutPoint outpoint(wtxid, i);
+            const COutPoint outpoint(Txid::FromUint256(wtxid), i);
 
             if (output.nValue < wallet.m_min_staking_amount)
                 continue;

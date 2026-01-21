@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 The Bitcoin Core developers
+// Copyright (c) 2020-present The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -8,9 +8,6 @@
 #include <primitives/transaction.h>
 #include <protocol.h>
 #include <script/script.h>
-#include <serialize.h>
-#include <span.h>
-#include <streams.h>
 #include <sync.h>
 #include <test/fuzz/FuzzedDataProvider.h>
 #include <test/fuzz/fuzz.h>
@@ -20,15 +17,10 @@
 #include <test/util/net.h>
 #include <test/util/setup_common.h>
 #include <test/util/validation.h>
-#include <util/chaintype.h>
 #include <util/check.h>
 #include <util/time.h>
-#include <validation.h>
 #include <validationinterface.h>
-#include <version.h>
 
-
-#include <atomic>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -88,7 +80,6 @@ FUZZ_TARGET(process_message, .init = initialize_process_message)
                                                 GetTime<std::chrono::microseconds>(), std::atomic<bool>{false});
     } catch (const std::ios_base::failure&) {
     }
-    g_setup->m_node.peerman->SendMessages(&p2p_node);
     SyncWithValidationInterfaceQueue();
     g_setup->m_node.connman->StopNodes();
 }

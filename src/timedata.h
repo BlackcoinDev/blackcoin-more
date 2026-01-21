@@ -6,10 +6,8 @@
 #define BITCOIN_TIMEDATA_H
 
 #include "util/time.h"
-
 #include <algorithm>
 #include <cassert>
-#include <chrono>
 #include <cstdint>
 #include <vector>
 
@@ -96,7 +94,7 @@ NodeClock::time_point GetAdjustedTime();
 void AddTimeData(const CNetAddr& ip, int64_t nTime);
 
 /**
- * Reset the internal state of GetTimeOffset(), GetAdjustedTime() and AddTimeData().
+ * Reset the internal state of GetTimeOffset() and AddTimeData().
  */
 void TestOnlyResetTimeData();
 
@@ -111,5 +109,16 @@ void TestOnlyResetTimeData();
  * Equivalent to: TicksSinceEpoch<std::chrono::seconds>(GetAdjustedTime())
  */
 int64_t GetAdjustedTimeSeconds();
+
+/**
+ * CRITICAL: Blackcoin More - Compile-time verification
+ *
+ * This static_assert ensures GetAdjustedTime() exists.
+ * If Bitcoin Core removes this function in a future upgrade,
+ * this file will fail to compile, protecting PoS functionality.
+ */
+static_assert(std::is_invocable_v<decltype(GetAdjustedTime)>,
+    "ERROR: GetAdjustedTime() has been removed! This is CRITICAL for PoS validation. "
+    "Blackcoin More MUST preserve this function. See UPGRADE.md Section 10.");
 
 #endif // BITCOIN_TIMEDATA_H

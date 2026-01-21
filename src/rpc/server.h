@@ -195,5 +195,4 @@ auto RPCTxSerParams(T&& t)
     if (RPCSerializationWithoutWitness()) return TX_NO_WITNESS(t);
     return TX_WITH_WITNESS(t);
 }
-
 #endif // BITCOIN_RPC_SERVER_H

@@ -10,7 +10,7 @@
 #include <span.h>
 #include <support/allocators/zeroafterfree.h>
 #include <util/overflow.h>
-#include <version.h> // for INIT_PROTO_VERSION
+#include <node/protocol_version.h> // for INIT_PROTO_VERSION
 
 #include <algorithm>
 #include <assert.h>
@@ -54,12 +54,14 @@ inline void Xor(Span<std::byte> write, Span<const std::byte> key, size_t key_off
 class VectorWriter
 {
  public:
+
 /*
  * @param[in]  vchDataIn  Referenced byte vector to overwrite/append
  * @param[in]  nPosIn Starting position. Vector index where writes should start. The vector will initially
  *                    grow as necessary to max(nPosIn, vec.size()). So to append, use vec.size().
 */
     VectorWriter(int nTypeIn, std::vector<unsigned char>& vchDataIn, size_t nPosIn) : nType(nTypeIn), vchData{vchDataIn}, nPos{nPosIn}
+
     {
         if(nPos > vchData.size())
             vchData.resize(nPos);
@@ -70,6 +72,7 @@ class VectorWriter
 */
     template <typename... Args>
     VectorWriter(int nTypeIn, std::vector<unsigned char>& vchDataIn, size_t nPosIn, Args&&... args) : VectorWriter{nTypeIn, vchDataIn, nPosIn}
+
     {
         ::SerializeMany(*this, std::forward<Args>(args)...);
     }
@@ -86,6 +89,7 @@ class VectorWriter
         nPos += src.size();
     }
     template<typename T>
+
     VectorWriter& operator<<(const T& obj)
     {
         ::Serialize(*this, obj);
@@ -97,6 +101,7 @@ class VectorWriter
     }
 private:
     const int nType;
+
     std::vector<unsigned char>& vchData;
     size_t nPos;
 };
@@ -137,6 +142,11 @@ public:
         memcpy(dst.data(), m_data.data(), dst.size());
         m_data = m_data.subspan(dst.size());
     }
+
+    void ignore(size_t n)
+    {
+        m_data = m_data.subspan(n);
+    }
 };
 
 /** Double ended buffer combining vector and stream-like interfaces.
@@ -170,6 +180,11 @@ public:
     {
         return std::string{UCharCast(data()), UCharCast(data() + size())};
     }
+
+    // Blackcoin: compatibility methods
+    int GetType() const { return 0; }
+    void SetType(int n) {}
+    int GetVersion() const { return 0; }
 
 
     //
@@ -316,6 +331,7 @@ public:
     }
 };
 
+
 template <typename IStream>
 class BitStreamReader
 {
@@ -431,11 +447,30 @@ protected:
 public:
     explicit AutoFile(std::FILE* file, std::vector<std::byte> data_xor={}) : m_file{file}, m_xor{std::move(data_xor)} {}
 
+    AutoFile(AutoFile&& other) noexcept : m_file{other.release()}, m_xor{std::move(other.m_xor)} {}
+    AutoFile& operator=(AutoFile&& other) noexcept
+    {
+        if (this != &other) {
+            fclose();
+            m_file = other.release();
+            m_xor = std::move(other.m_xor);
+        }
+        return *this;
+    }
+
     ~AutoFile() { fclose(); }
 
     // Disallow copies
     AutoFile(const AutoFile&) = delete;
     AutoFile& operator=(const AutoFile&) = delete;
+
+    int nType{0};
+    int nVersion{0};
+
+    int GetType() const { return nType; }
+    int GetVersion() const { return nVersion; }
+    void SetType(int n) { nType = n; }
+    void SetVersion(int n) { nVersion = n; }
 
     bool feof() const { return std::feof(m_file); }
 
@@ -497,13 +532,9 @@ public:
 // Blackcoin: Keep nType
 class CAutoFile : public AutoFile
 {
-private:
-    const int nType;
-
 public:
-    explicit CAutoFile(std::FILE* file, int type, std::vector<std::byte> data_xor = {}) : AutoFile{file, std::move(data_xor)}, nType{type} {}
-    explicit CAutoFile(std::FILE* file, std::vector<std::byte> data_xor = {}) : AutoFile{file, std::move(data_xor)}, nType(SER_GETHASH) {}
-    int GetType() const          { return nType; }
+    explicit CAutoFile(std::FILE* file, int type, std::vector<std::byte> data_xor = {}) : AutoFile{file, std::move(data_xor)} { nType = type; }
+    explicit CAutoFile(std::FILE* file, std::vector<std::byte> data_xor = {}) : AutoFile{file, std::move(data_xor)} { nType = SER_GETHASH; }
 
     template<typename T>
     CAutoFile& operator<<(const T& obj)
@@ -521,6 +552,7 @@ public:
 };
 
 /** Wrapper around a CAutoFile& that implements a ring buffer to
+
  *  deserialize from. It guarantees the ability to rewind a given number of bytes.
  *
  *  Will automatically close the file when it goes out of scope if not null.
@@ -532,7 +564,8 @@ class BufferedFile
 private:
     const int nType;
 
-    CAutoFile& m_src;
+    AutoFile& m_src;
+
     uint64_t nSrcPos{0};  //!< how many bytes have been read from source
     uint64_t m_read_pos{0}; //!< how many bytes have been read from this
     uint64_t nReadLimit;  //!< up to which position we're allowed to read
@@ -579,14 +612,16 @@ private:
     }
 
 public:
-    BufferedFile(CAutoFile& file, uint64_t nBufSize, uint64_t nRewindIn, int nTypeIn)
+    BufferedFile(AutoFile& file, uint64_t nBufSize, uint64_t nRewindIn, int nTypeIn)
         : nType(nTypeIn), m_src{file}, nReadLimit{std::numeric_limits<uint64_t>::max()}, nRewind{nRewindIn}, vchBuf(nBufSize, std::byte{0})
+
     {
         if (nRewindIn >= nBufSize)
             throw std::ios_base::failure("Rewind limit must be less than buffer size");
     }
 
     int GetType() const { return nType; }
+
 
     //! check whether we're at the end of the source file
     bool eof() const {

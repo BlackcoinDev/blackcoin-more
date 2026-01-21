@@ -16,7 +16,6 @@
 #include <test/util/setup_common.h>
 #include <util/chaintype.h>
 #include <validation.h>
-#include <version.h>
 
 FUZZ_TARGET(utxo_total_supply)
 {
@@ -121,7 +120,7 @@ FUZZ_TARGET(utxo_total_supply)
 
     // Limit to avoid timeout, but enough to cover duplicate_coinbase_height
     // and CVE-2018-17144.
-    LIMITED_WHILE(fuzzed_data_provider.remaining_bytes(), 2'000)
+    LIMITED_WHILE(fuzzed_data_provider.remaining_bytes(), 2'00)
     {
         CallOneOf(
             fuzzed_data_provider,

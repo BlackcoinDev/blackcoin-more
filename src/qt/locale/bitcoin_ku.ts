@@ -300,14 +300,6 @@ Signing is only possible with addresses of the type &apos;legacy&apos;.</source>
         <translation type="unfinished">Tarîx</translation>
     </message>
     <message>
-        <source>yes</source>
-        <translation type="unfinished">بەڵێ</translation>
-    </message>
-    <message>
-        <source>no</source>
-        <translation type="unfinished">نەخێر</translation>
-    </message>
-    <message>
         <source>(no label)</source>
         <translation type="unfinished">(etîket tune)</translation>
     </message>

@@ -88,7 +88,7 @@ static RPCHelpMan getstakinginfo()
     if (BlockAssembler::m_last_block_num_txs) obj.pushKV("currentblocktx", *BlockAssembler::m_last_block_num_txs);
     obj.pushKV("pooledtx", (uint64_t)mempool.size());
 
-    obj.pushKV("difficulty", GetDifficulty(GetLastBlockIndex(chainman.m_best_header, true)));
+    obj.pushKV("difficulty", GetDifficulty(*GetLastBlockIndex(chainman.m_best_header, true)));
 
     obj.pushKV("search-interval", (int)lastCoinStakeSearchInterval);
     obj.pushKV("weight", (uint64_t)nWeight);
@@ -297,7 +297,7 @@ static RPCHelpMan checkkernel()
         if (nOutput < 0)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout must be positive");
 
-        COutPoint cInput(uint256S(txid), nOutput);
+        COutPoint cInput(Txid::FromUint256(uint256S(txid)), nOutput);
         if (CheckKernel(pindexPrev, nBits, nTime, cInput, active_chainstate.CoinsTip()))
         {
             kernel = cInput;

@@ -186,3 +186,6 @@ db62/
 # VSCode
 .vscode/*
 *.code-workspace
+
+#others
+*.tmp

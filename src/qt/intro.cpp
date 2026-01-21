@@ -111,10 +111,11 @@ void FreespaceChecker::check()
     Q_EMIT reply(replyStatus, replyMessage, freeBytesAvailable);
 }
 
-Intro::Intro(QWidget *parent, int64_t blockchain_size_gb) :
+Intro::Intro(QWidget *parent, int64_t blockchain_size_gb, int64_t chain_state_size_gb) :
     QDialog(parent, GUIUtil::dialog_flags),
     ui(new Ui::Intro),
-    m_blockchain_size_gb(blockchain_size_gb)
+    m_blockchain_size_gb(blockchain_size_gb),
+    m_chain_state_size_gb(chain_state_size_gb)
 {
     ui->setupUi(this);
     ui->welcomeLabel->setText(ui->welcomeLabel->text().arg(PACKAGE_NAME));
@@ -127,6 +128,33 @@ Intro::Intro(QWidget *parent, int64_t blockchain_size_gb) :
         .arg(tr("Blackcoin"))
     );
     ui->lblExplanation2->setText(ui->lblExplanation2->text().arg(PACKAGE_NAME));
+
+    const int min_prune_target_GB = std::ceil(MIN_DISK_SPACE_FOR_BLOCK_FILES / 1e9);
+    // Blackcoin More: Prune UI elements not available in merged code
+    /*
+    ui->pruneGB->setRange(min_prune_target_GB, std::numeric_limits<int>::max());
+    if (gArgs.IsArgSet("-prune")) {
+        m_prune_checkbox_is_default = false;
+        ui->prune->setChecked(gArgs.GetIntArg("-prune", 0) >= 1);
+        ui->prune->setEnabled(false);
+    }
+    m_prune_target_gb = gArgs.GetIntArg("-prune", 0);
+    ui->pruneGB->setValue(m_prune_target_gb);
+    ui->pruneGB->setToolTip(ui->prune->toolTip());
+    ui->lblPruneSuffix->setToolTip(ui->prune->toolTip());
+    UpdatePruneLabels(ui->prune->isChecked());
+
+    connect(ui->prune, &QCheckBox::toggled, [this](bool prune_checked) {
+        m_prune_checkbox_is_default = false;
+        UpdatePruneLabels(prune_checked);
+        UpdateFreeSpaceLabel();
+    });
+    connect(ui->pruneGB, qOverload<int>(&QSpinBox::valueChanged), [this](int prune_GB) {
+        m_prune_target_gb = prune_GB;
+        UpdatePruneLabels(ui->prune->isChecked());
+        UpdateFreeSpaceLabel();
+    });
+    */
 
     startThread();
 }
@@ -183,7 +211,7 @@ bool Intro::showIfNeeded(bool& did_show_intro)
         }
 
         /* If current default data directory does not exist, let the user choose one */
-        Intro intro(nullptr, Params().AssumedBlockchainSize());
+        Intro intro(nullptr, Params().AssumedBlockchainSize(), Params().AssumedChainStateSize());
         intro.setDataDirectory(dataDir);
         intro.setWindowIcon(QIcon(":icons/bitcoin"));
         did_show_intro = true;
@@ -242,6 +270,12 @@ void Intro::setStatus(int status, const QString &message, quint64 bytesAvailable
         ui->freeSpace->setText("");
     } else {
         m_bytes_available = bytesAvailable;
+        // Blackcoin More: Prune checkbox not available
+        /*
+        if (ui->prune->isEnabled() && m_prune_checkbox_is_default) {
+            ui->prune->setChecked(m_bytes_available < (m_blockchain_size_gb + m_chain_state_size_gb + 10) * GB_BYTES);
+        }
+        */
         UpdateFreeSpaceLabel();
     }
     /* Don't allow confirm in ERROR state */

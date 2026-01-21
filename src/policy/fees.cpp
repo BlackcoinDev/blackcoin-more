@@ -29,6 +29,8 @@ FeeFilterRounder::FeeFilterRounder(const CFeeRate& minIncrementalFee, FastRandom
 {
 }
 
+class TxConfirmStats {};
+
 CAmount FeeFilterRounder::round(CAmount currentMinFee)
 {
     AssertLockNotHeld(m_insecure_rand_mutex);
@@ -40,3 +42,50 @@ CAmount FeeFilterRounder::round(CAmount currentMinFee)
     }
     return static_cast<CAmount>(*it);
 }
+
+CBlockPolicyEstimator::CBlockPolicyEstimator(const fs::path& estimation_filepath, const bool read_stale_estimates)
+    : m_estimation_filepath(estimation_filepath)
+{
+}
+
+CBlockPolicyEstimator::~CBlockPolicyEstimator() {}
+
+void CBlockPolicyEstimator::processBlock(const std::vector<RemovedMempoolTransactionInfo>& txs_removed_for_block, unsigned int nBlockHeight) {}
+
+void CBlockPolicyEstimator::processTransaction(const NewMempoolTransactionInfo& tx) {}
+
+bool CBlockPolicyEstimator::removeTx(uint256 hash) { return false; }
+
+CFeeRate CBlockPolicyEstimator::estimateFee(int confTarget) const { return CFeeRate(0); }
+
+CFeeRate CBlockPolicyEstimator::estimateSmartFee(int confTarget, FeeCalculation *feeCalc, bool conservative) const
+{
+    if (feeCalc) {
+        feeCalc->desiredTarget = confTarget;
+        feeCalc->returnedTarget = confTarget;
+        feeCalc->reason = FeeReason::NONE;
+    }
+    return CFeeRate(0);
+}
+
+CFeeRate CBlockPolicyEstimator::estimateRawFee(int confTarget, double successThreshold, FeeEstimateHorizon horizon, EstimationResult* result) const { return CFeeRate(0); }
+
+bool CBlockPolicyEstimator::Write(AutoFile& fileout) const { return true; }
+
+bool CBlockPolicyEstimator::Read(AutoFile& filein) { return true; }
+
+void CBlockPolicyEstimator::FlushUnconfirmed() {}
+
+unsigned int CBlockPolicyEstimator::HighestTargetTracked(FeeEstimateHorizon horizon) const { return 0; }
+
+void CBlockPolicyEstimator::Flush() {}
+
+void CBlockPolicyEstimator::FlushFeeEstimates() {}
+
+std::chrono::hours CBlockPolicyEstimator::GetFeeEstimatorFileAge() { return std::chrono::hours(0); }
+
+void CBlockPolicyEstimator::TransactionAddedToMempool(const NewMempoolTransactionInfo& tx, uint64_t) {}
+
+void CBlockPolicyEstimator::TransactionRemovedFromMempool(const CTransactionRef& tx, MemPoolRemovalReason, uint64_t) {}
+
+void CBlockPolicyEstimator::MempoolTransactionsRemovedForBlock(const std::vector<RemovedMempoolTransactionInfo>& txs_removed_for_block, unsigned int nBlockHeight) {}

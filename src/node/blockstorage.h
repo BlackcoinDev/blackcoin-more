@@ -8,21 +8,26 @@
 #include <attributes.h>
 #include <chain.h>
 #include <dbwrapper.h>
+#include <flatfile.h>
 #include <kernel/blockmanager_opts.h>
-#include <kernel/chain.h>
 #include <kernel/chainparams.h>
 #include <kernel/cs_main.h>
 #include <kernel/messagestartchars.h>
+#include <primitives/block.h>
+#include <streams.h>
 #include <sync.h>
+#include <uint256.h>
 #include <util/fs.h>
 #include <util/hasher.h>
 
+#include <array>
 #include <atomic>
 #include <cstdint>
 #include <functional>
 #include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -30,14 +35,9 @@
 #include <vector>
 
 class BlockValidationState;
-class CAutoFile;
-class CBlock;
 class CBlockUndo;
-class CChainParams;
 class Chainstate;
 class ChainstateManager;
-struct CCheckpointData;
-struct FlatFilePos;
 namespace Consensus {
 struct Params;
 }
@@ -141,6 +141,10 @@ class BlockManager
 private:
     const CChainParams& GetParams() const { return m_opts.chainparams; }
     const Consensus::Params& GetConsensus() const { return m_opts.chainparams.GetConsensus(); }
+
+    void PruneOneBlockFile(const int fileNumber);
+    void FindFilesToPruneManual(std::set<int>& setFilesToPrune, int nManualPruneHeight, const Chainstate& chain, ChainstateManager& chainman);
+    void FindFilesToPrune(std::set<int>& setFilesToPrune, int last_prune, const Chainstate& chain, ChainstateManager& chainman);
     /**
      * Load the blocktree off disk and into memory. Populate certain metadata
      * per index entry (nStatus, nChainWork, nTimeMax, etc.) as well as peripheral
@@ -213,10 +217,8 @@ private:
      * @note Internally, only blocks at height (height_first - PRUNE_LOCK_BUFFER - 1) and
      * below will be pruned, but callers should avoid assuming any particular buffer size.
      */
-    /*
     // Blackcoin
     std::unordered_map<std::string, PruneLockInfo> m_prune_locks GUARDED_BY(::cs_main);
-    */
 
     BlockfileType BlockfileTypeForHeight(int height);
 
@@ -311,6 +313,16 @@ public:
     //! pruned ancestor. Return value will never be null. Caller is responsible
     //! for ensuring that start_block has data is not pruned.
     const CBlockIndex* GetFirstStoredBlock(const CBlockIndex& start_block LIFETIMEBOUND, const CBlockIndex* lower_block=nullptr) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    /** True if any block files have ever been pruned. */
+    bool m_have_pruned = false;
+
+    //! Check whether the block associated with this index entry is pruned or not.
+    bool IsBlockPruned(const CBlockIndex& block) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+    //! Create or update a prune lock identified by its name
+    void UpdatePruneLock(const std::string& name, const PruneLockInfo& lock_info) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
 
     /** Open a block file (blk?????.dat) */
     CAutoFile OpenBlockFile(const FlatFilePos& pos, bool fReadOnly = false) const;

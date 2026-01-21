@@ -46,6 +46,7 @@ bench_bench_blackmore_SOURCES = \
   bench/poly1305.cpp \
   bench/pool.cpp \
   bench/prevector.cpp \
+  bench/readblock.cpp \
   bench/rollingbloom.cpp \
   bench/rpc_blockchain.cpp \
   bench/rpc_mempool.cpp \
@@ -73,7 +74,6 @@ bench_bench_blackmore_LDADD = \
   $(LIBSECP256K1) \
   $(LIBUNIVALUE) \
   $(EVENT_PTHREADS_LIBS) \
-  $(EVENT_LIBS) \
   $(MINIUPNPC_LIBS) \
   $(NATPMP_LIBS)
 
@@ -84,8 +84,10 @@ endif
 if ENABLE_WALLET
 bench_bench_blackmore_SOURCES += bench/coin_selection.cpp
 bench_bench_blackmore_SOURCES += bench/wallet_balance.cpp
+bench_bench_blackmore_SOURCES += bench/wallet_create.cpp
 bench_bench_blackmore_SOURCES += bench/wallet_loading.cpp
 bench_bench_blackmore_SOURCES += bench/wallet_create_tx.cpp
+bench_bench_blackmore_SOURCES += bench/wallet_ismine.cpp
 bench_bench_blackmore_LDADD += $(BDB_LIBS) $(SQLITE_LIBS)
 endif
 

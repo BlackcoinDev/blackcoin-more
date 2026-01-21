@@ -5,21 +5,26 @@
 #ifndef BITCOIN_WALLET_TRANSACTION_H
 #define BITCOIN_WALLET_TRANSACTION_H
 
-#include <bitset>
-#include <cstdint>
+#include <attributes.h>
 #include <consensus/amount.h>
 #include <primitives/transaction.h>
-#include <serialize.h>
-#include <wallet/types.h>
-#include <threadsafety.h>
 #include <tinyformat.h>
+#include <uint256.h>
 #include <util/overloaded.h>
 #include <util/strencodings.h>
 #include <util/string.h>
+#include <wallet/types.h>
 
-#include <list>
+#include <bitset>
+#include <cstdint>
+#include <map>
+#include <utility>
 #include <variant>
 #include <vector>
+
+namespace interfaces {
+class Chain;
+} // namespace interfaces
 
 namespace wallet {
 //! State of transaction confirmed in a block.
@@ -321,13 +326,17 @@ public:
     template<typename T> const T* state() const { return std::get_if<T>(&m_state); }
     template<typename T> T* state() { return std::get_if<T>(&m_state); }
 
+    //! Update transaction state when attaching to a chain, filling in heights
+    //! of conflicted and confirmed blocks
+    void updateState(interfaces::Chain& chain);
+
     bool isAbandoned() const { return state<TxStateInactive>() && state<TxStateInactive>()->abandoned; }
     bool isConflicted() const { return state<TxStateConflicted>(); }
     bool isInactive() const { return state<TxStateInactive>(); }
     bool isUnconfirmed() const { return !isAbandoned() && !isConflicted() && !isConfirmed(); }
     bool isConfirmed() const { return state<TxStateConfirmed>(); }
-    const Txid& GetHash() const { return tx->GetHash(); }
-    const Wtxid& GetWitnessHash() const { return tx->GetWitnessHash(); }
+    const Txid& GetHash() const LIFETIMEBOUND { return tx->GetHash(); }
+    const Wtxid& GetWitnessHash() const LIFETIMEBOUND { return tx->GetWitnessHash(); }
     bool IsCoinBase() const { return tx->IsCoinBase(); }
     bool IsCoinStake() const { return tx->IsCoinStake(); }
 

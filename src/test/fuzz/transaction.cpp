@@ -17,7 +17,6 @@
 #include <univalue.h>
 #include <util/chaintype.h>
 #include <validation.h>
-#include <version.h>
 
 #include <cassert>
 

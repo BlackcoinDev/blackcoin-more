@@ -22,6 +22,7 @@ class ArgsManager;
 class AddrMan;
 class BanMan;
 class BaseIndex;
+class CBlockPolicyEstimator;
 class CConnman;
 class CScheduler;
 class CTxMemPool;
@@ -54,9 +55,12 @@ struct NodeContext {
     std::unique_ptr<kernel::Context> kernel;
     //! Init interface for initializing current process and connecting to other processes.
     interfaces::Init* init{nullptr};
+    //! Interrupt object used to track whether node shutdown was requested.
+    util::SignalInterrupt* shutdown{nullptr};
     std::unique_ptr<AddrMan> addrman;
     std::unique_ptr<CConnman> connman;
     std::unique_ptr<CTxMemPool> mempool;
+    std::unique_ptr<::CBlockPolicyEstimator> fee_estimator;
     std::unique_ptr<const NetGroupManager> netgroupman;
     std::unique_ptr<PeerManager> peerman;
     std::unique_ptr<ChainstateManager> chainman;

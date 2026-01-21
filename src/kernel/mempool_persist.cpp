@@ -70,12 +70,12 @@ bool LoadMempool(CTxMemPool& pool, const fs::path& load_path, Chainstate& active
         uint64_t total_txns_to_load;
         file >> total_txns_to_load;
         uint64_t txns_tried = 0;
-        LogPrintf("Loading %u mempool transactions from disk...\n", total_txns_to_load);
+        LogInfo("Loading %u mempool transactions from disk...\n", total_txns_to_load);
         int next_tenth_to_report = 0;
         while (txns_tried < total_txns_to_load) {
             const int percentage_done(100.0 * txns_tried / total_txns_to_load);
             if (next_tenth_to_report < percentage_done / 10) {
-                LogPrintf("Progress loading mempool transactions from disk: %d%% (tried %u, %u remaining)\n",
+                LogInfo("Progress loading mempool transactions from disk: %d%% (tried %u, %u remaining)\n",
                         percentage_done, txns_tried, total_txns_to_load - txns_tried);
                 next_tenth_to_report = percentage_done / 10;
             }
@@ -205,7 +205,7 @@ bool DumpMempool(const CTxMemPool& pool, const fs::path& dump_path, FopenFn mock
         }
         auto last = SteadyClock::now();
 
-        LogPrintf("Dumped mempool: %gs to copy, %gs to dump\n",
+        LogPrintf("Dumped mempool: %.3fs to copy, %.3fs to dump\n",
                   Ticks<SecondsDouble>(mid - start),
                   Ticks<SecondsDouble>(last - mid));
     } catch (const std::exception& e) {

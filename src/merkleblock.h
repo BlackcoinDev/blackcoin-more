@@ -11,6 +11,7 @@
 #include <serialize.h>
 #include <uint256.h>
 
+#include <set>
 #include <vector>
 
 // Helper functions for serialization.
@@ -144,7 +145,11 @@ public:
     CMerkleBlock(const CBlock& block, CBloomFilter& filter) : CMerkleBlock(block, &filter, nullptr) { }
 
     // Create from a CBlock, matching the txids in the set
-    CMerkleBlock(const CBlock& block, const std::set<uint256>& txids) : CMerkleBlock(block, nullptr, &txids) { }
+    CMerkleBlock(const CBlock& block, const std::set<Txid>& txids) : CMerkleBlock{block, nullptr, &txids} {}
+
+    // UPGRADE NOTE: Blackcoin uses uint256 directly, not Txid wrapper from Bitcoin 27.x
+    // Create from a CBlock, matching the txids in the uint256 set
+    CMerkleBlock(const CBlock& block, const std::set<uint256>& txids);
 
     CMerkleBlock() {}
 
@@ -152,7 +157,7 @@ public:
 
 private:
     // Combined constructor to consolidate code
-    CMerkleBlock(const CBlock& block, CBloomFilter* filter, const std::set<uint256>* txids);
+    CMerkleBlock(const CBlock& block, CBloomFilter* filter, const std::set<Txid>* txids);
 };
 
 #endif // BITCOIN_MERKLEBLOCK_H

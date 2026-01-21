@@ -100,7 +100,6 @@ public:
     // Verified by CheckBlockSignature() in src/validation.cpp.
     // Signature is created by signing the block hash with the coinstake input key.
     std::vector<unsigned char> vchBlockSig;
-
     // Memory-only flags for caching expensive checks
     mutable bool fChecked;                            // CheckBlock()
     mutable bool m_checked_witness_commitment{false}; // CheckWitnessCommitment()

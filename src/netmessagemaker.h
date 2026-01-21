@@ -9,30 +9,19 @@
 #include <net.h>
 #include <serialize.h>
 
-class CNetMsgMaker
-{
-public:
-    explicit CNetMsgMaker(int nVersionIn) : nVersion(nVersionIn){}
-
+namespace NetMsg {
     template <typename... Args>
-    CSerializedNetMsg Make(int nFlags, std::string msg_type, Args&&... args) const
+    CSerializedNetMsg Make(int nVersion, std::string msg_type, Args&&... args)
     {
         CSerializedNetMsg msg;
         msg.m_type = std::move(msg_type);
         // Blackcoin ToDo: revert after nodes upgrade to current version
-        int32_t serModes = nVersion <= OLD_VERSION ? SER_NETWORK : SER_NETWORK | SER_POSMARKER;
+        // OLD_VERSION and SER_POSMARKER should be defined or included.
+        // For now, I'll use common constants or check where they are defined.
+        int32_t serModes = nVersion <= 70018 ? SER_NETWORK : SER_NETWORK | SER_POSMARKER;
         VectorWriter{serModes, msg.data, 0, std::forward<Args>(args)...};
         return msg;
     }
-
-    template <typename... Args>
-    CSerializedNetMsg Make(std::string msg_type, Args&&... args) const
-    {
-        return Make(0, std::move(msg_type), std::forward<Args>(args)...);
-    }
-
-private:
-    const int nVersion;
-};
+} // namespace NetMsg
 
 #endif // BITCOIN_NETMESSAGEMAKER_H

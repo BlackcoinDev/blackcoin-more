@@ -40,7 +40,7 @@ static void addCoin(CoinsResult& coins,
     tx.vout[0].nValue = nValue;
     tx.vout[0].scriptPubKey = GetScriptForDestination(dest);
 
-    const uint256& txid = tx.GetHash();
+    const auto txid{tx.GetHash().ToUint256()};
     LOCK(wallet.cs_wallet);
     auto ret = wallet.mapWallet.emplace(std::piecewise_construct, std::forward_as_tuple(txid), std::forward_as_tuple(MakeTransactionRef(std::move(tx)), TxStateInactive{}));
     assert(ret.second);
@@ -60,17 +60,19 @@ static void addCoin(CoinsResult& coins,
 }
 
  CoinSelectionParams makeSelectionParams(FastRandomContext& rand, bool avoid_partial_spends)
-{
-    return CoinSelectionParams{
-            rand,
-            /*change_output_size=*/ 0,
-            /*change_spend_size=*/ 0,
-            /*effective_feerate=*/ CFeeRate(0),
-            /*discard_feerate=*/ CFeeRate(0),
-            /*tx_noinputs_size=*/ 0,
-            /*avoid_partial=*/ avoid_partial_spends,
-    };
-}
+ {
+     return CoinSelectionParams{
+             rand,
+             /*change_output_size=*/ 0,
+             /*change_spend_size=*/ 0,
+             /*min_change_target=*/ 0,
+             /*effective_feerate=*/ CFeeRate(0),
+             /*long_term_feerate=*/ CFeeRate(0),
+             /*discard_feerate=*/ CFeeRate(0),
+             /*tx_noinputs_size=*/ 0,
+             /*avoid_partial=*/ avoid_partial_spends,
+     };
+ }
 
 class GroupVerifier
 {

@@ -1026,12 +1026,12 @@ Cüzdan kilidini aç.</translation>
         <translation type="unfinished">Cüzdan Taşınıyor &lt;b&gt;%1&lt;/b&gt;...</translation>
     </message>
     <message>
-        <source>The wallet &apos;%1&apos; was migrated successfully.</source>
-        <translation type="unfinished">Cüzdan &apos;%1&apos; başarıyla taşındı.</translation>
+        <source>The wallet '%1' was migrated successfully.</source>
+        <translation type="unfinished">Cüzdan '%1' başarıyla taşındı.</translation>
     </message>
     <message>
         <source>Migration failed</source>
-        <translation type="unfinished">Taşıma başarısız oldu</translation>
+        <translation type="unfinished">Taşıma başarısız oldu.</translation>
     </message>
     <message>
         <source>Migration Successful</source>
@@ -2276,7 +2276,7 @@ Cüzdan kilidini aç.</translation>
     </message>
     <message>
         <source>detecting: peer could be v1 or v2</source>
-        <extracomment>Explanatory text for &quot;detecting&quot; transport type.</extracomment>
+        <extracomment>Explanatory text for "detecting" transport type.</extracomment>
         <translation type="unfinished">keşfediliyor: eş v1 veya v2 olabilir</translation>
     </message>
     <message>

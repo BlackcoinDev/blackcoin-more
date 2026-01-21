@@ -4776,6 +4776,10 @@ Nelze obnovit zálohu peněženky.</translation>
         <translation type="unfinished">Nepodporovaná logovací kategorie %s=%s.</translation>
     </message>
     <message>
+        <source>Error: Could not add watchonly tx %s to watchonly wallet</source>
+        <translation type="unfinished">Chyba: Nelze přidat pouze-sledovací tx %s do peněženky pro čtení</translation>
+    </message>
+    <message>
         <source>User Agent comment (%s) contains unsafe characters.</source>
         <translation type="unfinished">Komentář u typu klienta (%s) obsahuje riskantní znaky.</translation>
     </message>

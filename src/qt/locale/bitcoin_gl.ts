@@ -94,6 +94,14 @@ Firmar é posible unicamente con enderezos de tipo &apos;legacy&apos;.</translat
         <translation type="unfinished">Houbo un erro tentando gardar a lista de enderezos en %1. Por favor proba de novo.</translation>
     </message>
     <message>
+        <source>Sending addresses - %1</source>
+        <translation type="unfinished">Enviando enderezos - %1</translation>
+    </message>
+    <message>
+        <source>Receiving addresses - %1</source>
+        <translation type="unfinished">Recibindo enderezos - %1</translation>
+    </message>
+    <message>
         <source>Exporting Failed</source>
         <translation type="unfinished">Exportación falida</translation>
     </message>
@@ -229,7 +237,7 @@ Firmar é posible unicamente con enderezos de tipo &apos;legacy&apos;.</translat
     </message>
     <message>
         <source>The old passphrase entered for the wallet decryption is incorrect. It contains a null character (ie - a zero byte). If the passphrase was set with a version of this software prior to 25.0, please try again with only the characters up to — but not including — the first null character.</source>
-        <translation type="unfinished">Produciuse un erro non cambio de frase de contrasinal</translation>
+        <translation type="unfinished">A contrasinal antiga introducida para o descifrado da carteira é incorrecta. Contén un carácter nulo (é dicir, un byte cero). Se a frase de paso se estableceu cunha versión deste software anterior á 25.0, téntao de novo con só os caracteres ata, pero sen incluír, o primeiro carácter nulo.</translation>
     </message>
     <message>
         <source>Warning: The Caps Lock key is on!</source>
@@ -250,6 +258,10 @@ Firmar é posible unicamente con enderezos de tipo &apos;legacy&apos;.</translat
 <context>
     <name>BitcoinApplication</name>
     <message>
+        <source>Settings file %1 might be corrupt or invalid.</source>
+        <translation type="unfinished">O ficheiro de configuración %1 pode estar danado ou non válido.</translation>
+    </message>
+    <message>
         <source>Runaway exception</source>
         <translation type="unfinished">Excepción de fuga</translation>
     </message>
@@ -268,6 +280,10 @@ Firmar é posible unicamente con enderezos de tipo &apos;legacy&apos;.</translat
 </context>
 <context>
     <name>QObject</name>
+    <message>
+        <source>%1 didn't yet exit safely…</source>
+        <translation type="unfinished">%1 aínda non saíu con seguridade...</translation>
+    </message>
     <message>
         <source>unknown</source>
         <translation type="unfinished">descoñecido</translation>

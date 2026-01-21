@@ -373,7 +373,7 @@ Semnarea este posibilă numai cu adrese de tip &quot;legacy&quot;.</translation>
         <source>%1 kB</source>
         <translation type="unfinished">%1kB</translation>
     </message>
-</context>
+    </context>
 <context>
     <name>BitcoinGUI</name>
     <message>
@@ -660,7 +660,7 @@ Semnarea este posibilă numai cu adrese de tip &quot;legacy&quot;.</translation>
     <message>
         <source>Restore Wallet…</source>
         <extracomment>Name of the menu item that restores wallet from a backup file.</extracomment>
-        <translation type="unfinished">Restabileste Portofelul...</translation>
+        <translation type="unfinished">Recupereaza Portofelul...</translation>
     </message>
     <message>
         <source>Restore a wallet from a backup file</source>
@@ -1680,8 +1680,8 @@ Semnarea este posibilă numai cu adrese de tip &quot;legacy&quot;.</translation>
 <context>
     <name>OptionsModel</name>
     <message>
-        <source>Could not read setting &quot;%1&quot;, %2.</source>
-        <translation type="unfinished">nu s-a putut citi setarea &quot;%1&quot;, %2</translation>
+        <source>Could not read setting "%1", %2.</source>
+        <translation type="unfinished">nu s-a putut citi setarea "%1", %2</translation>
     </message>
 </context>
 <context>
@@ -2152,6 +2152,10 @@ Semnarea este posibilă numai cu adrese de tip &quot;legacy&quot;.</translation>
     <message>
         <source>Ctrl+I</source>
         <translation type="unfinished">Ctrl+l</translation>
+    </message>
+    <message>
+        <source>Executing command using "%1" wallet</source>
+        <translation type="unfinished">Executarea comenzii folosind portofelul "%1"</translation>
     </message>
     <message>
         <source>Executing command using &quot;%1&quot; wallet</source>
@@ -3192,7 +3196,7 @@ Mergi la Fisiere&gt;Deschide Portofel ca sa incarci un portofel.
         <source>Load Transaction Data</source>
         <translation type="unfinished">Incarca datele tranzactiei</translation>
     </message>
-</context>
+    </context>
 <context>
     <name>WalletModel</name>
     <message>
@@ -3234,7 +3238,7 @@ Mergi la Fisiere&gt;Deschide Portofel ca sa incarci un portofel.
         <translation type="unfinished">Copiat in Notite</translation>
     </message>
     <message>
-        <source>Can&apos;t sign transaction.</source>
+        <source>Can't sign transaction.</source>
         <translation type="unfinished">Nu s-a reuşit semnarea tranzacţiei</translation>
     </message>
     <message>
@@ -3242,7 +3246,7 @@ Mergi la Fisiere&gt;Deschide Portofel ca sa incarci un portofel.
         <translation type="unfinished">Tranzactia nu a putut fi consemnata.</translation>
     </message>
     <message>
-        <source>Can&apos;t display address</source>
+        <source>Can't display address</source>
         <translation type="unfinished">Nu se poate afisa adresa</translation>
     </message>
     <message>

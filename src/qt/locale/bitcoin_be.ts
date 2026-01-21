@@ -83,6 +83,10 @@
         <translation type="unfinished">Адбылася памылка падчас спробы захаваць адрас у %1. Паспрабуйце зноў.</translation>
     </message>
     <message>
+        <source>Sending addresses - %1</source>
+        <translation type="unfinished">Адрасы адпраўкі - %1</translation>
+    </message>
+    <message>
         <source>Receiving addresses - %1</source>
         <translation type="unfinished">Адрасы прымання - %1</translation>
     </message>

@@ -303,6 +303,18 @@ Allekirjoitus on mahdollista vain &apos;legacy&apos;-tyyppisillä osoitteilla.</
         <translation type="unfinished">tuntematon</translation>
     </message>
     <message>
+        <source>Embedded "%1"</source>
+        <translation type="unfinished">upotettu "%1"</translation>
+    </message>
+    <message>
+        <source>Default system font "%1"</source>
+        <translation type="unfinished">Järjestelmän oletuskirjasin "%1"</translation>
+    </message>
+    <message>
+        <source>Custom…</source>
+        <translation type="unfinished">Mukautettu…</translation>
+    </message>
+    <message>
         <source>Amount</source>
         <translation type="unfinished">Määrä</translation>
     </message>
@@ -1094,16 +1106,8 @@ Allekirjoitus on mahdollista vain &apos;legacy&apos;-tyyppisillä osoitteilla.</
         <translation type="unfinished">Siirretään lompakkoa &lt;b&gt;%1&lt;/b&gt;...</translation>
     </message>
     <message>
-        <source>The wallet &apos;%1&apos; was migrated successfully.</source>
-        <translation type="unfinished">Lompakko &apos;%1&apos; siirrettiin onnistuneesti.</translation>
-    </message>
-    <message>
-        <source> Watchonly scripts have been migrated to a new wallet named &apos;%1&apos;.</source>
-        <translation type="unfinished">Watchonly -skriptit on siirretty uuteen lompakkoon nimeltä &apos;%1 &apos;.</translation>
-    </message>
-    <message>
-        <source> Solvable but not watched scripts have been migrated to a new wallet named &apos;%1&apos;.</source>
-        <translation type="unfinished">Ratkaistavissa, mutta katsomattomat skriptit on siirretty uuteen lompakkoon nimeltä &apos;%1&apos;.</translation>
+        <source>The wallet '%1' was migrated successfully.</source>
+        <translation type="unfinished">Lompakko '%1' siirrettiin onnistuneesti.</translation>
     </message>
     <message>
         <source>Migration failed</source>
@@ -1522,7 +1526,7 @@ Allekirjoitus on mahdollista vain &apos;legacy&apos;-tyyppisillä osoitteilla.</
     </message>
     <message>
         <source>Unknown. Pre-syncing Headers (%1, %2%)…</source>
-        <translation type="unfinished">Tuntematon. Esi-synkronointi otsikot (%1, %2%)...</translation>
+        <translation type="unfinished">Tuntematon. Esi synkronointi otsikot (%1, %2%)...</translation>
     </message>
 </context>
 <context>
@@ -1582,6 +1586,10 @@ Allekirjoitus on mahdollista vain &apos;legacy&apos;-tyyppisillä osoitteilla.</
     <message>
         <source>Minimize instead of exit the application when the window is closed. When this option is enabled, the application will be closed only after selecting Exit in the menu.</source>
         <translation type="unfinished">Minimoi ikkuna ohjelman sulkemisen sijasta kun ikkuna suljetaan. Kun tämä asetus on käytössä, ohjelma suljetaan vain valittaessa valikosta Poistu.</translation>
+    </message>
+    <message>
+        <source>Font in the Overview tab: </source>
+        <translation type="unfinished">Fontti Yleiskatsaus-välilehdellä:</translation>
     </message>
     <message>
         <source>Options set in this dialog are overridden by the command line:</source>
@@ -1881,8 +1889,8 @@ Allekirjoitus on mahdollista vain &apos;legacy&apos;-tyyppisillä osoitteilla.</
 <context>
     <name>OptionsModel</name>
     <message>
-        <source>Could not read setting &quot;%1&quot;, %2.</source>
-        <translation type="unfinished">Ei voinut luke asetusta &quot;%1&quot;, %2.</translation>
+        <source>Could not read setting "%1", %2.</source>
+        <translation type="unfinished">Ei voinut luke asetusta "%1", %2.</translation>
     </message>
 </context>
 <context>
@@ -2044,8 +2052,8 @@ Allekirjoitus on mahdollista vain &apos;legacy&apos;-tyyppisillä osoitteilla.</
         <translation type="unfinished">PSBT (osittain tallennettu bitcoin-siirto) tallennettiin levylle.</translation>
     </message>
     <message>
-        <source> * Sends %1 to %2</source>
-        <translation type="unfinished">*Lähettää %1&apos;n kohteeseen %2</translation>
+        <source>Sends %1 to %2</source>
+        <translation type="unfinished">Lähettää %1 kohteelle %2</translation>
     </message>
     <message>
         <source>own address</source>
@@ -2557,7 +2565,7 @@ Jos saat tämän virheen, pyydä kauppiasta antamaan BIP21-yhteensopiva URI.</tr
     </message>
     <message>
         <source>detecting: peer could be v1 or v2</source>
-        <extracomment>Explanatory text for &quot;detecting&quot; transport type.</extracomment>
+        <extracomment>Explanatory text for "detecting" transport type.</extracomment>
         <translation type="unfinished">havaitseminen: vertaiskumppani voi olla v1 tai v2</translation>
     </message>
     <message>
@@ -2614,7 +2622,7 @@ Jos saat tämän virheen, pyydä kauppiasta antamaan BIP21-yhteensopiva URI.</tr
     </message>
     <message>
         <source>&amp;Copy IP/Netmask</source>
-        <extracomment>Context menu action to copy the IP/Netmask of a banned peer. IP/Netmask is the combination of a peer&apos;s IP address and its Netmask. For IP address, see: https://en.wikipedia.org/wiki/IP_address.</extracomment>
+        <extracomment>Context menu action to copy the IP/Netmask of a banned peer. IP/Netmask is the combination of a peer's IP address and its Netmask. For IP address, see: https://en.wikipedia.org/wiki/IP_address.</extracomment>
         <translation type="unfinished">&amp;Kopioi IP/verkkopeite</translation>
     </message>
     <message>
@@ -2767,7 +2775,7 @@ Jos saat tämän virheen, pyydä kauppiasta antamaan BIP21-yhteensopiva URI.</tr
     </message>
     <message>
         <source>Base58 (Legacy)</source>
-        <translation type="unfinished">Base58 (vanha)</translation>
+        <translation type="unfinished">Base58 (Vanha)</translation>
     </message>
     <message>
         <source>Not recommended due to higher fees and less protection against typos.</source>
@@ -3083,7 +3091,7 @@ Jos saat tämän virheen, pyydä kauppiasta antamaan BIP21-yhteensopiva URI.</tr
     </message>
     <message>
         <source>External signer failure</source>
-        <extracomment>&quot;External signer&quot; means using devices such as hardware wallets.</extracomment>
+        <extracomment>"External signer" means using devices such as hardware wallets.</extracomment>
         <translation type="unfinished">Ulkoisen allekirjoittajan virhe</translation>
     </message>
     <message>
@@ -3118,6 +3126,10 @@ Jos saat tämän virheen, pyydä kauppiasta antamaan BIP21-yhteensopiva URI.</tr
         <translation type="unfinished">Ole hyvä ja tarkista siirtoehdotuksesi. Tämä luo osittain allekirjoitetun Bitcoin-siirron (PBST), jonka voit tallentaa tai kopioida ja sitten allekirjoittaa esim. verkosta irrannaisella %1-lompakolla tai PBST-yhteensopivalla laitteistolompakolla.</translation>
     </message>
     <message>
+        <source>%1 from wallet '%2'</source>
+        <translation type="unfinished">%1 lompakosta '%2'</translation>
+    </message>
+    <message>
         <source>Do you want to create this transaction?</source>
         <extracomment>Message displayed when attempting to create a transaction. Cautionary text to prompt the user to verify that the displayed transaction details represent the transaction the user intends to create.</extracomment>
         <translation type="unfinished">Haluatko luoda tämän siirtotapahtuman?</translation>
@@ -3142,8 +3154,8 @@ Jos saat tämän virheen, pyydä kauppiasta antamaan BIP21-yhteensopiva URI.</tr
     <message>
         <source>Unsigned Transaction</source>
         <comment>PSBT copied</comment>
-        <extracomment>Caption of &quot;PSBT has been copied&quot; messagebox</extracomment>
-        <translation type="unfinished">Allekirjoittamaton kauppa</translation>
+        <extracomment>Caption of "PSBT has been copied" messagebox</extracomment>
+        <translation type="unfinished">Allekirjoittamaton Siirto</translation>
     </message>
     <message>
         <source>PSBT saved to disk</source>
@@ -3569,8 +3581,8 @@ Jos saat tämän virheen, pyydä kauppiasta antamaan BIP21-yhteensopiva URI.</tr
         <translation type="unfinished">Ulostulon indeksi</translation>
     </message>
     <message>
-        <source> (Certificate was not verified)</source>
-        <translation type="unfinished"> (Sertifikaattia ei vahvistettu)</translation>
+        <source>%1 (Certificate was not verified)</source>
+        <translation type="unfinished">%1 (Sertifikaattia ei ole todennettu)</translation>
     </message>
     <message>
         <source>Merchant</source>
@@ -3953,10 +3965,10 @@ Siirry osioon Tiedosto &gt; Avaa lompakko ladataksesi lompakon.
     <message>
         <source>Copied to clipboard</source>
         <comment>Fee-bump PSBT saved</comment>
-        <translation type="unfinished">Kopioitu leikepöydälle</translation>
+        <translation type="unfinished">Kopioi leikepöydälle</translation>
     </message>
     <message>
-        <source>Can&apos;t sign transaction.</source>
+        <source>Can't sign transaction.</source>
         <translation type="unfinished">Siirtoa ei voida allekirjoittaa.</translation>
     </message>
     <message>
@@ -4279,6 +4291,10 @@ Ei voinut palauttaa lompakon varmuuskopiota..</translation>
         <translation type="unfinished">Virhe: Tiedon kirjoittaminen lompakkoon epäonnistui</translation>
     </message>
     <message>
+        <source>Error: address book copy failed for wallet %s</source>
+        <translation type="unfinished">Virhe: osoitekirjan kopiointi epäonnistui lompakolle %s</translation>
+    </message>
+    <message>
         <source>Failed to listen on any port. Use -listen=0 if you want this.</source>
         <translation type="unfinished">Ei onnistuttu kuuntelemaan missään portissa. Käytä -listen=0 jos haluat tätä.</translation>
     </message>
@@ -4293,6 +4309,10 @@ Ei voinut palauttaa lompakon varmuuskopiota..</translation>
     <message>
         <source>Failed to verify database</source>
         <translation type="unfinished">Tietokannan todennus epäonnistui</translation>
+    </message>
+    <message>
+        <source>Failure removing transaction: %s</source>
+        <translation type="unfinished">Siirron poistaminen epäonnistui: %s</translation>
     </message>
     <message>
         <source>Fee rate (%s) is lower than the minimum fee rate setting (%s)</source>
@@ -4339,20 +4359,20 @@ Ei voinut palauttaa lompakon varmuuskopiota..</translation>
         <translation type="unfinished">Virheellinen P2P-lupa: &apos;%s&apos;</translation>
     </message>
     <message>
-        <source>Invalid amount for %s=&lt;amount&gt;: &apos;%s&apos;</source>
-        <translation type="unfinished">Virheellinen määrä %s=&lt;amount&gt;: &apos;%s&apos;</translation>
+        <source>Invalid amount for %s=&lt;amount&gt;: '%s'</source>
+        <translation type="unfinished">Virheellinen määrä %s=&lt;amount&gt;: '%s'</translation>
+    </message>
+    <message>
+        <source>Invalid amount for -%s=&lt;amount&gt;: '%s'</source>
+        <translation type="unfinished">Virheellinen määrä -%s=&lt;amount&gt;: '%s'</translation>
     </message>
     <message>
         <source>Invalid amount for -%s=&lt;amount&gt;: &apos;%s&apos;</source>
         <translation type="unfinished">Virheellinen määrä -%s=&lt;amount&gt;: &apos;%s&apos;</translation>
     </message>
     <message>
-        <source>Invalid netmask specified in -whitelist: &apos;%s&apos;</source>
-        <translation type="unfinished">Kelvoton verkkopeite määritelty argumentissa -whitelist: &apos;%s&apos;</translation>
-    </message>
-    <message>
-        <source>Invalid port specified in %s: &apos;%s&apos;</source>
-        <translation type="unfinished">Virheellinen portti määritetty %s: &apos;%s&apos;</translation>
+        <source>Invalid port specified in %s: '%s'</source>
+        <translation type="unfinished">Virheellinen portti määritetty %s: '%s'</translation>
     </message>
     <message>
         <source>Invalid pre-selected input %s</source>
@@ -4385,6 +4405,10 @@ Ei voinut palauttaa lompakon varmuuskopiota..</translation>
     <message>
         <source>Missing solving data for estimating transaction size</source>
         <translation type="unfinished">Ratkaisutiedot puuttuvat tapahtuman koon arvioimiseksi</translation>
+    </message>
+    <message>
+        <source>Need to specify a port with -whitebind: '%s'</source>
+        <translation type="unfinished">Pitää määritellä portti argumentilla -whitebind: '%s'</translation>
     </message>
     <message>
         <source>Need to specify a port with -whitebind: &apos;%s&apos;</source>
@@ -4471,7 +4495,7 @@ Ei voinut palauttaa lompakon varmuuskopiota..</translation>
         <translation type="unfinished">Määrättyä lohkohakemistoa &quot;%s&quot; ei ole olemassa.</translation>
     </message>
     <message>
-        <source>Specified data directory &quot;%s&quot; does not exist.</source>
+        <source>Specified data directory "%s" does not exist.</source>
         <translation type="unfinished">Määritettyä tietohakemistoa %s ei ole olemassa.</translation>
     </message>
     <message>
@@ -4507,6 +4531,10 @@ Ei voinut palauttaa lompakon varmuuskopiota..</translation>
         <translation type="unfinished">Tämä on se siirtomaksu, jonka maksat, mikäli lähetät siirron.</translation>
     </message>
     <message>
+        <source>Transaction %s does not belong to this wallet</source>
+        <translation type="unfinished">Tapahtuma %s ei kuulu tähän lompakkoon</translation>
+    </message>
+    <message>
         <source>Transaction amount too small</source>
         <translation type="unfinished">Siirtosumma liian pieni</translation>
     </message>
@@ -4519,15 +4547,11 @@ Ei voinut palauttaa lompakon varmuuskopiota..</translation>
         <translation type="unfinished">Tapahtuman muutoksen tulosindeksi on alueen ulkopuolella</translation>
     </message>
     <message>
-        <source>Transaction has too long of a mempool chain</source>
-        <translation type="unfinished">Maksutapahtumalla on liian pitkä muistialtaan ketju</translation>
-    </message>
-    <message>
         <source>Transaction must have at least one recipient</source>
         <translation type="unfinished">Lähetyksessä tulee olla ainakin yksi vastaanottaja</translation>
     </message>
     <message>
-        <source>Transaction needs a change address, but we can&apos;t generate it.</source>
+        <source>Transaction needs a change address, but we can't generate it.</source>
         <translation type="unfinished">Tapahtuma vaatii osoitteenmuutoksen, mutta emme voi luoda sitä.</translation>
     </message>
     <message>
@@ -4535,7 +4559,7 @@ Ei voinut palauttaa lompakon varmuuskopiota..</translation>
         <translation type="unfinished">Siirtosumma liian iso</translation>
     </message>
     <message>
-        <source>Unable to allocate memory for -maxsigcachesize: &apos;%s&apos; MiB</source>
+        <source>Unable to allocate memory for -maxsigcachesize: '%s' MiB</source>
         <translation type="unfinished">Ei voida varata muistia kohteelle %sMiB</translation>
     </message>
     <message>
@@ -4567,8 +4591,8 @@ Ei voinut palauttaa lompakon varmuuskopiota..</translation>
         <translation type="unfinished">Ei pystytä avaamaan %s kirjoittamista varten</translation>
     </message>
     <message>
-        <source>Unable to parse -maxuploadtarget: &apos;%s&apos;</source>
-        <translation type="unfinished">Ei voi lukea -maxuploadtarget: &apos;%s&apos;</translation>
+        <source>Unable to parse -maxuploadtarget: '%s'</source>
+        <translation type="unfinished">Ei voi lukea -maxuploadtarget: '%s'</translation>
     </message>
     <message>
         <source>Unable to start HTTP server. See debug log for details.</source>
@@ -4597,6 +4621,10 @@ Ei voinut palauttaa lompakon varmuuskopiota..</translation>
     <message>
         <source>Unknown new rules activated (versionbit %i)</source>
         <translation type="unfinished">Tuntemattomia uusia sääntöjä aktivoitu (versiobitti %i)</translation>
+    </message>
+    <message>
+        <source>Wallet file creation failed: %s</source>
+        <translation type="unfinished">Lompakon luominen epäonnistui: %s</translation>
     </message>
     <message>
         <source>acceptstalefeeestimates is not supported on %s chain.</source>

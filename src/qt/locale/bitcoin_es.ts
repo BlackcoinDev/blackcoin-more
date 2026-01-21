@@ -1235,7 +1235,7 @@ El proceso de migración creará una copia de seguridad del monedero antes de mi
     </message>
     <message>
         <source>Compiled without external signing support (required for external signing)</source>
-        <extracomment>&quot;External signing&quot; means using devices such as hardware wallets.</extracomment>
+        <extracomment>"External signing" means using devices such as hardware wallets.</extracomment>
         <translation type="unfinished">Compilado sin compatibilidad con firma externa (se requiere para la firma externa)</translation>
     </message>
 </context>
@@ -1554,7 +1554,7 @@ El proceso de migración creará una copia de seguridad del monedero antes de mi
     </message>
     <message>
         <source>Minimize instead of exit the application when the window is closed. When this option is enabled, the application will be closed only after selecting Exit in the menu.</source>
-        <translation type="unfinished">Minimizar en vez de salir de la aplicación cuando la ventana esté cerrada. Cuando se activa esta opción, la aplicación solo se cerrará después de seleccionar &quot;Salir&quot; en el menú.</translation>
+        <translation type="unfinished">Minimizar en vez de salir de la aplicación cuando la ventana esté cerrada. Cuando se activa esta opción, la aplicación solo se cerrará después de seleccionar "Salir" en el menú.</translation>
     </message>
     <message>
         <source>Options set in this dialog are overridden by the command line:</source>
@@ -1794,7 +1794,7 @@ El proceso de migración creará una copia de seguridad del monedero antes de mi
     </message>
     <message>
         <source>Compiled without external signing support (required for external signing)</source>
-        <extracomment>&quot;External signing&quot; means using devices such as hardware wallets.</extracomment>
+        <extracomment>"External signing" means using devices such as hardware wallets.</extracomment>
         <translation type="unfinished">Compilado sin compatibilidad con firma externa (se requiere para la firma externa)</translation>
     </message>
     <message>

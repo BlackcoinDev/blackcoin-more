@@ -361,7 +361,7 @@ Només és possible firmar amb adreces del tipus &quot;legacy&quot;.</translatio
         <source>%n minute(s)</source>
         <translation type="unfinished">
             <numerusform>%n minuts</numerusform>
-            <numerusform>%n minut(s)</numerusform>
+            <numerusform>%n minuts</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -1189,7 +1189,7 @@ El procés de migració crearà una còpia de seguretat de la cartera abans de m
     </message>
     <message>
         <source>You are one step away from creating your new wallet!</source>
-        <translation type="unfinished">A un pas de crear la teva nova cartera</translation>
+        <translation type="unfinished">Només et queda un pas per a crear la teva nova cartera</translation>
     </message>
     <message>
         <source>Please provide a name and, if desired, enable any advanced options</source>
@@ -1333,8 +1333,8 @@ Això és ideal per a carteres de mode només lectura.</translation>
     <message numerus="yes">
         <source>%n GB of space available</source>
         <translation type="unfinished">
-            <numerusform>%n GB d&apos;espai lliure disponible</numerusform>
-            <numerusform>%n GB d&apos;espai lliure disponibles</numerusform>
+            <numerusform>%n GB d'espai lliure disponible</numerusform>
+            <numerusform>%n GB d'espai lliure disponibles</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -1409,7 +1409,7 @@ Això és ideal per a carteres de mode només lectura.</translation>
     </message>
     <message>
         <source>When you click OK, %1 will begin to download and process the full %4 block chain (%2 GB) starting with the earliest transactions in %3 when %4 initially launched.</source>
-        <translation type="unfinished">Quan feu clic a D&apos;acord, %1 començarà a descarregar i processar la cadena de blocs %4 completa (%2 GB) començant per les primeres transaccions de %3, any de llençament inicial de %4.</translation>
+        <translation type="unfinished">Quan feu clic a D'acord, %1 començarà a descarregar i processar la cadena de blocs %4 completa (%2 GB) començant per les primeres transaccions de %3, any de llençament inicial de %4.</translation>
     </message>
     <message>
         <source>If you have chosen to limit block chain storage (pruning), the historical data must still be downloaded and processed, but will be deleted afterward to keep your disk usage low.</source>
@@ -1727,7 +1727,7 @@ Això és ideal per a carteres de mode només lectura.</translation>
     </message>
     <message>
         <source>Third-party URLs (e.g. a block explorer) that appear in the transactions tab as context menu items. %s in the URL is replaced by transaction hash. Multiple URLs are separated by vertical bar |.</source>
-        <translation type="unfinished">URL de terceres parts (p. ex. explorador de blocs) que apareix en la pestanya de transaccions com elements del menú contextual. %s en l&apos;URL es reemplaçat pel resum de la transacció. Diferents URL estan separades per una barra vertical |.</translation>
+        <translation type="unfinished">URL de terceres parts (p. ex. explorador de blocs) que apareix en la pestanya de transaccions com elements del menú contextual. %s en l'URL es reemplaçat pel resum de la transacció. Diferents URL estan separades per una barra vertical |.</translation>
     </message>
     <message>
         <source>&amp;Third-party transaction URLs</source>
@@ -4014,15 +4014,15 @@ Ves a Arxiu &gt; Obrir Cartera per a carregar cartera.
     </message>
     <message>
         <source>Error reading %s! All keys read correctly, but transaction data or address metadata may be missing or incorrect.</source>
-        <translation type="unfinished">S&apos;ha produït un error en llegir %s. Totes les claus es llegeixen correctament, però les dades de la transacció o les entra des de la llibreta d&apos;adreces podrien faltar o ser incorrectes.</translation>
+        <translation type="unfinished">S'ha produït un error en llegir %s. Totes les claus es llegeixen correctament, però les dades de la transacció o les entra des de la llibreta d'adreces podrien faltar o ser incorrectes.</translation>
     </message>
     <message>
         <source>Fee estimation failed. Fallbackfee is disabled. Wait a few blocks or enable %s.</source>
-        <translation type="unfinished">L&apos;estimació de la quota ha fallat. Fallbackfee està desactivat. Espereu uns quants blocs o activeu %s.</translation>
+        <translation type="unfinished">L'estimació de la quota ha fallat. Fallbackfee està desactivat. Espereu uns quants blocs o activeu %s.</translation>
     </message>
     <message>
-        <source>Invalid amount for %s=&lt;amount&gt;: &apos;%s&apos; (must be at least the minrelay fee of %s to prevent stuck transactions)</source>
-        <translation type="unfinished">Import no vàlid per a %s=&lt;amount&gt;: &apos;%s&apos; (cal que sigui com a mínim la comissió de minrelay de %s per evitar que les comissions s&apos;encallin)</translation>
+        <source>Invalid amount for %s=&lt;amount&gt;: '%s' (must be at least the minrelay fee of %s to prevent stuck transactions)</source>
+        <translation type="unfinished">Import no vàlid per a %s=&lt;amount&gt;: '%s' (cal que sigui com a mínim la comissió de minrelay de %s per evitar que les comissions s'encallin)</translation>
     </message>
     <message>
         <source>Config setting for %s only applied on %s network when in [%s] section.</source>
@@ -4198,24 +4198,24 @@ Ves a Arxiu &gt; Obrir Cartera per a carregar cartera.
         <translation type="unfinished">Permís P2P no vàlid: &apos;%s&apos;</translation>
     </message>
     <message>
-        <source>Invalid amount for %s=&lt;amount&gt;: &apos;%s&apos; (must be at least %s)</source>
+        <source>Invalid amount for %s=&lt;amount&gt;: '%s' (must be at least %s)</source>
         <translation type="unfinished">Import no vàlid per a %s=&lt;amount&gt;: «%s» (ha de ser com a mínim %s)</translation>
+    </message>
+    <message>
+        <source>Invalid amount for %s=&lt;amount&gt;: '%s'</source>
+        <translation type="unfinished">Import invàlid per a %s=&lt;amount&gt;: '%s'</translation>
+    </message>
+    <message>
+        <source>Invalid amount for -%s=&lt;amount&gt;: '%s'</source>
+        <translation type="unfinished">Import invàlid per a -%s=&lt;amount&gt;: '%s'</translation>
     </message>
     <message>
         <source>Invalid amount for %s=&lt;amount&gt;: &apos;%s&apos;</source>
         <translation type="unfinished">Import invàlid per a %s=&lt;amount&gt;: &apos;%s&apos;</translation>
     </message>
     <message>
-        <source>Invalid amount for -%s=&lt;amount&gt;: &apos;%s&apos;</source>
-        <translation type="unfinished">Import invàlid per a -%s=&lt;amount&gt;: &apos;%s&apos;</translation>
-    </message>
-    <message>
-        <source>Invalid netmask specified in -whitelist: &apos;%s&apos;</source>
-        <translation type="unfinished">S&apos;ha especificat una màscara de xarxa no vàlida a -whitelist: «%s»</translation>
-    </message>
-    <message>
         <source>Listening for incoming connections failed (listen returned error %s)</source>
-        <translation type="unfinished">ha fallat escoltar les connexions entrants (l&apos;escoltament ha retornat l&apos;error %s)</translation>
+        <translation type="unfinished">ha fallat escoltar les connexions entrants (l'escoltament ha retornat l'error %s)</translation>
     </message>
     <message>
         <source>Loading P2P addresses…</source>
@@ -4306,7 +4306,7 @@ Ves a Arxiu &gt; Obrir Cartera per a carregar cartera.
         <translation type="unfinished">El directori de blocs especificat &quot;%s&quot; no existeix.</translation>
     </message>
     <message>
-        <source>Specified data directory &quot;%s&quot; does not exist.</source>
+        <source>Specified data directory "%s" does not exist.</source>
         <translation type="unfinished">El directori de dades especificat «%s» no existeix.</translation>
     </message>
     <message>

@@ -2144,8 +2144,8 @@ Signing is only possible with addresses of the type &apos;legacy&apos;.</source>
         <translation type="unfinished">Subskriba transakcio fiaskis</translation>
     </message>
     <message>
-        <source>Specified data directory &quot;%s&quot; does not exist.</source>
-        <translation type="unfinished">la elektita dosierujo por datumoj &quot;%s&quot; ne ekzistas.</translation>
+        <source>Specified data directory "%s" does not exist.</source>
+        <translation type="unfinished">la elektita dosierujo por datumoj "%s" ne ekzistas.</translation>
     </message>
     <message>
         <source>This is experimental software.</source>

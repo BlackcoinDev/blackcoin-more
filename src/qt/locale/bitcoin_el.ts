@@ -2573,7 +2573,7 @@ If you are receiving this error you should request the merchant provide a BIP21 
     </message>
     <message>
         <source>detecting: peer could be v1 or v2</source>
-        <extracomment>Explanatory text for &quot;detecting&quot; transport type.</extracomment>
+        <extracomment>Explanatory text for "detecting" transport type.</extracomment>
         <translation type="unfinished">ανίχνευση: ο ομότιμος μπορεί να είναι v1 ή v2</translation>
     </message>
     <message>
@@ -2588,7 +2588,7 @@ If you are receiving this error you should request the merchant provide a BIP21 
     </message>
     <message>
         <source>we selected the peer for high bandwidth relay</source>
-        <translation type="unfinished">επιλέξαμε τον ομότιμο για υψηλού εύρους ζώνης αναμετάδοση</translation>
+        <translation type="unfinished">επιλέξαμε τον ομότιμο για αναμετάδοση υψηλού εύρους ζώνης</translation>
     </message>
     <message>
         <source>the peer selected us for high bandwidth relay</source>
@@ -2804,10 +2804,10 @@ For more information on using this console, type %6.
     </message>
     <message>
         <source>Generates an address compatible with older wallets.</source>
-        <translation type="unfinished">Δημιουργεί μια διεύθυνση συμβατή με παλαιότερα πορτοφόλια.</translation>
+        <translation type="unfinished">Παράγει μια διεύθυνση συμβατή με παλαιότερα πορτοφόλια.</translation>
     </message>
     <message>
-        <source>Generates a native segwit address (BIP-173). Some old wallets don&apos;t support it.</source>
+        <source>Generates a native segwit address (BIP-173). Some old wallets don't support it.</source>
         <translation type="unfinished">Δημιουργεί μια εγγενή διεύθυνση segwit (BIP-173). Ορισμένα παλιά πορτοφόλια δεν το υποστηρίζουν.</translation>
     </message>
     <message>
@@ -3095,7 +3095,7 @@ Note:  Since the fee is calculated on a per-byte basis, a fee rate of &quot;100 
     </message>
     <message>
         <source>Set external signer script path in Options -&gt; Wallet</source>
-        <extracomment>&quot;External signer&quot; means using devices such as hardware wallets.</extracomment>
+        <extracomment>"External signer" means using devices such as hardware wallets.</extracomment>
         <translation type="unfinished">Ορίστε τη διαδρομή σεναρίου εξωτερικού υπογράφοντος στις Επιλογές -&gt; Πορτοφόλι</translation>
     </message>
     <message>
@@ -3129,7 +3129,7 @@ Note:  Since the fee is calculated on a per-byte basis, a fee rate of &quot;100 
     </message>
     <message>
         <source>External signer failure</source>
-        <extracomment>&quot;External signer&quot; means using devices such as hardware wallets.</extracomment>
+        <extracomment>"External signer" means using devices such as hardware wallets.</extracomment>
         <translation type="unfinished">Αποτυχία εξωτερικού υπογράφοντος</translation>
     </message>
     <message>
@@ -3194,7 +3194,7 @@ Note:  Since the fee is calculated on a per-byte basis, a fee rate of &quot;100 
     <message>
         <source>Unsigned Transaction</source>
         <comment>PSBT copied</comment>
-        <extracomment>Caption of &quot;PSBT has been copied&quot; messagebox</extracomment>
+        <extracomment>Caption of "PSBT has been copied" messagebox</extracomment>
         <translation type="unfinished">Ανυπόγραφη Συναλλαγή</translation>
     </message>
     <message>
@@ -3245,7 +3245,7 @@ Note:  Since the fee is calculated on a per-byte basis, a fee rate of &quot;100 
         <source>Estimated to begin confirmation within %n block(s).</source>
         <translation type="unfinished">
             <numerusform>Estimated to begin confirmation within %n block(s).</numerusform>
-            <numerusform>Εκτιμάται η έναρξη επιβεβαίωσης εντός %n μπλοκ.</numerusform>
+            <numerusform>Estimated to begin confirmation within %n block(s).</numerusform>
         </translation>
     </message>
     <message>
@@ -4411,8 +4411,8 @@ Go to File &gt; Open Wallet to load a wallet.
         <translation type="unfinished">Δεν υπάρχει κατάλογος καθορισμένων μπλοκ &quot;%s&quot;.</translation>
     </message>
     <message>
-        <source>Specified data directory &quot;%s&quot; does not exist.</source>
-        <translation type="unfinished">Ο ορισμένος κατάλογος δεδομένων &quot;%s&quot; δεν υπάρχει.</translation>
+        <source>Specified data directory "%s" does not exist.</source>
+        <translation type="unfinished">Ο ορισμένος κατάλογος δεδομένων "%s" δεν υπάρχει.</translation>
     </message>
     <message>
         <source>Starting network threads…</source>

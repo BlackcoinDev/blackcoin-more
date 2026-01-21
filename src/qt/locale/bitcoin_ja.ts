@@ -299,6 +299,18 @@ Existing translations will be added in the string's history. Are you sure you wa
         <translation type="unfinished">不明</translation>
     </message>
     <message>
+        <source>Embedded "%1"</source>
+        <translation type="unfinished">埋込み "%1"</translation>
+    </message>
+    <message>
+        <source>Default system font "%1"</source>
+        <translation type="unfinished">デフォルトシステムフォント "%1"</translation>
+    </message>
+    <message>
+        <source>Custom…</source>
+        <translation type="unfinished">カスタム…</translation>
+    </message>
+    <message>
         <source>Amount</source>
         <translation type="unfinished">金額</translation>
     </message>
@@ -1590,6 +1602,10 @@ The migration process will create a backup of the wallet before migrating. This 
         <translation type="unfinished">ウィンドウが閉じられたとき、アプリケーションを終了するのではなく最小化します。このオプションが有効の場合、メニューから終了が選択されたときのみアプリケーションが終了します。</translation>
     </message>
     <message>
+        <source>Font in the Overview tab: </source>
+        <translation type="unfinished">概要タブのフォント</translation>
+    </message>
+    <message>
         <source>Options set in this dialog are overridden by the command line:</source>
         <translation type="unfinished">このダイアログで設定されたオプションは、コマンド ラインによって上書きされます。</translation>
     </message>
@@ -2645,8 +2661,12 @@ BIP70には広範なセキュリティー上の問題があるので、ウォレ
         <translation type="unfinished">どのウォレットも使わずにコマンドを実行しています</translation>
     </message>
     <message>
-        <source>Executing command using &quot;%1&quot; wallet</source>
-        <translation type="unfinished">&quot;%1&quot; ウォレットを使ってコマンドを実行しています</translation>
+        <source>Node window - [%1]</source>
+        <translation type="unfinished">ノードウィンドウ - [%1]</translation>
+    </message>
+    <message>
+        <source>Executing command using "%1" wallet</source>
+        <translation type="unfinished">"%1" ウォレットを使ってコマンドを実行しています</translation>
     </message>
     <message>
         <source>Welcome to the %1 RPC console.
@@ -4465,6 +4485,10 @@ Unable to restore backup of wallet.</source>
         <translation type="unfinished">ダンプファイル %s が存在しません。</translation>
     </message>
     <message>
+        <source>Error committing db txn for wallet transactions removal</source>
+        <translation type="unfinished">ウォレットトランザクションの削除のためdb txnのコミット中にエラーが発生しました</translation>
+    </message>
+    <message>
         <source>Error creating %s</source>
         <translation type="unfinished">%sの作成エラー</translation>
     </message>
@@ -4511,6 +4535,10 @@ Unable to restore backup of wallet.</source>
     <message>
         <source>Error reading next record from wallet database</source>
         <translation type="unfinished">ウォレットデータベースから次のレコードの読み取りでエラー</translation>
+    </message>
+    <message>
+        <source>Error starting db txn for wallet transactions removal</source>
+        <translation type="unfinished">ウォレットトランザクションの削除のためのdb txnの開始でエラーが発生しました</translation>
     </message>
     <message>
         <source>Error: Cannot extract destination from the generated scriptpubkey</source>
@@ -4597,6 +4625,22 @@ Unable to restore backup of wallet.</source>
         <translation type="unfinished">エラー: 新しいウォレットにレコードを書き込めません</translation>
     </message>
     <message>
+        <source>Error: Unable to write solvable wallet best block locator record</source>
+        <translation type="unfinished">エラー：解決可能なウォレットのベストブロックロケーターレコードを書き込めません</translation>
+    </message>
+    <message>
+        <source>Error: Unable to write watchonly wallet best block locator record</source>
+        <translation type="unfinished">エラー：監視専用ウォレットのベストブロックロケーターレコードを書き込めません</translation>
+    </message>
+    <message>
+        <source>Error: address book copy failed for wallet %s</source>
+        <translation type="unfinished">エラー: ウォレット%sのアドレス帳のコピーに失敗しました</translation>
+    </message>
+    <message>
+        <source>Error: database transaction cannot be executed for wallet %s</source>
+        <translation type="unfinished">エラー: ウォレット%sに対してデータベーストランザクションを実行できません</translation>
+    </message>
+    <message>
         <source>Failed to listen on any port. Use -listen=0 if you want this.</source>
         <translation type="unfinished">ポートのリッスンに失敗しました。必要であれば -listen=0 を指定してください。</translation>
     </message>
@@ -4611,6 +4655,10 @@ Unable to restore backup of wallet.</source>
     <message>
         <source>Failed to verify database</source>
         <translation type="unfinished">データベースの検証に失敗しました</translation>
+    </message>
+    <message>
+        <source>Failure removing transaction: %s</source>
+        <translation type="unfinished">取引の削除に失敗: %s</translation>
     </message>
     <message>
         <source>Fee rate (%s) is lower than the minimum fee rate setting (%s)</source>
@@ -4833,6 +4881,10 @@ Unable to restore backup of wallet.</source>
         <translation type="unfinished">これは、取引を送信する場合に支払う取引手数料です。</translation>
     </message>
     <message>
+        <source>Transaction %s does not belong to this wallet</source>
+        <translation type="unfinished">取引%sはこのウォレットのものではありません</translation>
+    </message>
+    <message>
         <source>Transaction amount too small</source>
         <translation type="unfinished">取引の金額が小さすぎます</translation>
     </message>
@@ -4935,6 +4987,14 @@ Unable to restore backup of wallet.</source>
     <message>
         <source>Unsupported logging category %s=%s.</source>
         <translation type="unfinished">サポートされていないログカテゴリ %s=%s 。</translation>
+    </message>
+    <message>
+        <source>Error: Could not add watchonly tx %s to watchonly wallet</source>
+        <translation type="unfinished">エラー:  監視対象取引%sを監視専用ウォレットに追加できませんでした</translation>
+    </message>
+    <message>
+        <source>Error: Could not delete watchonly transactions. </source>
+        <translation type="unfinished">エラー:  監視対象取引を削除できませんでした</translation>
     </message>
     <message>
         <source>User Agent comment (%s) contains unsafe characters.</source>

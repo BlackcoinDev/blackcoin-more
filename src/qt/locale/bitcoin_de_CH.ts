@@ -435,6 +435,18 @@ Das Signieren ist nur mit Adressen vom Typ &apos;Legacy&apos; möglich.</transla
         <translation type="unfinished">Neues Wallet erstellen</translation>
     </message>
     <message>
+        <source>&amp;Minimize</source>
+        <translation type="unfinished">&amp;Minimieren</translation>
+    </message>
+    <message>
+        <source>&amp;Send</source>
+        <translation type="unfinished">&amp;Senden</translation>
+    </message>
+    <message>
+        <source>&amp;Receive</source>
+        <translation type="unfinished">&amp;Empfangen</translation>
+    </message>
+    <message>
         <source>&amp;Options…</source>
         <translation type="unfinished">weitere Möglichkeiten/Einstellungen </translation>
     </message>

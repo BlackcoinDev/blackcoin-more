@@ -1124,7 +1124,7 @@ Le processus de migration créera une sauvegarde du porte-monnaie avant la migra
     </message>
     <message>
         <source>Migration Successful</source>
-        <translation type="unfinished">Migration réussie</translation>
+        <translation type="unfinished">La migration est terminée</translation>
     </message>
 </context>
 <context>
@@ -1215,7 +1215,7 @@ Le processus de migration créera une sauvegarde du porte-monnaie avant la migra
     </message>
     <message>
         <source>Please provide a name and, if desired, enable any advanced options</source>
-        <translation type="unfinished">Veuillez fournir un nom et, si désiré, activer toutes les options avancées.</translation>
+        <translation type="unfinished">Indiquez un nom et, si désiré, activez les options avancées.</translation>
     </message>
     <message>
         <source>Wallet Name</source>
@@ -1374,7 +1374,7 @@ Le processus de migration créera une sauvegarde du porte-monnaie avant la migra
     </message>
     <message>
         <source>Choose data directory</source>
-        <translation type="unfinished">Choisissez un répertoire de donnée</translation>
+        <translation type="unfinished">Choisissez le répertoire des données</translation>
     </message>
     <message>
         <source>At least %1 GB of data will be stored in this directory, and it will grow over time.</source>
@@ -1438,7 +1438,7 @@ Le processus de migration créera une sauvegarde du porte-monnaie avant la migra
     </message>
     <message>
         <source>When you click OK, %1 will begin to download and process the full %4 block chain (%2 GB) starting with the earliest transactions in %3 when %4 initially launched.</source>
-        <translation type="unfinished">Quand vous cliquerez sur Valider, %1 commencera à télécharger et à traiter l’intégralité de la chaîne de blocs %4 (%2 Go) en débutant avec les transactions les plus anciennes de %3, quand %4 a été lancé initialement.</translation>
+        <translation type="unfinished">Quand vous cliquerez sur Valider, %1 commencera à télécharger et à traiter l’intégralité de la chaîne de blocs %4 (%2 Go) en débutant avec les transactions les plus anciennes de %3, lors du lancement de %4 a été lancé initialement.</translation>
     </message>
     <message>
         <source>If you have chosen to limit block chain storage (pruning), the historical data must still be downloaded and processed, but will be deleted afterward to keep your disk usage low.</source>
@@ -1535,7 +1535,7 @@ Le processus de migration créera une sauvegarde du porte-monnaie avant la migra
     </message>
     <message>
         <source>Unknown. Pre-syncing Headers (%1, %2%)…</source>
-        <translation type="unfinished">Inconnu. En-têtes de présynchronisation (%1, %2%)...</translation>
+        <translation type="unfinished">Inconnu. En-têtes de présynchronisation (%1, %2%)…</translation>
     </message>
 </context>
 <context>
@@ -1582,7 +1582,7 @@ Le processus de migration créera une sauvegarde du porte-monnaie avant la migra
     </message>
     <message>
         <source>Full path to a %1 compatible script (e.g. C:\Downloads\hwi.exe or /Users/you/Downloads/hwi.py). Beware: malware can steal your coins!</source>
-        <translation type="unfinished">Chemin complet vers un %1 script compatible (par exemple, C:\Downloads\hwi.exe ou /Users/you/Downloads/hwi.py). Attention : les malwares peuvent voler vos pièces !</translation>
+        <translation type="unfinished">Chemin complet vers un script compatible avec %1 (p. ex. C:\Téléchargements\hwi.exe ou /Utilisateurs/vous/Téléchargements/hwi.py). Attention : des programmes malveillants peuvent voler vos pièces !</translation>
     </message>
     <message>
         <source>IP address of the proxy (e.g. IPv4: 127.0.0.1 / IPv6: ::1)</source>
@@ -1598,7 +1598,7 @@ Le processus de migration créera une sauvegarde du porte-monnaie avant la migra
     </message>
     <message>
         <source>Options set in this dialog are overridden by the command line:</source>
-        <translation type="unfinished">Les options définies dans cette boîte de dialogue sont remplacées par la ligne de commande :</translation>
+        <translation type="unfinished">Les options définies dans cette boîte de dialogue sont remplacées par la ligne de commande :</translation>
     </message>
     <message>
         <source>Open the %1 configuration file from the working directory.</source>
@@ -1860,9 +1860,9 @@ Le processus de migration créera une sauvegarde du porte-monnaie avant la migra
         <translation type="unfinished">Le redémarrage du client est exigé pour activer les changements.</translation>
     </message>
     <message>
-        <source>Current settings will be backed up at &quot;%1&quot;.</source>
-        <extracomment>Text explaining to the user that the client&apos;s current settings will be backed up at a specific location. %1 is a stand-in argument for the backup location&apos;s path.</extracomment>
-        <translation type="unfinished">Les paramètres actuels vont être restaurés à &quot;%1&quot;.</translation>
+        <source>Current settings will be backed up at "%1".</source>
+        <extracomment>Text explaining to the user that the client's current settings will be backed up at a specific location. %1 is a stand-in argument for the backup location's path.</extracomment>
+        <translation type="unfinished">Les paramètres actuels seront sauvegardés à « %1 ».</translation>
     </message>
     <message>
         <source>Client will be shut down. Do you want to proceed?</source>
@@ -1907,8 +1907,8 @@ Le processus de migration créera une sauvegarde du porte-monnaie avant la migra
 <context>
     <name>OptionsModel</name>
     <message>
-        <source>Could not read setting &quot;%1&quot;, %2.</source>
-        <translation type="unfinished">Impossible de lire le paramètre &quot;%1&quot;, %2.</translation>
+        <source>Could not read setting "%1", %2.</source>
+        <translation type="unfinished">Impossible de lire le paramètre « %1 », %2.</translation>
     </message>
 </context>
 <context>
@@ -1994,7 +1994,7 @@ Le processus de migration créera une sauvegarde du porte-monnaie avant la migra
     <name>PSBTOperationsDialog</name>
     <message>
         <source>PSBT Operations</source>
-        <translation type="unfinished">Opération PSBT</translation>
+        <translation type="unfinished">Opération TBSP</translation>
     </message>
     <message>
         <source>Sign Tx</source>
@@ -2172,6 +2172,11 @@ If you are receiving this error you should request the merchant provide a BIP21 
         <translation type="unfinished">Pair</translation>
     </message>
     <message>
+        <source>Age</source>
+        <extracomment>Title of Peers Table column which indicates the duration (length of time) since the peer connection started.</extracomment>
+        <translation type="unfinished">Âge</translation>
+    </message>
+    <message>
         <source>Sent</source>
         <extracomment>Title of Peers Table column which indicates the total amount of network information we have sent to the peer.</extracomment>
         <translation type="unfinished">Envoyé</translation>
@@ -2334,19 +2339,19 @@ If you are receiving this error you should request the merchant provide a BIP21 
     </message>
     <message>
         <source>The transport layer version: %1</source>
-        <translation type="unfinished">La version de la couche de transport : %1</translation>
+        <translation type="unfinished">Version de la couche de transport : %1</translation>
     </message>
     <message>
         <source>The BIP324 session ID string in hex, if any.</source>
-        <translation type="unfinished">La chaîne d&apos;ID de session BIP324 en hexadécimal, le cas échéant.</translation>
+        <translation type="unfinished">ID hexadécimale de la session BIP324, le cas échéant.</translation>
     </message>
     <message>
         <source>Session ID</source>
-        <translation type="unfinished">ID de session</translation>
+        <translation type="unfinished">ID de la session</translation>
     </message>
     <message>
         <source>Whether we relay transactions to this peer.</source>
-        <translation type="unfinished">Si nous relayons des transactions à ce pair.</translation>
+        <translation type="unfinished">Relayer ou non des transactions à ce pair.</translation>
     </message>
     <message>
         <source>Transaction Relay</source>
@@ -2389,12 +2394,12 @@ If you are receiving this error you should request the merchant provide a BIP21 
     <message>
         <source>The total number of addresses received from this peer that were processed (excludes addresses that were dropped due to rate-limiting).</source>
         <extracomment>Tooltip text for the Addresses Processed field in the peer details area, which displays the total number of addresses received from this peer that were processed (excludes addresses that were dropped due to rate-limiting).</extracomment>
-        <translation type="unfinished">Nombre total d&apos;adresses reçues de ce pair qui ont été traitées (à l&apos;exclusion des adresses qui ont été abandonnées en raison de la limitation du débit).</translation>
+        <translation type="unfinished">Nombre total d’adresses reçues de ce pair qui ont été traitées (les adresses abandonnées en raison de la limite du débit sont exclues).</translation>
     </message>
     <message>
         <source>The total number of addresses received from this peer that were dropped (not processed) due to rate-limiting.</source>
         <extracomment>Tooltip text for the Addresses Rate-Limited field in the peer details area, which displays the total number of addresses received from this peer that were dropped (not processed) due to rate-limiting.</extracomment>
-        <translation type="unfinished">Nombre total d&apos;adresses reçues de ce pair qui ont été abandonnées (non traitées) en raison de la limitation du débit.</translation>
+        <translation type="unfinished">Nombre total d’adresses reçues de ce pair qui ont été abandonnées (non traitées) en raison de la limite du débit.</translation>
     </message>
     <message>
         <source>Addresses Processed</source>
@@ -2437,6 +2442,10 @@ If you are receiving this error you should request the merchant provide a BIP21 
     <message>
         <source>The direction and type of peer connection: %1</source>
         <translation type="unfinished">La direction et le type de la connexion au pair&#xa0;: %1</translation>
+    </message>
+    <message>
+        <source>Direction/Type</source>
+        <translation type="unfinished">Direction ou type</translation>
     </message>
     <message>
         <source>The network protocol this peer is connected through: IPv4, IPv6, Onion, I2P, or CJDNS.</source>
@@ -2559,18 +2568,18 @@ If you are receiving this error you should request the merchant provide a BIP21 
     </message>
     <message>
         <source>detecting: peer could be v1 or v2</source>
-        <extracomment>Explanatory text for &quot;detecting&quot; transport type.</extracomment>
-        <translation type="unfinished">détection : paires pourrait être v1 ou v2</translation>
+        <extracomment>Explanatory text for "detecting" transport type.</extracomment>
+        <translation type="unfinished">détection : les paires pourraient être v1 ou v2</translation>
     </message>
     <message>
         <source>v1: unencrypted, plaintext transport protocol</source>
         <extracomment>Explanatory text for v1 transport type.</extracomment>
-        <translation type="unfinished">v1: protocole de transport non chiffré en texte clair</translation>
+        <translation type="unfinished">v1 : protocole de transport non chiffré en texte clair</translation>
     </message>
     <message>
         <source>v2: BIP324 encrypted transport protocol</source>
         <extracomment>Explanatory text for v2 transport type.</extracomment>
-        <translation type="unfinished">v2: Protocole de transport chiffré BIP324</translation>
+        <translation type="unfinished">v2 : protocole de transport chiffré BIP324</translation>
     </message>
     <message>
         <source>we selected the peer for high bandwidth relay</source>
@@ -2779,8 +2788,12 @@ Pour plus de précisions sur cette console, tapez %6.
         <translation type="unfinished">Copier le &amp;montant</translation>
     </message>
     <message>
+        <source>Base58 (Legacy)</source>
+        <translation type="unfinished">Base58 (ancien)</translation>
+    </message>
+    <message>
         <source>Not recommended due to higher fees and less protection against typos.</source>
-        <translation type="unfinished">Non recommandé en raison de frais élevés et d&apos;une faible protection contre les fautes de frappe.</translation>
+        <translation type="unfinished">Non recommandé en raison de frais élevés et d’une protection moindre contre les fautes de frappe.</translation>
     </message>
     <message>
         <source>Generates an address compatible with older wallets.</source>
@@ -2839,7 +2852,7 @@ Pour plus de précisions sur cette console, tapez %6.
     </message>
     <message>
         <source>&amp;Verify</source>
-        <translation type="unfinished">&amp;Vérifier</translation>
+        <translation type="unfinished">&amp;Confirmer</translation>
     </message>
     <message>
         <source>Verify this address on e.g. a hardware wallet screen</source>
@@ -3158,6 +3171,12 @@ Note&#xa0;: Les frais étant calculés par octet, un taux de frais de « 100 sat
         <translation type="unfinished">Frais de transaction</translation>
     </message>
     <message>
+        <source>%1 kvB</source>
+        <comment>PSBT transaction creation</comment>
+        <extracomment>When reviewing a newly created PSBT (via Send flow), the transaction fee is shown, with "virtual size" of the transaction displayed for context</extracomment>
+        <translation type="unfinished">%1 kvB</translation>
+    </message>
+    <message>
         <source>Not signalling Replace-By-Fee, BIP-125.</source>
         <translation type="unfinished">Ne signale pas Remplacer-par-des-frais, BIP-125.</translation>
     </message>
@@ -3173,11 +3192,11 @@ Note&#xa0;: Les frais étant calculés par octet, un taux de frais de « 100 sat
     </message>
     <message>
         <source>The PSBT has been copied to the clipboard. You can also save it.</source>
-        <translation type="unfinished">Le PSBT a été copié dans le presse-papiers. Vous pouvez également le sauvegarder.</translation>
+        <translation type="unfinished">La TBSP a été copiée dans le presse-papiers. Vous pouvez aussi l’enregistrer.</translation>
     </message>
     <message>
         <source>PSBT saved to disk</source>
-        <translation type="unfinished">PSBT sauvegardé sur le disque</translation>
+        <translation type="unfinished">La TBSP a été enregistrée sur le disque</translation>
     </message>
     <message>
         <source>Confirm send coins</source>
@@ -3473,12 +3492,12 @@ Note&#xa0;: Les frais étant calculés par octet, un taux de frais de « 100 sat
     <message>
         <source>0/unconfirmed, in memory pool</source>
         <extracomment>Text explaining the current status of a transaction, shown in the status field of the details window for this transaction. This status represents an unconfirmed transaction that is in the memory pool.</extracomment>
-        <translation type="unfinished">0/non confirmé, dans la pool de mémoire</translation>
+        <translation type="unfinished">0/non confirmée, dans la réserve de mémoire</translation>
     </message>
     <message>
         <source>0/unconfirmed, not in memory pool</source>
         <extracomment>Text explaining the current status of a transaction, shown in the status field of the details window for this transaction. This status represents an unconfirmed transaction that is not in the memory pool.</extracomment>
-        <translation type="unfinished">0/non confirmé, pas dans la pool de mémoire</translation>
+        <translation type="unfinished">0/non confirmée, absente de la réserve de mémoire</translation>
     </message>
     <message>
         <source>abandoned</source>
@@ -3908,7 +3927,7 @@ Accédez à Fichier &gt; Ouvrir un porte-monnaie pour en charger un.
     </message>
     <message>
         <source>Fee bump error</source>
-        <translation type="unfinished">Erreur d’augmentation des frais</translation>
+        <translation type="unfinished">Erreur de majoration des frais</translation>
     </message>
     <message>
         <source>Increasing transaction fee failed</source>
@@ -3937,7 +3956,7 @@ Accédez à Fichier &gt; Ouvrir un porte-monnaie pour en charger un.
     </message>
     <message>
         <source>Confirm fee bump</source>
-        <translation type="unfinished">Confirmer l’augmentation des frais</translation>
+        <translation type="unfinished">Confirmer la majoration des frais</translation>
     </message>
     <message>
         <source>Can&apos;t draft transaction.</source>
@@ -4021,11 +4040,11 @@ Accédez à Fichier &gt; Ouvrir un porte-monnaie pour en charger un.
     </message>
     <message>
         <source>%s failed to validate the -assumeutxo snapshot state. This indicates a hardware problem, or a bug in the software, or a bad software modification that allowed an invalid snapshot to be loaded. As a result of this, the node will shut down and stop using any state that was built on the snapshot, resetting the chain height from %d to %d. On the next restart, the node will resume syncing from %d without using any snapshot data. Please report this incident to %s, including how you obtained the snapshot. The invalid snapshot chainstate will be left on disk in case it is helpful in diagnosing the issue that caused this error.</source>
-        <translation type="unfinished">%s a échoué à valider l&apos;état instantané -assumeutxo. Cela indique un problème matériel, ou un bug dans le logiciel, ou une mauvaise modification du logiciel qui a permis de charger un instantané invalide. En conséquence, le nœud s&apos;arrêtera et cessera d&apos;utiliser tout état qui a été construit sur l&apos;instantané, réinitialisant la hauteur de la chaîne de %d à %d. Au prochain redémarrage, le nœud reprendra la synchronisation à partir de %d sans utiliser de données d&apos;instantané. Veuillez signaler cet incident à %s, en précisant comment vous avez obtenu l&apos;instantané. L&apos;état de chaîne d&apos;instantané invalide sera conservé sur le disque au cas où il serait utile pour diagnostiquer le problème qui a causé cette erreur.</translation>
+        <translation type="unfinished">%s n’a pas réussi à valider l’état de l’instantané -assumeutxo. Cela indique un problème matériel, un bogue logiciel ou une mauvaise modification logicielle qui a permis le chargement d’un instantané invalide. Par conséquent, le nœud s’arrêtera et cessera d’utiliser tout état fondé sur cet instantané, ce qui réinitialisera à le niveau de la chaîne de %d à %d. Lors du prochain démarrage, la synchronisation reprendra de %d, sans utiliser les données d’un instantané. Signalez cet incident à %s en indiquant comment vous avez obtenu l’instantané. L’état de chaîne de l’instantané invalide sera laissé sur le disque au cas afin d’aider éventuellement à diagnostiquer le problème à l’origine de cette erreur.</translation>
     </message>
     <message>
-        <source>%s request to listen on port %u. This port is considered &quot;bad&quot; and thus it is unlikely that any peer will connect to it. See doc/p2p-bad-ports.md for details and a full list.</source>
-        <translation type="unfinished">%s demande d&apos;écouter sur le port %u. Ce port est considéré comme &quot;mauvais&quot; et il est donc peu probable qu&apos;un pair s&apos;y connecte. Voir doc/p2p-bad-ports.md pour plus de détails et une liste complète.</translation>
+        <source>%s request to listen on port %u. This port is considered "bad" and thus it is unlikely that any peer will connect to it. See doc/p2p-bad-ports.md for details and a full list.</source>
+        <translation type="unfinished">%s demande d’écouter sur le port %u. Ce port est considéré comme « mauvais » et il est donc peu probable qu’un pair s’y connecte. Voir doc/p2p-bad-ports.md pour plus de précisions et une liste complète.</translation>
     </message>
     <message>
         <source>Cannot downgrade wallet from version %i to version %i. Wallet version unchanged.</source>
@@ -4041,7 +4060,7 @@ Accédez à Fichier &gt; Ouvrir un porte-monnaie pour en charger un.
     </message>
     <message>
         <source>Disk space for %s may not accommodate the block files. Approximately %u GB of data will be stored in this directory.</source>
-        <translation type="unfinished">L&apos;espace disque %s peut ne pas être suffisant pour les fichiers en bloc. Environ %u Go de données seront stockés dans ce répertoire.</translation>
+        <translation type="unfinished">L’espace disque pourrait être insuffisant sur %s pour accueillir les fichiers de bloc. Environ %u Go de données seront stockés dans ce répertoire.</translation>
     </message>
     <message>
         <source>Distributed under the MIT software license, see the accompanying file %s or %s</source>
@@ -4113,15 +4132,15 @@ Accédez à Fichier &gt; Ouvrir un porte-monnaie pour en charger un.
     </message>
     <message>
         <source>Prune mode is incompatible with -reindex-chainstate. Use full -reindex instead.</source>
-        <translation type="unfinished">Le mode Prune est incompatible avec -reindex-chainstate. Utilisez plutôt -reindex complet.</translation>
+        <translation type="unfinished">Le mode d’élagage est incompatible avec -reindex-chainstate. Utilisez plutôt -reindex complet.</translation>
     </message>
     <message>
         <source>Prune: last wallet synchronisation goes beyond pruned data. You need to -reindex (download the whole blockchain again in case of pruned node)</source>
         <translation type="unfinished">Élagage&#xa0;: la dernière synchronisation de porte-monnaie va par-delà les données élaguées. Vous devez -reindex (réindexer, télécharger de nouveau toute la chaîne de blocs en cas de nœud élagué)</translation>
     </message>
     <message>
-        <source>Rename of &apos;%s&apos; -&gt; &apos;%s&apos; failed. You should resolve this by manually moving or deleting the invalid snapshot directory %s, otherwise you will encounter the same error again on the next startup.</source>
-        <translation type="unfinished">La modification de &apos;%s&apos; -&gt; &apos;%s&apos; a échoué. Vous devriez résoudre cela en déplaçant ou en supprimant manuellement le répertoire de snapshot invalide %s, sinon vous rencontrerez la même erreur à nouveau au prochain démarrage.</translation>
+        <source>Rename of '%s' -&gt; '%s' failed. You should resolve this by manually moving or deleting the invalid snapshot directory %s, otherwise you will encounter the same error again on the next startup.</source>
+        <translation type="unfinished">Le renommage de '%s' en '%s' a échoué. Vous devriez résoudre cela en déplaçant ou en supprimant manuellement le répertoire de l’instantané invalide %s, sinon la même erreur surviendra de nouveau lors du prochain démarrage.</translation>
     </message>
     <message>
         <source>SQLiteDatabase: Unknown sqlite wallet schema version %d. Only version %d is supported</source>
@@ -4169,11 +4188,11 @@ Accédez à Fichier &gt; Ouvrir un porte-monnaie pour en charger un.
     </message>
     <message>
         <source>Unsupported category-specific logging level %1$s=%2$s. Expected %1$s=&lt;category&gt;:&lt;loglevel&gt;. Valid categories: %3$s. Valid loglevels: %4$s.</source>
-        <translation type="unfinished">Niveau de journalisation spécifique à la catégorie non pris en charge %1$s=%2$s. Attendu %1$s=&lt;catégorie&gt;:&lt;niveaudejournal&gt;. Catégories valides : %3$s. Niveaux de journalisation valides : %4$s.</translation>
+        <translation type="unfinished">Le niveau de journalisation propre à la catégorie n’est pas pris en charge %1$s=%2$s. Attendu %1$s=&lt;category&gt;:&lt;loglevel&gt;. Catégories valides : %3$s. Niveaux de journalisation valides : %4$s.</translation>
     </message>
     <message>
         <source>Unsupported chainstate database format found. Please restart with -reindex-chainstate. This will rebuild the chainstate database.</source>
-        <translation type="unfinished">Le format de la base de données chainstate n&apos;est pas supporté. Veuillez redémarrer avec -reindex-chainstate. Cela reconstruira la base de données chainstate.</translation>
+        <translation type="unfinished">Un format non pris en charge de la base de données d’état de la chaîne a été trouvé. Redémarrez avec -reindex-chainstate. La base de données d’état de la chaîne sera reconstruite.</translation>
     </message>
     <message>
         <source>Wallet created successfully. The legacy wallet type is being deprecated and support for creating and opening legacy wallets will be removed in the future.</source>
@@ -4233,7 +4252,7 @@ Accédez à Fichier &gt; Ouvrir un porte-monnaie pour en charger un.
     </message>
     <message>
         <source>%s is set very high! Fees this large could be paid on a single transaction.</source>
-        <translation type="unfinished">%s est très élevé ! Des frais aussi importants pourraient être payés sur une seule transaction.</translation>
+        <translation type="unfinished">%s est un montant très élevé. Des frais aussi élevés pourraient être payés en une seule transaction.</translation>
     </message>
     <message>
         <source>Cannot provide specific connections and have addrman find outgoing connections at the same time.</source>
@@ -4245,7 +4264,7 @@ Accédez à Fichier &gt; Ouvrir un porte-monnaie pour en charger un.
     </message>
     <message>
         <source>Error reading %s! All keys read correctly, but transaction data or address metadata may be missing or incorrect.</source>
-        <translation type="unfinished">Erreur de lecture de %s! Toutes les clés ont été lues correctement, mais les données de transaction ou les métadonnées d&apos;adresse peuvent être manquantes ou incorrectes.</translation>
+        <translation type="unfinished">Erreur de lecture de %s. Toutes les clés ont été lues correctement, mais les données de la transaction ou les métadonnées de l’adresse sont peut-être manquantes ou incorrectes.</translation>
     </message>
     <message>
         <source>Error: Address book data in wallet cannot be identified to belong to migrated wallets</source>
@@ -4261,7 +4280,7 @@ Accédez à Fichier &gt; Ouvrir un porte-monnaie pour en charger un.
     </message>
     <message>
         <source>Failed to calculate bump fees, because unconfirmed UTXOs depend on enormous cluster of unconfirmed transactions.</source>
-        <translation type="unfinished">Échec du calcul des frais de majoration, car les UTXO non confirmés dépendent d&apos;un énorme groupe de transactions non confirmées.</translation>
+        <translation type="unfinished">Échec de calcul de la majoration des frais, car les UTXO non confirmés dépendent d’un groupe énorme de transactions non confirmées.</translation>
     </message>
     <message>
         <source>Failed to rename invalid peers.dat file. Please move or delete it and try again.</source>

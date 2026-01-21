@@ -1544,6 +1544,10 @@ Om den här plånboken innehåller lösbara</translation>
         <translation type="unfinished">Alternativ som anges i denna dialog åsidosätts av kommandoraden:</translation>
     </message>
     <message>
+        <source>Options set in this dialog are overridden by the command line:</source>
+        <translation type="unfinished">Alternativ som anges i denna dialog åsidosätts av kommandoraden:</translation>
+    </message>
+    <message>
         <source>Open the %1 configuration file from the working directory.</source>
         <translation type="unfinished">Öppna konfigurationsfilen %1 från arbetskatalogen.</translation>
     </message>

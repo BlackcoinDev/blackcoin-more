@@ -3944,7 +3944,7 @@ Gå til Fil &gt; Åbn Pung for, at indlæse en pung.
         <translation type="unfinished">Estimering af gebyr mislykkedes. Tilbagefaldsgebyr er deaktiveret. Vent et par blokke eller aktiver %s.</translation>
     </message>
     <message>
-        <source>Invalid amount for %s=&lt;amount&gt;: &apos;%s&apos; (must be at least the minrelay fee of %s to prevent stuck transactions)</source>
+        <source>Invalid amount for %s=&lt;amount&gt;: '%s' (must be at least the minrelay fee of %s to prevent stuck transactions)</source>
         <translation type="unfinished">Ugyldigt beløb for %s=&lt;beløb&gt;: “%s” (skal være på mindst minrelay-gebyret på %s for at undgå hængende transaktioner)</translation>
     </message>
     <message>
@@ -4124,15 +4124,15 @@ Gå til Fil &gt; Åbn Pung for, at indlæse en pung.
         <translation type="unfinished">Invalid P2P tilladelse: &apos;%s&apos;</translation>
     </message>
     <message>
-        <source>Invalid amount for %s=&lt;amount&gt;: &apos;%s&apos; (must be at least %s)</source>
+        <source>Invalid amount for %s=&lt;amount&gt;: '%s' (must be at least %s)</source>
         <translation type="unfinished">Ugyldigt beløb for %s=&lt;beløb&gt;: “%s” (skal være mindst %s)</translation>
     </message>
     <message>
-        <source>Invalid amount for %s=&lt;amount&gt;: &apos;%s&apos;</source>
+        <source>Invalid amount for %s=&lt;amount&gt;: '%s'</source>
         <translation type="unfinished">Ugyldigt beløb for %s=&lt;beløb&gt;: “%s”</translation>
     </message>
     <message>
-        <source>Invalid amount for -%s=&lt;amount&gt;: &apos;%s&apos;</source>
+        <source>Invalid amount for -%s=&lt;amount&gt;: '%s'</source>
         <translation type="unfinished">Ugyldigt beløb for -%s=&lt;beløb&gt;: “%s”</translation>
     </message>
     <message>
@@ -4245,7 +4245,7 @@ Gå til Fil &gt; Åbn Pung for, at indlæse en pung.
         <translation type="unfinished">Angivet blokmappe “%s” eksisterer ikke.</translation>
     </message>
     <message>
-        <source>Specified data directory &quot;%s&quot; does not exist.</source>
+        <source>Specified data directory "%s" does not exist.</source>
         <translation type="unfinished">Angivet datamappe “%s” eksisterer ikke.</translation>
     </message>
     <message>

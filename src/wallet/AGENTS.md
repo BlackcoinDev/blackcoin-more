@@ -81,7 +81,7 @@ static const CAmount MIN_FEE = 100000;  // Fixed, not dynamic
 | Feature | Location | Description |
 |---------|----------|-------------|
 | Safety Bump Pre-Calculation | `wallet.cpp:1540` | Pre-calculates next window using MTP + `GetAdjustedTimeSeconds()`, strips MTP inflation via modulo 16000 |
-| Wake-on-Block | `wallet.cpp:1561-1565` | Signals staker thread on new block |
+| Wake-on-Block | `wallet.cpp:1578-1582` | Signals staker thread on new block (IBD-skipped) |
 | Per-Wallet Timers | `wallet.h:750` | Independent `m_last_coin_stake_search_time` per wallet |
 | StakeCache | `wallet.h:798` | UTXO timestamp cache with thread safety |
 

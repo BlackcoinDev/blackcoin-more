@@ -1514,6 +1514,13 @@ void CWallet::updatedBlockTip()
 {
     m_best_block_time = GetTime();
 
+    // BLACKCOIN-SPECIFIC: Skip staking-related work during Initial Block Download.
+    // During IBD, blocks arrive rapidly and the staker thread is sleeping in its
+    // IBD loop (miner.cpp:845). All staking work is wasted CPU cycles and log noise.
+    if (chain().isInitialBlockDownload()) {
+        return;
+    }
+
     // BLACKCOIN-SPECIFIC: Wake staker when new block arrives on active chain
     // This callback is ONLY called for active chain tip advances (validation.cpp:3262)
     // Fork blocks with status: headers-only do NOT trigger this callback

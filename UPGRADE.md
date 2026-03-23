@@ -10,22 +10,67 @@ Blackcoin is a Proof-of-Stake blockchain. Unlike PoW chains where miners can for
 
 **Recommended Approach**: Incremental upgrade through 4 phases (26.x → 27.x → 28.x → 29.x → 30.x)
 
-**Current State**: Blackcoin More v26.2.0 (C++17, Bitcoin 26.2 base)  
+**Current State**: Blackcoin More v27.2.0 (C++20, Bitcoin 27.2 base)  
 **Target State**: Blackcoin More v30.2.0 (C++20, Bitcoin 30.2.0 base)
 
 **Reference Documents:**
 
-- `BLOCK_SERIALIZATION.md` - Complete PoS block structure details
-- `CMake_MIGRATION.md` - Build system migration plan
+- `agent/BLOCK_SERIALIZATION.md` - Complete PoS block structure details
+- `agent/CMake_MIGRATION.md` - Build system migration plan
 - `AGENTS.md` - Agent knowledge base for AI assistants
 - `src/pos.cpp`, `src/pos.h` - PoS kernel implementation
 
-**SegWit Status:**
+### SegWit Status (March 2026):
 
-| Network | Status | Threshold |
-|---------|--------|-----------|
-| **Mainnet** | BIP-9 voting IN PROGRESS (~65% signaling) | **80%** |
-| **Testnet** | **ACTIVATED** (Sept 2024) | **75%** |
+| Network | Status | Height | Threshold |
+|---------|--------|--------|-----------|
+| **Mainnet** | ✅ **ACTIVATED** (March 2026) | 5805000 | **80%** |
+| **Testnet** | ✅ ACTIVATED (Sept 2024) | - | **75%** |
+
+---
+
+## ✅ Status Update: v27.2.0 Completed (Jan 2025)
+
+**The upgrade from v26.2.0 to v27.2.0 is COMPLETE.**
+
+### Key Achievements
+1. **Core Merge**: Successfully merged Bitcoin Core v27.2.0 changes.
+2. **Staking Optimized**: Implemented "Zero-Allocation" staking for Descriptor wallets (see `walkthrough.md`).
+3. **Cache Fixed**: Resolved critical bugs in Descriptor cache population and Stake Cache alignment.
+4. **Latency Fixed**: Removed 100s block creation stall by eliminating redundant `g_txindex` lookups (disk I/O).
+5. **Time Sync Verified**: Confirmed node uses correct network-adjusted time for consensus.
+6. **Stability**: hardened `node/miner.cpp` and `wallet/staking.cpp` against regressions.
+
+**Next Step**: Commencing Phase 2 (v28.x) preparation.
+
+---
+
+## 🏗️ Phase 2: v28.x Preparation (In Progress)
+
+**Focus**: Preparing for Bitcoin 28.x merge with strict typing and API changes.
+
+### Completed Preparation
+1. **GenTxid Migration**: ✅ Partially complete
+   - `GenTxid::Txid()` and `GenTxid::Wtxid()` used in `validation.cpp`
+   - Mempool lookups use new GenTxid pattern
+2. **DataStream Migration**: ✅ Partially complete
+   - `DataStream` class preferred in new code
+   - `CDataStream` still exists in some legacy/test files
+3. **Multi-Wallet Staking Independence**: ✅ Complete
+   - Per-wallet independent staking timers implemented
+   - `static nLastCoinStakeSearchTime` moved to CWallet
+4. **Ghost Block Logging**: ✅ Complete
+   - MTP collision diagnostics implemented in `node/miner.cpp`
+   - Kernel timestamp validation logging
+5. **Consensus Comparison Research**: Complete
+   - **Blackcoin More**: Only chain with `OP_RETURN` staking at consensus level
+   - Documented in [agent/DESCRIPTOR_STAKING.md](agent/DESCRIPTOR_STAKING.md)
+
+### Remaining for 28.x Merge
+1. **CDataStream Audit**: Complete migration of remaining `CDataStream` usages
+2. **Txid Strict Typing**: Map remaining `uint256` → `Txid` conversion points
+3. **vTxHashes → txns_randomized**: Mempool API change (pending 28.x merge)
+4. **Execute 28.x Merge**: After preparation complete
 
 ---
 
@@ -35,8 +80,8 @@ Before beginning the upgrade process, you **MUST** understand these critical doc
 
 | Document | Purpose | Status |
 |----------|---------|--------|
-| [BLOCK_SERIALIZATION.md](BLOCK_SERIALIZATION.md) | PoS block structure, nFlags, vchBlockSig, nStakeModifier | [ ] Read |
-| [CMake_MIGRATION.md](CMake_MIGRATION.md) | Build system migration (Autotools → CMake) | [ ] Read |
+| [agent/BLOCK_SERIALIZATION.md](agent/BLOCK_SERIALIZATION.md) | PoS block structure, nFlags, vchBlockSig, nStakeModifier | [ ] Read |
+| [agent/CMake_MIGRATION.md](agent/CMake_MIGRATION.md) | Build system migration (Autotools → CMake) | [ ] Read |
 | [AGENTS.md](AGENTS.md) | AI agent knowledge base for upgrade assistance | [ ] Read |
 
 > [!CAUTION]
@@ -127,7 +172,7 @@ Before beginning the upgrade process, you **MUST** understand these critical doc
 
 **Blackcoin has DIFFERENT block serialization than Bitcoin.**
 
-**Reference**: See `BLOCK_SERIALIZATION.md` for complete details.
+**Reference**: See `agent/BLOCK_SERIALIZATION.md` for complete details.
 
 | Component | Bitcoin Core | Blackcoin More | Action |
 |-----------|--------------|----------------|--------|
@@ -458,12 +503,39 @@ Blackcoin More v26.2.0
 
 ### 4.3 Phase Details
 
-| Phase | Bitcoin | Key Changes | Risk | Test |
-|-------|---------|-------------|------|------|
-| 1 | 26.x → 27.x | GetAdjustedTime() removed | MEDIUM | Staking, sync |
-| 2 | 27.x → 28.x | Txid/Wtxid types, COutPoint::hash→Txid | HIGH | Build, staking, mempool |
-| 3 | 28.x → 29.x | GenTxid→std::variant | MEDIUM | Mempool, transactions |
-| 4 | 29.x → 30.x | uint256→Txid final, BDB removal, CMake | HIGH | Full validation |
+### 4.3 Detailed Phase Roadmap
+
+#### ✅ Phase 1: v27.x Compliance (Completed)
+*   **Step 1.1**: Identify `GetAdjustedTime()` removal risk.
+*   **Step 1.2**: Verified `timedata.cpp` preservation and PoS calls.
+*   **Step 1.3**: Annotated critical call sites with `// BLACKCOIN-SPECIFIC`.
+
+#### 🏗️ Phase 2: v28.x Preparation (Strict Typing)
+*   **Step 2.1**: **`CDataStream` → `DataStream` Rename**. (Mass rename across ~135 files).
+*   **Step 2.2**: **Strict `Txid` Typing**. (Audit code for implicit `Txid` -> `uint256` conversions).
+*   **Step 2.3.  **PoS Field Verification**:
+    *   **Action**: Ensure `nStakeModifier` (in `CBlockIndex`) and `IsCoinStake` (in `Coin`) are untouched by refactors.
+
+4.  **Multi-Wallet Staking Independence (COMPLETED in v27.2.0+)**:
+    *   ✅ **Goal**: Solve the "Bullying" bug where one wallet starves another of staking opportunities.
+    *   ✅ **Action**: REMOVED the `static nLastCoinStakeSearchTime` from `BlockAssembler::CreateNewBlock` and moved it into `CWallet`.
+    *   ✅ **Implemented**: Per-wallet independent timers with performance tracking.
+    *   ✅ **Result**: Each wallet maintains independent search windows and state.
+    *   ✅ **Component**: `node/miner.cpp`, `wallet/wallet.h` - fully implemented.
+    *   **Benefits**: Fair staking opportunities, unlimited wallet scalability, per-wallet diagnostics.
+    *   **Logging**: Enhanced logs show per-wallet kernel creation with performance metrics.
+*   **Step 2.4**: *Merge v28.x Upstream* (Execute merge after manual prep).
+
+#### 🔁 Phase 3: v29.x Preparation (GenTxid Refactor)
+*   **Step 3.1**: **Refactor `GenTxid`**. (Move from custom class to `std::variant`-compatible structure).
+*   **Step 3.2**: **Mempool Modernization**. (Update `txmempool` to use `txns_randomized`).
+*   **Step 3.3**: *Merge v29.x Upstream*.
+
+#### 🚀 Phase 4: v30.x Finalization (Cleanup)
+*   **Step 4.1**: **Final `uint256` Cleanup**. (Remove strict typing bridges).
+*   **Step 4.2**: **BDB 6.2 Rescue**. (Ensure wallet database support is preserved).
+*   **Step 4.3**: **CMake Migration**. (Switch build system from Autotools to CMake).
+*   **Step 4.4**: *Merge v30.x Upstream*.
 
 ### 4.4 Effort Estimate
 
@@ -481,14 +553,14 @@ Blackcoin More v26.2.0
 
 ### 5.1 Type Changes by Bitcoin Version
 
-| Bitcoin Version | Change | Blackcoin Impact |
+| Bitcoin Version | Change | Blackcoin Status |
 |-----------------|--------|------------------|
-| 27.x | `GetAdjustedTime()` removed | **CRITICAL**: PoS validation |
-| 28.x | Txid/Wtxid types (PR #28107) | COutPoint::hash type change |
-| 28.x | CDataStream→DataStream | Stream I/O update |
-| 28.x | vTxHashes→txns_randomized | Mempool API change |
-| 29.x | GenTxid→std::variant | Mempool API change |
-| 30.x | uint256→Txid final | Extensive updates |
+| 27.x | `GetAdjustedTime()` removed | ✅ PRESERVED (UPGRADE NOTE markers) |
+| 28.x | Txid/Wtxid types (PR #28107) | 🏗️ PARTIAL (GenTxid::Txid used) |
+| 28.x | CDataStream→DataStream | 🏗️ PARTIAL (DataStream preferred) |
+| 28.x | vTxHashes→txns_randomized | ⏳ PENDING (mempool change) |
+| 29.x | GenTxid→std::variant | ⏳ NOT STARTED |
+| 30.x | uint256→Txid final | ⏳ NOT STARTED |
 
 ### 5.2 Function Changes
 
@@ -545,7 +617,7 @@ Bitcoin Core 30.x migrated from GNU Autotools to CMake. Blackcoin More currently
 **CMake Migration occurs in Phase 4 (29.x → 30.x):**
 
 1. Complete Bitcoin upgrade to 30.x using Autotools
-2. Execute CMake migration per `CMake_MIGRATION.md`
+2. Execute CMake migration per `agent/CMake_MIGRATION.md`
 3. Preserve Blackcoin More differences in CMake:
    - RBF: DISABLED
    - Static fees: 100,000 sat/kvB
@@ -1025,8 +1097,8 @@ deprecatedrpc=create_bdb # Allow creating new BDB wallets
 - Bitcoin Core Release Notes: <https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes.md>
 - Bitcoin Core Git History: <https://github.com/bitcoin/bitcoin/commits/master>
 - Blackcoin More Repository: <https://github.com/BlackcoinDev/blackcoin-more>
-- BLOCK_SERIALIZATION.md - Complete PoS block structure
-- CMake_MIGRATION.md - Build system migration plan
+- agent/BLOCK_SERIALIZATION.md - Complete PoS block structure
+- agent/CMake_MIGRATION.md - Build system migration plan
 - AGENTS.md - Agent knowledge base
 - src/pos.cpp - PoS kernel implementation
 - src/pos.h - PoS declarations

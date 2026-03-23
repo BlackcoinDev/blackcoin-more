@@ -43,14 +43,11 @@ This analysis was performed in December 2025. The following critical information
    - Never enable taproot deployment
    - Never implement future script versions
 
-### SegWit Status Update (January 2026)
+### SegWit Status Update (March 2026)
 
 **Testnet**: ✅ ACTIVATED September 2024 (80% BIP-9 threshold)
 
-**Mainnet**: ⚠️ IN PROGRESS
-- Current signaling: ~65%
-- Required: 80%
-- Timeout: December 31, 2024 (may be extended)
+**Mainnet**: ✅ ACTIVATED March 2026 at height 5805000 (80% BIP-9 threshold)
 
 **Critical**: The 80% threshold is hardcoded and different from Bitcoin's original 95%.
 
@@ -108,7 +105,7 @@ if (scriptPubKey.size() >= 1 && scriptPubKey[0] == OP_RETURN &&
 ### 5. Configuration Dependency
 **Vulnerability**: Policy settings control acceptance
 - **`-datacarrier`**: Must be enabled (default: true) for OP_RETURN acceptance
-- **`-datacarriersize`**: Limits maximum OP_RETURN data size (default: 83 bytes)
+- **`-datacarriersize`**: Limits maximum OP_RETURN data size (default: 223 bytes)
 - Nodes with different configurations may reject transactions
 - Network fragmentation possible if policies diverge
 

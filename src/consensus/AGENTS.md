@@ -106,7 +106,7 @@ src/consensus/
 - Preserve GetAdjustedTime() usage
 - Never port dynamic fee estimation
 
-**Reference**: `CMake_MIGRATION.md` for complete build system migration details.
+**Reference**: `agent/CMake_MIGRATION.md` for complete build system migration details.
 
 ---
 

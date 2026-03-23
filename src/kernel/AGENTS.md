@@ -37,7 +37,7 @@ int64_t nTimeBlock = GetAdjustedTime();  // MUST use this, not GetTime()
 ```cpp
 // src/kernel/chainparams.h
 static const CAmount DEFAULT_MIN_TX_FEE = 100000;  // Static, not dynamic
-static const int64_t BIP9_SEGWIT_THRESHOLD = 80;   // NOT 95%!
+static const int64_t BIP9_SEGWIT_THRESHOLD = 80;   // NOT 95%! (Activated March 2026)
 ```
 
 ### Mempool Configuration
@@ -115,7 +115,7 @@ src/kernel/
 - Never port fee estimation or RBF mempool policy
 - Preserve nStakeModifier in CBlockIndex
 
-**Reference**: `CMake_MIGRATION.md` for complete build system migration details.
+**Reference**: `agent/CMake_MIGRATION.md` for complete build system migration details.
 
 ---
 

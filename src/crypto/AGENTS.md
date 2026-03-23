@@ -1,0 +1,156 @@
+# Crypto Module — Agent Knowledge Base
+
+**Scope**: `src/crypto/` | **Score**: 16 (37 files, crypto primitives + legacy PoW)
+
+---
+
+## ⚠️ CRITICAL: Bitcoin 26.x → 30.x Upgrade Context
+
+### Unique to Blackcoin More (Legacy PoW)
+
+| Component | Bitcoin Core | Blackcoin More | Action |
+|-----------|--------------|----------------|--------|
+| `scrypt.cpp` | NOT PRESENT | **REQUIRED** | Keep for legacy blocks |
+| `scrypt-sse2.cpp` | NOT PRESENT | **REQUIRED** | SSE2 optimization |
+| Scrypt validation | N/A | Legacy PoW blocks | Preserve |
+
+### Scrypt Implementation (Legacy PoW)
+
+```cpp
+// src/crypto/scrypt.cpp - Lines 1-500
+// CRITICAL: This is NOT in Bitcoin Core
+// Used for validating legacy Proof-of-Work blocks (pre-PoS transition)
+// Must be preserved for historical block validation
+
+// src/crypto/scrypt-sse2.cpp
+// SSE2-optimized scrypt implementation
+// Used on x86/x64 platforms for faster legacy validation
+```
+
+### Anti-Patterns (THIS MODULE)
+
+- **NEVER**: Remove scrypt.cpp or scrypt-sse2.cpp
+- **NEVER**: Assume all blocks use SHA-256d (legacy uses scrypt)
+- **NEVER**: Port Bitcoin Core crypto without checking for scrypt dependency
+- **NEVER**: Disable SSE2 optimizations (required for legacy block sync)
+
+---
+
+## Overview
+
+Cryptographic primitives: SHA256, RIPEMD160, ChaCha20, Poly1305, HMAC, and **scrypt (legacy PoW)**. Contains hardware-optimized implementations (SSE4, AVX2, ARM SHA extensions). Standard Bitcoin Core crypto plus Blackcoin-specific scrypt for legacy validation.
+
+---
+
+## Structure
+
+```
+src/crypto/
+├── scrypt.cpp, scrypt.h        # Legacy PoW (BLACKCOIN-SPECIFIC)
+├── scrypt-sse2.cpp             # SSE2 scrypt optimization
+├── sha256.cpp, sha256.h        # SHA-256 implementation
+├── sha256_sse4.cpp             # SSE4 SHA-256
+├── sha256_avx2.cpp             # AVX2 SHA-256
+├── sha256_arm_shani.cpp        # ARM SHA extensions
+├── sha1.cpp, sha1.h           # SHA-1 (deprecated, legacy)
+├── ripemd160.cpp, ripemd160.h  # RIPEMD-160
+├── chacha20.cpp, chacha20.h    # ChaCha20 stream cipher
+├── chacha20poly1305.cpp/h     # AEAD ChaCha20-Poly1305
+├── poly1305.cpp, poly1305.h   # Poly1305 MAC
+├── aes.cpp, aes.h             # AES encryption
+├── hmac_sha256.cpp, .h        # HMAC-SHA256
+├── hmac_sha512.cpp, .h        # HMAC-SHA512
+├── hkdf_sha256_32.cpp, .h     # HKDF-SHA256
+├── muhash.cpp, muhash.h       # MuHash3072
+└── common.h                    # Endianness helpers
+```
+
+---
+
+## Where to Look
+
+| Task | File | Notes |
+|------|------|-------|
+| **Legacy PoW** | `scrypt.cpp` | Scrypt hash for pre-PoS blocks |
+| **SSE2 scrypt** | `scrypt-sse2.cpp` | Optimized legacy validation |
+| **SHA-256 main** | `sha256.cpp` | Primary SHA-256 |
+| **SHA-256 SSE4** | `sha256_sse4.cpp` | x86 optimization |
+| **SHA-256 AVX2** | `sha256_avx2.cpp` | AVX2 optimization |
+| **SHA-256 ARM** | `sha256_arm_shani.cpp` | ARM SHA extensions |
+| **ChaCha20** | `chacha20.cpp` | Stream cipher |
+| **AEAD** | `chacha20poly1305.cpp` | Authenticated encryption |
+
+---
+
+## Key Symbols
+
+| Symbol | Type | Role |
+|--------|------|------|
+| `scrypt_1024_1_1_256` | function | Legacy PoW hash (BLACKCOIN) |
+| `CSHA256` | class | SHA-256 hasher |
+| `CRIPEMD160` | class | RIPEMD-160 hasher |
+| `ChaCha20` | class | ChaCha20 stream cipher |
+| `Poly1305` | class | Poly1305 MAC |
+
+---
+
+## Scrypt Context (Legacy PoW)
+
+### Historical Background
+
+- Blackcoin originally used scrypt-based Proof-of-Work
+- Transitioned to Proof-of-Stake 3.1 (PoSV3/BPoS)
+- Scrypt still required to validate historical PoW blocks
+- Bitcoin Core NEVER had scrypt - this is Blackcoin-specific
+
+### Usage
+
+```cpp
+// src/pow.cpp (legacy, inactive but preserved)
+// Scrypt validation for blocks before PoS transition
+// Used during initial sync to validate historical blocks
+```
+
+---
+
+## Hardware Optimizations
+
+| Optimization | File | Platform |
+|--------------|------|----------|
+| SSE2 | `scrypt-sse2.cpp` | x86/x64 (legacy PoW) |
+| SSE4 | `sha256_sse4.cpp` | x86/x64 |
+| AVX2 | `sha256_avx2.cpp` | x86/x64 (AVX2) |
+| ARM SHA | `sha256_arm_shani.cpp` | ARMv8+ |
+
+### Build Configuration
+
+```bash
+# configure.ac enables optimizations automatically
+--enable-sse2        # SSE2 optimizations (scrypt, SHA-256)
+--enable-avx2        # AVX2 SHA-256
+--enable-arm-sha     # ARM SHA extensions
+```
+
+---
+
+## ⚠️ CMake Migration (29.x → 30.x)
+
+**When migrating crypto module to CMake**:
+- Preserve scrypt.cpp and scrypt-sse2.cpp (legacy PoW)
+- Keep SSE2/AVX2/ARM optimization options
+- Maintain hardware detection logic for optimized builds
+
+**Reference**: `agent/CMake_MIGRATION.md` for build system migration details.
+
+---
+
+## Anti-Patterns (THIS MODULE)
+
+- **NEVER**: Remove scrypt (legacy blocks require it)
+- **NEVER**: Assume Bitcoin Core crypto is sufficient
+- **NEVER**: Disable hardware optimizations in release builds
+- **NEVER**: Use SHA-256 for legacy block validation (wrong algorithm)
+
+---
+
+*Generated by /init-deep*

@@ -15,7 +15,7 @@
 | Taproot tests | Active | **Never active** | Should be skipped |
 | BDB wallet tests | Removed | **Required** | Must pass |
 | PoS staking tests | N/A | **Required** | Manual testing |
-| SegWit tests | Active | **Testnet: Active** | Partial support |
+| SegWit tests | Active | **Active (March 2026)** | Full support |
 
 ### Tests to Skip (Blackcoin More Specific)
 
@@ -123,7 +123,7 @@ test/functional/
 - Preserve BDB wallet test execution (BDB 6.2 required)
 - Never port Bitcoin Core's RBF/fees/taproot tests
 
-**Reference**: `CMake_MIGRATION.md` for complete build system migration details.
+**Reference**: `agent/CMake_MIGRATION.md` for complete build system migration details.
 
 ---
 

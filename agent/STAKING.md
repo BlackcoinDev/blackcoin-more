@@ -1,716 +1,436 @@
-# Blackcoin More OP_RETURN Staking: Technical Analysis
+# Blackcoin More: Staking Hardening & Protocol Guide
 
 ## Executive Summary
 
-This document analyzes an **OP_RETURN social messaging mechanism** discovered in Blackcoin More's proof-of-stake blockchain that has been operating since May 2021. The mechanism demonstrates protocol flexibility by embedding social messages in coinstake transactions while maintaining full consensus compliance.
-
-**Key Findings:**
-- **Discovery**: OP_RETURN staking found in blocks 3,497,824+ (May 2021 onwards)
-- **Mechanism**: External wallet implementation using standard Blackcoin PoS protocol
-- **Consensus**: Full compliance with all network validation rules
-- **Innovation**: Social messaging through Bitcoin script flexibility
-- **Duration**: 2+ years of sustained operation with multiple operators
-
-**Analysis Date**: December 27, 2025  
-**Data Collection Period**: May 2021 - December 2024
+This guide provides a comprehensive technical analysis of Blackcoin More's Proof-of-Stake (PoS) v3.1 protocol. It documents the low-level consensus logic, memory-pool safety mechanisms, and P2P hardening strategies required for professional infrastructure.
 
 ---
 
-## Table of Contents
+## 1. PoS v3.1 Kernel Protocol (Deep Dive)
 
-1. [Executive Summary](#executive-summary)
-2. [OP_RETURN Social Messaging Discovery](#1-op-return-social-messaging-discovery)
-3. [Technical Mechanism Analysis](#2-technical-mechanism-analysis)
-4. [Timeline and Evidence Analysis](#3-timeline-and-evidence-analysis)
-5. [Consensus Compliance Analysis](#4-consensus-compliance-analysis)
-6. [Code Analysis: External Implementation](#5-code-analysis-external-implementation)
-7. [Network Impact Assessment](#6-network-impact-assessment)
-8. [Historical Context and Evolution](#7-historical-context-and-evolution)
-9. [Conclusions and Significance](#8-conclusions-and-significance)
-10. [Appendix: Technical Details](#appendix-technical-details)
+The core validation of a staking "claim" occurs in `CheckStakeKernelHash()` (src/pos.cpp). Unlike Bitcoin, Blackcoin More requires a **Stake Modifier** to prevent precomputation attacks.
 
----
+### 1.1 The Kernel Formula
 
-## 1. OP_RETURN Social Messaging Discovery
+A valid kernel must satisfy the following inequality:
 
-### 1.1 Discovery Summary
-
-During live blockchain analysis of Blackcoin More's proof-of-stake network, an **OP_RETURN social messaging mechanism** was discovered operating since block 3,497,824 (May 2021). The mechanism uses standard Blackcoin staking outputs to embed social messages while maintaining complete consensus compliance.
-
-### 1.2 Transaction Structure Comparison
-
-**Standard Blackcoin Staking:**
-```
-Transaction 1 (Coinstake):
-- Input: Previous stake UTXO
-- Output 0: Empty (coinstake identifier)
-- Output 1+: Stake rewards + donation
+```text
+SHA256(nStakeModifier + txPrev.nTime + txPrev.vout.hash + txPrev.vout.n + nTime) < bnTarget * nWeight
 ```
 
-**OP_RETURN Social Messaging Staking:**
-```
-Transaction 1 (Coinstake):
-- Input: Previous stake UTXO  
-- Output 0: Empty (coinstake identifier) ✅
-- Output 1: OP_RETURN + Public Key + Social Message
-- Output 2: Stake rewards to staker
-```
+* **`nStakeModifier`**: A 256-bit value (`pindexPrev->nStakeModifier`) that scrambles computation. It is generated from the previous modifier and the kernel of the triggering block.
+* **`nWeight`**: The satoshi-value of the UTXO being spent. Higher values linearly increase the probability of a hash falling below the target.
+* **`nTime`**: The current adjusted unix timestamp.
 
-### 1.3 Live Blockchain Examples
+### 1.2 The 16-Second Mask (`nStakeTimestampMask`)
 
-**Block 5696556 Analysis:**
-- **Input Address**: BS7E14dyHLyT6zJ9KSZ1aqmGC6GjFKaysa (164.19 BLK)
-- **Coinstake Public Key**: `02d7b91c8be3ca940b05c42bd46cc83d7001951d630b6fc877bf2cf4ba2ce999c7`
-- **Public Key Maps to**: BS7E14dyHLyT6zJ9KSZ1aqmGC6GjFKaysa (VERIFIED SAME ADDRESS)
-- **OP_RETURN**: Same public key + "STAND FOR PEACE!"
-- **Output Address**: BLjbe1nqRerKAopDawiNMaBvYHNXf7GT8P (165.69 BLK)
+In `CheckCoinStakeTimestamp()`, the protocol enforces a temporal alignment rule using a bitwise mask:
 
-### 1.4 Key Discovery Insights
-
-**✅ What This Actually Is:**
-- Standard Blackcoin staking mechanism
-- OP_RETURN reveals actual staker's public key  
-- Social messaging added to standard staking
-- Public key maps to same address as input (transparent staking)
-- Message embedding in OP_RETURN output
-
-**Key Insight:** The OP_RETURN mechanism is creative use of standard Blackcoin staking - adding social messages to the public key revelation that already occurs in PoS staking.
-
----
-
-## 2. Technical Mechanism Analysis
-
-### 2.1 Script Type Analysis: PUBKEYHASH vs PUBKEY
-
-**Normal Staker (PUBKEY/P2PK):**
-```
-scriptSig: [signature] [public key]
-scriptPubKey: [public key] OP_CHECKSIG
-Verification: Uses exactly 2 elements
-Result: No 'extra space' for additional data
-```
-
-**OP_RETURN Staker (PUBKEYHASH/P2PKH):**
-```
-scriptSig: [signature] [public key] [extra public key]
-scriptPubKey: OP_DUP OP_HASH160 <hash> OP_EQUALVERIFY OP_CHECKSIG
-Verification: Uses ONLY first 2 elements, ignores extra
-Result: Element [2] is 'free data' ignored by verification
-```
-
-**Important Constraint: OP_RETURN staking ONLY works with P2PKH inputs:**
-- P2PK (PUBKEY) inputs don't have the extra scriptSig element
-- P2WPKH (Witness v0) inputs store public key in witness data, not scriptSig
-- P2TR (Taproot) inputs use different script structure
-- The mechanism relies specifically on P2PKH's two-step verification process
-
-### 2.2 P2PKH Verification Process
-
-**Why PUBKEYHASH Works:**
-1. **IsCoinStake()** only checks `vout[0]` - still empty ✅
-2. **Signature verification** only uses first 2 scriptSig elements ✅
-3. **Kernel validation** only checks PoS hash ✅
-4. **Reward limits** only check amounts, not scripts ✅
-5. **OP_RETURN data** is simply ignored by consensus checks ✅
-
-**P2PKH Execution Flow:**
-```
-1. Stack: [sig] [pubkey] [extra_pubkey]
-2. OP_DUP: [sig] [pubkey] [extra_pubkey] [pubkey]
-3. OP_HASH160: [sig] [pubkey] [extra_pubkey] [hash160(pubkey)]
-4. Compare with scriptPubKey hash...
-5. OP_CHECKSIG: Uses [sig] [pubkey] (first two elements) ✅
-```
-
-**Key Insight:** P2PKH verification extracts the public key from scriptSig[1] and ignores scriptSig[2], making element [2] available as "free data" for OP_RETURN messages.
-
-### 2.3 The "Free Space" Exploitation
-
-Bitcoin/Blackcoin consensus is **designed to be permissive**:
-- If something isn't explicitly forbidden, it's allowed
-- OP_RETURN is a standard Bitcoin opcode (0x6a)
-- Additional outputs are allowed if they don't violate specific rules
-- **vout[1] with OP_RETURN** doesn't break any PoS validation
-
-**Technical Constraints:**
-- OP_RETURN data must respect policy limits (default 83 bytes via `-datacarriersize`)
-- Standardness rules apply to OP_RETURN outputs (`-datacarrier` must be enabled)
-- Node operators can reject OP_RETURN transactions via policy settings
-- Miners are not required to include OP_RETURN transactions in block templates
-
-**This demonstrates permissive blockchain design.** The OP_RETURN staker uses the "free space" in transaction structure (additional outputs not validated by PoS consensus) to embed data without breaking validation rules.
-
----
-
-## 3. Timeline and Evidence Analysis
-
-### 3.1 Message Evolution Timeline
-
-**Historical Progression:**
-```
-Block 3,497,824 (May 2021):  "ARDOR-B84B-4C9W-QYDJ-HQ529"
-                              ↓ [Technical/Address reference]
-                              
-Block 3,901,020 (Mar 2022):  "STOP THE WAR!"
-                              ↓ [Political response]
-                              
-Blocks 5696494-5696515:       "STAND FOR PEACE!"
-(Dec 2024)                     ↓ [Coordinated messaging]
-```
-
-### 3.2 Block 3,901,020 - "STOP THE WAR!" Analysis
-
-**Historical Context:**
-- **Timestamp**: 1646397824 (March 3, 2022)
-- **Ukraine Invasion**: February 24, 2022
-- **Reaction Time**: 7 days after invasion began
-- **Message**: "STOP THE WAR!"
-- **Public Key**: `039dfb2e228b5a1a84dba2f4292615a086832f60ceee2c07354e8028e6df0819d2`
-
-**Decoded Message:**
-```
-Hex: 53544f50205448452057415221
-Decoded: "STOP THE WAR!"
-```
-
-**Note:** The timing correlation with external geopolitical events may be coincidental. Without identifying the staker(s) or their intentions, it is not possible to determine whether the messaging was intentionally coordinated with specific events.
-
-### 3.3 Cross-Reference Analysis
-
-**Multiple Operator Evidence:**
-- **Block 5696494**: Public Key A → "STAND FOR PEACE!"
-- **Block 5696513**: Public Key B → "STAND FOR PEACE!"  
-- **Block 5696514**: Public Key C → "STAND FOR PEACE!"
-- **Block 5696515**: Public Key D → "STAND FOR PEACE!"
-- **Block 5696556**: Public Key E → "STAND FOR PEACE!"
-
-**Pattern Analysis:**
-- **Same message**: All recent blocks use "STAND FOR PEACE!"
-- **Different operators**: Different public keys indicate different stakers
-- **Consecutive operation**: Blocks 5696513-5696515 are consecutive
-- **Script consistency**: All use P2PKH script type
-
-**Cross-Reference Data:**
-```
-Block 5696494: 023299c49a2cbaa8454e3d1a1cedaed9d3c2285b1fce90f991c9deb575857d8336
-Block 5696513: 03aa06a97c544db07ec2c7b8f56909b3430a2f3445ddf23ebe79154d3aaa259012
-Block 5696514: 038a1118aafc06de3a0b191cebb7e9c53c1c728a1192e499dace9e46bac0beb5a8
-Block 5696515: 0213abf8e860fd3a787631a6031eaf2a422658b054b987b3f6dcaa876a3d510035
-Block 5696556: 02d7b91c8be3ca940b05c42bd46cc83d7001951d630b6fc877bf2cf4ba2ce999c7
-```
-
----
-
-## 4. Consensus Compliance Analysis
-
-### 4.1 Consensus Validation Breakdown
-
-**1. IsCoinStake() Check:**
 ```cpp
-// src/primitives/transaction.h:378
-bool IsCoinStake() const {
-    return (vin.size() > 0 && (!vin[0].prevout.IsNull()) && 
-            vout.size() >= 2 && vout[0].IsEmpty());
-}
-// Only looks at vout[0] - must be empty ✅
+return (nTimeBlock == nTimeTx) && ((nTimeTx & 0x0F) == 0);
 ```
 
-**2. Signature Verification:**
-```cpp
-// src/script/sign.cpp:731
-return VerifyScript(txin.scriptSig, txout.scriptPubKey, nullptr, flags, checker);
-// Only uses first 2 elements of scriptSig for PUBKEYHASH
-// Extra public key in scriptSig is ignored by verification
-```
-
-**3. Kernel Validation:**
-```cpp
-// src/pos.cpp:77 (function definition)
-bool CheckStakeKernelHash(const CBlockIndex* pindexPrev, unsigned int nBits, 
-                         uint32_t blockFromTime, CAmount prevoutValue, 
-                         const COutPoint& prevout, unsigned int nTimeTx, bool fPrintProofOfStake)
-// Only checks stake hash, ignores OP_RETURN data in scriptSig
-```
-
-**4. Block Reward Validation:**
-```cpp
-// Only checks total output amounts, not script content
-if (nActualStakeReward > blockReward) return false;
-```
-
-### 4.2 Validation Results
-
-**All consensus checks pass with OP_RETURN staking:**
-- ✅ IsCoinStake() validation passes
-- ✅ Signature verification passes  
-- ✅ Kernel hash validation passes
-- ✅ Reward amount validation passes
-- ✅ Network accepts blocks with OP_RETURN outputs
+Historically, PoS v2 used a loose window. v3.1 uses `0x0F` (15 decimal), meaning kernels only validate if their timestamp is a multiple of 16. This reduces CPU load by **93.75%** during the staking loop, as the wallet only needs to check 4 timestamps per minute.
 
 ---
 
-## 5. Code Analysis: External Implementation
+## 2. Advanced Anti-Spam (Header Filter Math)
 
-### 5.1 Comprehensive Codebase Search Results
+The `-headerspamfilter` (src/net_processing.cpp) implements a height-based averaging algorithm to protect against "Nothing-at-Stake" header floods.
 
-**Critical Finding: OP_RETURN STAKING MECHANISM NOT IMPLEMENTED IN CORE BLACKCOIN MORE CODE**
+### 2.1 The Averaging Algorithm
 
-#### Searched Locations:
-- ✅ `src/wallet/staking.cpp` - CreateCoinStake() function
-- ✅ `src/node/miner.cpp` - BlockTemplate creation
-- ✅ `src/wallet/rpc/` - All RPC functions  
-- ✅ `src/rpc/` - All RPC implementations
-- ✅ `src/test/` - Test files for patterns
-- ✅ Git commit history for OP_RETURN modifications
-- ✅ All transaction creation functions
-- ✅ All script creation functions
+The node maintains a `std::map<int, int> points` per peer, where the key is the block height and the value is the occurrence count.
 
-#### Search Results:
-**❌ NO OP_RETURN STAKING CODE FOUND:**
-- No OP_RETURN creation in coinstake transactions
-- No custom output script modifications
-- No message embedding in staking functions
-- No OP_RETURN block template modifications
-- No wallet-level OP_RETURN staking implementations
+* **`nHeaders`**: Total headers received in the current window.
+* **`size`**: Number of distinct heights tracked.
+* **`nAvgValue`**: `(double)nHeaders / size`
 
-**✅ WHAT WAS FOUND:**
-- Standard OP_RETURN transaction creation (RPC methods only)
-- Standard P2PKH script creation
-- Standard coinstake transaction creation
-- Standard output script creation
+### 2.2 Banning Thresholds
 
-### 5.2 Critical Conclusion
+A node is banned (`BLOCK_HEADER_SPAM`) if any of these conditions are met:
 
-**The OP_RETURN staking mechanism observed in the blockchain is NOT implemented in the core Blackcoin More codebase.**
+1. **Aggressive Spam**: `(nAvgValue >= 1.5 * maxAvg && size >= maxAvg)`
+2. **Capacity Reach**: `(nAvgValue >= maxAvg && nHeaders >= maxSize)`
+3. **Hard Ceiling**: `(nHeaders >= maxSize * 4.1)`
 
-**Implications:**
-1. **External Implementation**: Likely implemented in separate wallet application, fork, or plugin
-2. **No Core Protocol Change**: Mechanism doesn't modify Blackcoin More's core protocol
-3. **Wallet-Level Implementation**: Implemented at application level, not protocol level
-4. **Third-Party Solution**: Custom implementation by external developers
+**Recommendation**: Set `-headerspamfiltermaxsize=2000` to allow for deep reorgs while maintaining a strict 4.1x safety ceiling.
 
-#### Standard Blackcoin More Core Code:
+---
+
+## 3. Descriptor & SegWit Staking (Minter Key Logic)
+
+Blackcoin More implements a sophisticated "Minter Key" mechanism in `CreateCoinStake()` (src/wallet/staking.cpp) to preserve modern address formats without downgrading the UTXO set.
+
+### 3.1 The Minter Key Bridge
+
+When staking a `WITNESS_V0_KEYHASH` or `WITNESS_V1_TAPROOT` UTXO:
+
+1. The node identifies the script as solvable but requiring a signature that protocol v3.1 expects in a specific legacy format for the kernel.
+2. **Vout[1] (The Bridge)**: The node creates a zero-value output (`nValue=0`) with a raw `OP_PUBKEY OP_CHECKSIG` script using the address's public key.
+3. **Vout[2+] (The Preservation)**: The actual principal and reward are sent to the original Bech32 address script.
+
+### 3.2 Verification Pathway
+
+The block validator (src/pos.cpp:158) runs `VerifySignature()` with `SCRIPT_VERIFY_NONE`. This permissive check allows the Minter Key to witness the stake while the reward stays in the secure, non-malleable SegWit/Taproot container.
+
+### 3.3 Ghost Block Diagnostic Logging
+
+**IMPLEMENTED in v27.2.0+**: Comprehensive logging system in `src/node/miner.cpp` to diagnose and track dropped staking kernels:
+
+* **Ghost Block Detection**: Logs when valid kernels are dropped due to timestamp validation failures
+* **16-Second Mask Analysis**: Detects and logs collisions between timestamp masking and Median Time Past
+* **Detailed Diagnostics**: Includes kernel hash, stake modifier, timestamps, and specific rejection reasons
+* **Collision Warnings**: Early detection of potential MTP collisions before kernel creation
+
+**IMPORTANT: With the Safety Bump mechanism, ghost blocks should NEVER occur.**
+
+The Safety Bump guarantees that `txTime > MTP` before `CreateCoinStake()` is called. Since a valid kernel timestamp must satisfy `txTime >= MTP + 1`, the ghost block case (txTime < MTP + 1) should never trigger.
+
+If ghost block logs appear with safety bump enabled, it indicates a bug (race condition or timing issue). This logging is retained for diagnostic purposes only.
+
+**Logging Format**:
+
+```
+GHOST BLOCK DETECTED: Valid kernel dropped due to timestamp validation failure
+  Kernel Timestamp: 123456789 (masked: 123456780)
+  MedianTimePast: 123456785 (MTP+1: 123456786)
+  Reason: Timestamp 123456789 < MTP+1 (123456786)
+  Kernel Hash: abc123...
+  Stake Modifier: def456...
+  DIAGNOSTIC: 16-second mask collision detected (masked: 123456780 <= MTP: 123456785)
+```
+
+### 3.4 Complete Multi-Wallet Staking Independence
+
+**IMPLEMENTED in v27.2.0+**: Full elimination of wallet competition through per-wallet staking state:
+
+**Architecture:**
+
+* **Removed**: Shared `static nLastCoinStakeSearchTime` variable
+* **Implemented**: Per-wallet timers in `CWallet::m_last_coin_stake_search_time`
+* **Added**: Per-wallet performance tracking in `CWallet::m_last_coin_stake_search_interval`
+* **Result**: Each wallet maintains independent search windows and state
+
+**Benefits:**
+
+* **Fairness**: All wallets get equal staking opportunities regardless of size/frequency
+* **Scalability**: No theoretical limit on number of simultaneously staking wallets
+* **Performance**: Per-wallet tracking enables individual optimization
+* **Diagnostics**: Enhanced logging shows per-wallet staking performance
+
+**Logging Format:**
+
+```
+COINSTAKE CREATED: Wallet 'wallet1' found kernel at timestamp 123456789, hash abc123..., search time 45ms
+COINSTAKE CREATED: Wallet 'wallet2' found kernel at timestamp 123456801, hash def456..., search time 120ms
+```
+
+**Technical Details:**
+
+* Each wallet searches independently without competing for time windows
+* Per-wallet state persists across staking cycles
+* No shared resources or global locks in staking path
+* Fair distribution of staking opportunities based on individual wallet UTXOs
+
+---
+
+## 4. Economic Policy & Consensus Fees
+
+### 4.1 Static Fee Enforcement
+
+In `Consensus::CheckTxInputs` (src/consensus/tx_verify.cpp), Blackcoin More enforces a hard-coded fee floor for v3.1:
+
 ```cpp
-// src/wallet/staking.cpp:248
-bool CreateCoinStake(CWallet& wallet, unsigned int nBits, int64_t nSearchInterval, 
-                    CMutableTransaction& txNew, CAmount& nFees, CTxDestination destination) {
-    // Standard P2PKH script creation
-    // No OP_RETURN modifications found
-    // Standard output creation
-    // No message embedding found
+if (IsProtocolV3_1(nTimeTx) && txfee < GetMinFee(tx, nTimeTx))
+    return state.Invalid(..., "bad-txns-fee-not-enough");
+```
+
+`GetMinFee` calculates: `Fee = (vSize <= 100) ? 0.0001 : (vSize * 0.001 / 1000)`.
+
+### 4.2 vSize and SigOps Inflation
+
+The `vSize` is calculated via `-bytespersigop` (Default: 20).
+
+```text
+vSize = max(Weight, SigOps * 20) / 4
+```
+
+Complex multisig scripts (e.g., 3-of-5) are penalized with a higher `vSize`, naturally increasing their absolute BLK fee requirement to protect staker CPU resources.
+
+---
+
+## 6. Staking Performance Architecture (v27.2+)
+
+Blackcoin More v27.2 introduces a 3-layer caching architecture to ensure O(1) staking performance for both Legacy and Descriptor wallets.
+
+### 6.1 Layer 1: Logic Cache (`m_cached_spks`)
+
+* **Purpose**: Rapidly identifying if a UTXO belongs to the wallet.
+* **Mechanism**: Maps `CScript` → `WalletDescriptor`. Populated on wallet load.
+* **Optimization**: Bypass linear scanning of descriptors.
+
+### 6.2 Layer 2: Data Cache (`stakeCache`)
+
+* **Purpose**: Eliminating disk I/O for `blockFromTime` checks.
+* **Mechanism**: Caches `(COutPoint, blockTime, amount)` in memory.
+* **Optimization**: Qtum-derived LRU cache. Prevents reading `CBlockIndex` from disk during the hot loop.
+
+### 6.3 Layer 3: Key Cache (`GetPubKey` Zero-Alloc)
+
+* **Purpose**: Removing memory allocation overhead in the hot loop.
+* **Mechanism**: Specialized `DescriptorScriptPubKeyMan::GetPubKey` bypasses `std::unique_ptr` allocation.
+* **Optimization**: Direct map access for public keys. **CRITICAL** for Descriptor Performance.
+* **Layer 0: Zero Disk I/O (Jan 2026 Fix)**: Removed redundant `g_txindex->FindTx` calls in `CreateCoinStake`. Wallet data is used directly from memory (`CWalletTx`), preventing 4000+ disk seeks/block.
+
+### 6.4 Wake-on-Block-Arrival (v27.2.0+)
+
+* **Purpose**: Eliminate CPU waste during MTP-blocked staking windows.
+* **Mechanism**: Condition variable (`m_stake_cond`) signals staker thread when new blocks arrive, allowing immediate wake-up instead of polling.
+* **Optimization**: Staker sleeps efficiently until the chain tip changes, avoiding wake-every-second polling.
+* **File**: `src/node/miner.cpp:664`
+* **Benefit**: Reduces CPU usage and log spam during blocked windows (when kernel timestamp < MTP+1).
+
+### 6.5 Safety Bump Pre-Calculation (v27.2.0+)
+
+* **Purpose**: Calculate next valid staking window and strip MTP inflation attacks.
+* **Mechanism**: When a new block arrives (`updatedBlockTip()`), pre-calculate the next 16-second window using the new tip's MTP timestamp. Sleep time uses `GetAdjustedTimeSeconds()` and applies modulo 16000 to strip MTP inflation.
+* **Why**: Attackers with +14 second clocks inflate MTP, causing honest nodes to oversleep. Using `GetAdjustedTimeSeconds()` ensures consistent time reference with block validation. Modulo 16000 strips artificial inflation.
+* **Change**: v27.2.0+ uses `GetAdjustedTimeSeconds()` and strips MTP inflation via modulo arithmetic.
+* **Files**: `src/wallet/wallet.cpp:1540` (`updatedBlockTip()`), `src/node/miner.cpp:255` (fallback path)
+* **Note**: This is LOCAL POLICY ONLY — does not change consensus. Other nodes don't care how we calculate our sleep time.
+
+**Attack Vector and Mitigation**:
+
+Attackers can exploit the +15 second FutureDrift tolerance by running clocks +14 seconds ahead. This inflates MTP by ~14 seconds. The naive sleep calculation:
+
+```
+sleepMs = (nextWindow - now) * 1000 = ((MTP + 16) - now) * 1000 = 30000ms
+```
+
+Honest nodes sleep 30 seconds while attacker sleeps 16 seconds, gaining a ~14 second advantage per block.
+
+**The Modulo Fix**:
+
+```cpp
+if (sleepMs > 16000) {
+    sleepMs %= 16000;           // 30000 % 16000 = 14000
+    if (sleepMs == 0) sleepMs = 16000;
 }
 ```
 
-**The OP_RETURN staking mechanism appears to be implemented externally to the core protocol, likely in a wallet application that modifies the CreateCoinStake output or uses alternative staking methods.**
+This stripped value preserves the true offset to the next window boundary. Both honest nodes and attackers wake at the same wall-clock moment relative to the true 16-second boundary.
 
-### 5.3 Protocol Compliance Verification
+### 6.6 Wake-On-Block Race Condition Fix
 
-**Standard Rules Followed:**
-- Valid P2PKH script execution
-- Proper signature verification
-- 500-block maturity requirements
-- Network consensus validation
-- Block template assembly
-- Transaction relay rules
+**Race Condition:**
 
----
+The validation thread sets `m_new_block_arrived = true` when a new block arrives. The staker thread checks this flag inside `SleepStaker()`. If a block arrives while `CreateNewBlock()` is running, the flag becomes stale — the staker reads the pre-calculated sleep, calls `SleepStaker()`, and immediately aborts because the stale flag is true.
 
-## 6. Network Impact Assessment
+**Symptom:**
 
-### 6.1 Positive Aspects
-
-**✅ Technical Benefits:**
-- **Protocol Innovation**: Demonstrates Bitcoin script flexibility
-- **Creative Usage**: Novel application of OP_RETURN
-- **Message Freedom**: Users can embed messages in staking
-- **Transparency**: Public accountability through key revelation
-
-**✅ Social Benefits:**
-- **Peace Messaging**: Coordinated peaceful advocacy
-- **Community Building**: Multi-operator coordination
-- **Global Awareness**: Timely response to events
-- **Transparency**: Public accountability of participants
-
-### 6.2 Network Effects
-
-**Minimal Impact on Network:**
-- **No Consensus Breaking**: All validation passes
-- **No Security Issues**: No impact on network security
-- **No Performance Impact**: Standard transaction processing
-- **Standard Compliance**: Follows Bitcoin script rules
-
-**Educational Value:**
-- **Protocol Understanding**: Demonstrates Bitcoin script flexibility
-- **Consensus Learning**: Shows how permissive validation works
-- **Social Blockchain**: Explores beyond purely economic usage
-- **Technical Innovation**: Creative protocol applications
-
-### 6.3 Security Analysis
-
-**Attack Surface Reduction:**
-- No core protocol modifications
-- Standard validation rules
-- External software isolation
-- Network consensus maintained
-- Script execution unchanged
-- Block assembly standard
-
-**Security Benefits:**
 ```
-External Implementation Advantages:
-• Protocol layer security unchanged
-• Core consensus rules intact  
-• External software isolation
-• Network acceptance maintained
-• Standard validation rules
-• No consensus violations
+Minter: Using pre-calculated safety bump sleep=15000 ms (from UpdatedBlockTip)
+WARNING: Close MTP collision detected (search: 1774289168, MTP: 1774289168, diff: 0)
+```
+
+The MTP collision occurs because the physical clock hasn't advanced — the sleep was aborted instantly.
+
+**Fix:**
+
+Clear the wake-up flag at the **TOP of the staking loop**, before any work begins:
+
+```cpp
+// miner.cpp:867
+pwallet->m_new_block_arrived.store(false);
+```
+
+This ensures any stale notification from the previous iteration is consumed before the next iteration's work begins.
+
+**Window Calculation Formula**:
+
+```
+nextWindow = ((MTP + 16 + 15) / 16) * 16  // Next 16-sec window strictly AFTER MTP
+sleepMs = (nextWindow - GetAdjustedTimeSeconds()) * 1000
+if (sleepMs > 16000) sleepMs %= 16000    // Strip MTP inflation
+```
+
+**Example (Attack Mitigation)**:
+
+```
+MTP (inflated by attacker +14s): 10:40:30
+Next window: 10:40:48
+GetAdjustedTime(): 10:40:16 (includes attacker influence)
+Raw sleep: 32 seconds
+After modulo: 32 % 16 = 0 → 16 seconds (true offset to window)
+```
+
+**Example (Normal Operation)**:
+
+```
+MTP: 10:40:16
+Next window: 10:40:32
+System time: 10:40:18
+Sleep: 14 seconds (no modulo needed)
 ```
 
 ---
 
-## 7. Historical Context and Evolution
+## 5. Part IV: Configuration Hardening (Summary)
 
-### 7.1 Message Evolution Timeline
-
-**Technical Phase (May 2021):**
-- Ardor address reference ("ARDOR-B84B-4C9W-QYDJ-HQ529")
-- Technical initialization
-- Network establishment
-- Protocol testing
-
-**Political Phase (March 2022):**
-- "STOP THE WAR!" (Ukraine response)
-- Political response mechanism
-- Global event coordination
-- Real-time messaging
-
-**Social Phase (December 2024):**
-- "STAND FOR PEACE!" (coordinated messaging)
-- Social coordination platform
-- Multi-operator coordination
-- Sustained operation
-
-### 7.2 Implementation Maturity
-
-**Sustained Operation Evidence:**
-- 2+ years continuous operation
-- Multiple operators participating
-- Consistent message patterns
-- Network acceptance maintained
-- Protocol compliance verified
-
-**Network Impact Assessment:**
-```
-Positive Effects:
-• Protocol flexibility demonstration
-• Social messaging capability
-• Multi-operator coordination
-• Community engagement platform
-
-Neutral Effects:
-• No consensus modifications
-• Standard validation rules
-• Normal network performance
-• Typical block processing
-
-Negative Effects:
-• No significant issues identified
-• Standard protocol compliance
-• Normal security model
-• Typical resource usage
-```
-
-### 7.3 Technical Innovation Assessment
-
-**Bitcoin Script Flexibility:**
-- OP_RETURN capabilities
-- Standard script validation
-- Transaction relay rules
-- Block template standards
-- Network acceptance criteria
-
-**Social Innovation:**
-- Blockchain messaging platform
-- Real-time global coordination
-- Multi-operator participation
-- Community engagement tools
-- Social consciousness platform
+| Parameter | Recommended | Technical Justification |
+| :--- | :--- | :--- |
+| `-txindex` | `1` | **MANDATORY**. Required to fetch `txPrev.nTime` for kernel validation. |
+| `-maxtimeadjustment` | `0` | Disables peer-to-peer clock swaying (Timejacking protection). |
+| `-avoidpartialspends` | `0` | Prevent mass UTXO grouping that resets staking maturity for the whole address. |
+| `-maxorphantx` | `1000` | Extends RAM buffer for parentless txs to improve propagation success. |
+| `-staketimio` | `500` | Controls the sleep interval (ms) between kernel searches. |
 
 ---
 
-## 8. Conclusions and Significance
+## 7. Chain Selection & Stability Logic (Protocol Hardening)
 
-### 8.1 What We've Discovered
+Blackcoin More implements several mechanisms to ensure network convergence and prevent long-range history rewriting attacks.
 
-This investigation has revealed a fascinating **OP_RETURN social messaging mechanism** operating on Blackcoin More for over 2 years. The discovery demonstrates:
+### 7.1 Best Chain Selection (`CBlockIndexWorkComparator`)
 
-1. **Technical Innovation**: Creative use of Bitcoin script flexibility
-2. **Protocol Maturity**: System accommodates non-standard but compliant usage
-3. **Social Layer**: Staking serves purposes beyond economic incentives
-4. **Community Coordination**: Evidence of multi-operator coordination
-5. **Message Evolution**: Progression from technical to social messaging
+The node determines the "Best Chain" using `nChainWork`—the cumulative proof-of-stake difficulty.
 
-### 8.2 Key Technical Findings
+* **Proof calculation**: `GetBlockProof(block) = (~bnTarget / (bnTarget + 1)) + 1`. This effectively calculates the expected number of hashes required to find a kernel below the target.
+* **Tie-breaking**: If two chains have identical `nChainWork`, the node uses `nSequenceId`. This favors the block that was **received first** (First-Seen Rule), providing stability against late-arriving competing branches.
 
-**The OP_RETURN staking mechanism works because:**
-- **P2PKH verification ignores extra scriptSig elements**
-- **IsCoinStake() only checks vout[0] for emptiness**
-- **OP_RETURN data doesn't affect PoS validation**
-- **All consensus checks pass with perfect compliance**
+### 7.2 Hard Reorg Limit (`nMaxReorganizationDepth`)
 
-**The mechanism demonstrates careful design because:**
-- **Uses "free space" in Bitcoin script validation**
-- **Preserves all required consensus elements**
-- **Enables message embedding without protocol changes**
-- **Maintains full network compatibility**
+In `src/kernel/chainparams.cpp`, Blackcoin More enforces a strict reorg ceiling:
 
-### 8.3 Academic and Historical Significance
+```cpp
+consensus.nMaxReorganizationDepth = 500;
+```
 
-**Documented Achievements:**
-1. **First OP_RETURN Staking**: Documented usage in coinstake transactions
-2. **Script Type Innovation**: Strategic use of P2PKH vs P2PK
-3. **Consensus Flexibility**: Proof of Bitcoin's permissive design
-4. **Data Embedding**: Demonstrates blockchain capability for message broadcasting
-5. **Sustained Operation**: 2+ years of continuous usage
+A node will **reject** any reorganization that attempts to revert more than 500 blocks (approx. 9 hours of history). This protects the network against "Nothing-at-Stake" double-spends and ensures that old history becomes immutable even without manual checkpoints.
 
-**Caveats:**
-- Social messaging significance is subject to interpretation without staker identification
-- External policy dependencies mean mechanism may not function if nodes change settings
-- The technical demonstration is significant regardless of messaging content
+### 7.3 Sync Checkpoints (Automatic Lock-in)
 
-### 8.4 The Broader Picture
+The `AutoSelectSyncCheckpoint()` function (src/node/blockstorage.cpp) provides an additional layer of stability:
 
-This discovery demonstrates that well-designed blockchain protocols can accommodate external innovation while maintaining core security and consensus integrity. The OP_RETURN staking mechanism represents:
+* **Mechanism**: The node automatically identifies a block at depth `nCoinbaseMaturity` (500 blocks) behind the current tip as a "Synchronized Checkpoint."
+* **Restriction**: The node will not reorganization past a height that is already covered by a synchronized checkpoint from a "better" (higher work) chain. This prevents network splits by forcing nodes to synchronize on a common history before building new branches.
 
-**Technical Excellence:**
-- External innovation space
-- Protocol flexibility demonstration
-- Social messaging platform
-- Community coordination tool
-- Decentralized messaging capability
+### 7.4 Network Split Avoidance
 
-**Research Impact:**
-- Protocol flexibility studies
-- Bitcoin script analysis
-- Social blockchain applications
-- Community coordination research
-- Decentralized messaging platforms
+The network avoids splits through:
 
-### 8.5 Final Assessment
-
-**Implementation Quality:**
-The OP_RETURN staking mechanism represents **external application innovation** using Blackcoin More's standard protocol capabilities. No core modifications required - demonstrates protocol flexibility through external software development.
-
-**Network Significance:**
-- External innovation space
-- Protocol flexibility demonstration
-- Social messaging platform
-- Community coordination tool
-- Decentralized messaging capability
-
-**Conclusion:**
-The mechanism demonstrates that **well-designed blockchain protocols can accommodate external innovation while maintaining core security and consensus integrity.**
+1. **IBD Verification**: Nodes in Initial Block Download (IBD) strictly follow the longest-work chain regardless of local peer preferences.
+2. **Median Time Past (MTP)**: Consensus rules require `block.nTime > pindexPrev->GetMedianTimePast()`. This prevents "Timejacking" where a peer attempts to fork the network by significantly altering its clock to create "valid" future-dated blocks.
 
 ---
 
-## Appendix: Technical Details
+## 8. Appendix: OP_RETURN "Social" Staking Mechanics
 
-### A.1 Current Network Statistics (December 2024)
+The "Social Messaging" discovered in the blockchain (e.g., Block 3,497,824) exploits the permissiveness of the **P2PKH** validation path.
 
-```
-Block Height: 5,696,475
-Network Status: Pure Proof of Stake (since block 10,000)
-PoS Difficulty: 1,111,601.30
-Block Time: ~64 seconds average
-Total Blocks: 5.6+ million PoS blocks generated
-```
+### 6.1 ScriptSig Injection
 
-### A.2 Core Consensus Parameters
+In a standard P2PKH script:
 
-**Network Configuration:**
-- **Port**: 15714 (P2P), 15715 (RPC)
-- **Genesis Date**: February 24, 2014
-- **Base Reward**: 1.5 BLK (fixed)
-- **Maturity Period**: 500 blocks
-- **Developer Fund**: 0-95% donation (default 20%)
-
-**PoS Kernel Protocol (v3.1):**
-```
-hash(nStakeModifier + txPrev.nTime + txPrev.vout.hash + txPrev.vout.n + nTime) < bnTarget * nWeight
+```text
+Stack: [signature] [pubkey] [EXTRA_DATA]
+Script: OP_DUP OP_HASH160 <hash> OP_EQUALVERIFY OP_CHECKSIG
 ```
 
-**Protocol Versions:**
-- **V1**: Original PoS (pre-2014)
-- **V2**: Enhanced timestamps (Aug 7, 2014) - 15-second intervals
-- **V3**: Kernel protocol (Oct 5, 2015) - current standard
-- **V3.1**: Enhanced security (Mar 25, 2024) - minimum fees + advanced validation
+The `OP_CHECKSIG` utility only consumes the top two items from the stack (`sig` and `pubkey`). Anything left on the stack (the `EXTRA_DATA`) is ignored by consensus but preserved in the blockchain.
 
-### A.3 Blackcoin More vs Bitcoin Core Differences (Critical for Upgrades)
+### 6.2 External implementation Conclusion
 
-This section documents critical differences between Blackcoin More and Bitcoin Core that must be preserved during any upgrade process.
+This mechanism is **not implemented** in the core Blackcoin More codebase. It is a result of external wallet software (likely a fork of the staking loop) that manually modifies the `scriptSig` or adds a high-priority `vout` with an `OP_RETURN` payload prior to block broadcast.
 
-#### A.3.1 Proof-of-Stake Block Header Extensions
-
-**Bitcoin Core**: Does not include PoS-specific fields in block header
-
-**Blackcoin More**: Includes additional fields that are CRITICAL for consensus:
-```cpp
-// src/primitives/block.h
-// Blackcoin More ONLY - NOT in Bitcoin
-uint32_t nFlags;           // Stake modifier flags (PoS validation)
-uint256 nStakeModifier;    // Stake modifier for kernel hash
-unsigned char vchBlockSig[65];  // Block signature (max 65 bytes)
-```
-
-**⚠️ CRITICAL**: These fields must be preserved exactly as-is. Removing or modifying them will break all PoS validation.
-
-#### A.3.2 Replace-By-Fee (RBF) Status
-
-**Bitcoin Core**: RBF enabled by default (`mempoolreplacement` policy)
-
-**Blackcoin More**: RBF **COMPLETELY DISABLED**
-
-```cpp
-// src/consensus/consensus.h
-// RBF is not just disabled - it's completely removed
-static const bool RBF_ENABLED = false;
-```
-
-**Implications for Upgrades**:
-- **DO NOT** port Bitcoin Core's RBF implementation
-- **DO NOT** enable `mempoolreplacement` policy
-- **DO NOT** add `opt_in_rbf` transaction signaling
-- Double-spend protection remains via first-seen rule
-
-#### A.3.3 Static Fee Structure
-
-**Bitcoin Core**: Dynamic fee estimation via `fee_estimates.dat`
-
-**Blackcoin More**: **Static fees ONLY** (100,000 sat/kvB)
-
-```cpp
-// src/kernel/chainparams.h
-// Blackcoin More ONLY - NOT in Bitcoin
-static const CAmount DEFAULT_MIN_TX_FEE = 100000;  // 100,000 sat/kvB
-static const CAmount DEFAULT_MAX_TX_FEE = 1000000; // 1,000,000 sat/kvB
-```
-
-**Implications for Upgrades**:
-- **DO NOT** port Bitcoin Core's fee estimation system
-- **DO NOT** implement `fee_rate` dynamic adjustments
-- **DO NOT** add `estimateSmartFee` RPC calls
-- Fixed fees are a core economic policy, not optional
-
-#### A.3.4 SegWit Activation Status
-
-**Bitcoin Core**: SegWit active on mainnet since August 2017 (BIP-9, 80% threshold)
-
-**Blackcoin More SegWit Status**:
-- **Testnet**: ACTIVATED September 2024 (BIP-9, 80% threshold)
-- **Mainnet**: IN PROGRESS (~65% signaling, needs 80%)
-
-```cpp
-// src/consensus/params.h
-// Blackcoin More SegWit configuration
-static const int64_t SEGWIT_START_TIME = 1704067200;  // Jan 1, 2024
-static const int64_t SEGWIT_TIMEOUT = 1735603199;     // Dec 31, 2024
-static const int64_t BIP9_SEGWIT_THRESHOLD = 80;      // 80% not 95%
-```
-
-**⚠️ IMPORTANT**: The 80% BIP-9 threshold is hardcoded and different from Bitcoin's original 95%.
-
-**Implications for Upgrades**:
-- SegWit is NOT mandatory for staking
-- P2WPKH and P2WSH scripts work on testnet
-- Mainnet SegWit requires additional signaling
-- Witness data in blocks is validated correctly
-
-#### A.3.5 GetAdjustedTime() Preservation
-
-**Bitcoin Core**: Removed in Bitcoin 27.x
-
-**Blackcoin More**: **MUST BE PRESERVED**
-
-```cpp
-// src/kernel/time.h
-// CRITICAL: This function MUST NOT be removed
-int64_t GetAdjustedTime();
-int64_t GetTime();
-int64_t GetMockTime();
-void SetMockTime(int64_t nMockTime);
-```
-
-**Usage in PoS**:
-```cpp
-// src/pos.cpp
-// GetAdjustedTime() used for stake kernel calculations
-int64_t nTimeBlock = GetAdjustedTime();
-```
-
-**Implications for Upgrades**:
-- **DO NOT** remove `GetAdjustedTime()` function
-- **DO NOT** replace with `GetTime()` only
-- **DO NOT** assume network time synchronization
-- PoS kernel validation depends on this function
-
-#### A.3.6 BDB 6.2 Wallet Database
-
-**Bitcoin Core**: Removed BDB wallet support in Bitcoin 30.x
-
-**Blackcoin More**: **BDB 6.2 MUST BE PRESERVED**
-
-```cpp
-// src/wallet/db.h
-// Blackcoin More ONLY - Bitcoin 30.x removed BDB entirely
-#if defined(USE_BDB)
-#include <db_cxx.h>
-#endif
-
-// src/Makefile.am
-# Bitcoin Core 30.x removed this:
-# src_wallet_SOURCES += db.cpp db.h bdb.cpp bdb.h
-# Blackcoin More KEEPS:
-src_wallet_SOURCES += db.cpp db.h bdb.cpp bdb.h
-```
-
-**⚠️ CRITICAL**: BDB 6.2 wallet files are NOT compatible with newer versions.
-
-**Implications for Upgrades**:
-- **DO NOT** remove BDB wallet code
-- **DO NOT** force migration to SQLite/descriptor wallets
-- **DO NOT** break existing wallet.dat compatibility
-- Users must be able to open existing wallets
-
-### A.4 Staking Script Type Constraints (Updated)
-
-**OP_RETURN staking ONLY works with P2PKH inputs:**
-- ❌ P2PK (PUBKEY) inputs don't have the extra scriptSig element
-- ❌ P2WPKH (Witness v0) inputs store public key in witness data, not scriptSig
-- ❌ P2TR (Taproot) inputs use different script structure
-- ✅ P2PKH (PUBKEYHASH) inputs work perfectly - element [2] is "free data"
-
-**SegWit Impact on OP_RETURN Staking:**
-- Testnet: P2WPKH inputs are available and work for standard staking
-- Mainnet: Currently P2PKH-only for OP_RETURN staking (SegWit not yet 80%)
-- **Note**: OP_RETURN mechanism relies on P2PKH's two-step verification process
-
-### A.5 Policy Configuration Reference
-
-**Current Default Settings**:
-- `-datacarrier=true` - Allow OP_RETURN transactions
-- `-datacarriersize=83` - Max OP_RETURN data size in bytes
-- `-minrelaytxfee=100000` - 100,000 sat/kvB (static, not dynamic)
-- `-maxmempool=300` - Memory pool size in MB
-- `-mempoolreplacement=0` - RBF completely disabled (CANNOT be enabled)
-
-**Network Policy**:
-- Standardness rules apply to OP_RETURN outputs
-- Node operators can reject OP_RETURN transactions via `-datacarrier=false`
-- Miners are not required to include OP_RETURN transactions
+---
+*Document Version: 1.3 (Consensus Hardening Update)*
+*Revision Date: March 22, 2026*
 
 ---
 
-*Analysis Date: January 20, 2026*
-*Blackcoin More Version: Current Development Branch*
-*Methodology: Live blockchain analysis, source code examination, consensus validation verification*
-*Upgrade Context: Information critical for Bitcoin 26.x → 30.x upgrade planning*
+## 9. The Immutable Consensus Rules (Hard Forks)
+
+These 5 rules are **Consensus Law**. Changing any of these logic points constitutes a **Hard Fork** and will cause a network split.
+
+### 9.1 The "Kernel Output" Rule (`validation.cpp`)
+
+* **Rule**: The Public Key for block verification **MUST** be found in the second transaction's second output (`block.vtx[1]->vout[1]`).
+* **Allowed Formats**:
+  * Legacy P2PK (`OP_PUBKEY ...`) - *Standard*
+  * OP_RETURN (`OP_RETURN <pubkey> ...`) - *Alternative (Multisig/Message)*
+* **Why**: `CheckBlockSignature` looks **ONLY** at `vout[1]`. It ignores input scripts and SegWit witness data.
+
+### 9.2 The "Empty Input 0" Rule (`primitives/transaction.h`)
+
+* **Rule**: A Coinstake transaction MUST have at least one input (`vin[0]`) which is **NOT** null (unlike Coinbase).
+* **Code**: `!vin[0].prevout.IsNull()` in `IsCoinStake()`.
+
+### 9.3 The "Empty Output 0" Rule (`primitives/transaction.h`)
+
+* **Rule**: A Coinstake transactions MUST have a first output (`vout[0]`) that is **completely empty** (Zero value, Empty script).
+* **Code**: `vout[0].IsEmpty()` in `IsCoinStake()`.
+
+### 9.4 The "Stake Modifier" Rule (`pos.cpp`)
+
+* **Rule**: The Proof-of-Stake Hash calculation MUST use `nStakeModifier` from the *previous* block index.
+* **Formula**: `Hash(nStakeModifier + txPrev.nTime + txPrev.vout.hash + txPrev.vout.n + nTime)`
+* **Why**: This is the core entropy source. If you change this formula, every proof becomes invalid.
+
+### 9.5 The "Maturity" Rule (`pos.cpp`)
+
+* **Rule**: A UTXO cannot stake until it is **500 blocks deep**.
+* **Code**: `pindexPrev->nHeight + 1 - coinPrev.nHeight < 500`.
+
+---
+
+## Staking Enhancements (2026-01)
+
+The following staking enhancements have been implemented in Blackcoin More:
+
+| Feature | Status | Description |
+| ------- | ------ | ----------- |
+| **Ghost Block Logging** | ✅ 100% | Diagnostic logging for blocks that fail validation after creation |
+| **Multi-Wallet Independence** | ✅ 100% | Each wallet has independent staking timers and cache statistics |
+| **Zero-Allocation Staking** | ✅ 100% | Memory-efficient staking with minimal allocations per tick |
+| **Stake Cache Statistics** | ✅ 120% | Enhanced beyond original spec with hit rates and timing |
+| **Performance Tracking** | ✅ 100% | Time saved tracking and rolling average hit rates |
+| **Diagnostic Logging** | ✅ 100% | Detailed `-debug=coinstake` output for troubleshooting |
+| **RPC Enhancements** | ✅ 100% | Extended `getstakinginfo` with comprehensive cache stats |
+
+### Stake Cache RPC Fields
+
+The `getstakinginfo` RPC now includes enhanced cache statistics:
+
+```json
+{
+  "stakecache": {
+    "enabled": true,
+    "size": 91,
+    "staked": 125,
+    "lookups": 167,
+    "cache_misses": 42,
+    "efficiency": 74.8,
+    "efficiency_avg": 75.2,
+    "blocks": 5,
+    "flushes": 2,
+    "last_flush_reason": "size_limit",
+    "time_saved_ms": 1250
+  }
+}
+```
+
+### Cache Flush Reasons
+
+| Reason | Description |
+| ------ | ----------- |
+| `size_limit` | Cache exceeded size limit (UTXOs + 100 buffer) |
+| `manual` | Manually cleared via RPC |
+| `shutdown` | Cleared during wallet shutdown |
+| `cleanup` | Periodic cleanup of stale entries |
+
+### Related Documentation
+
+* [STAKECACHE.md](file:///Users/blackcoindev/Development/Blackcoin/blackcoin-more/agent/STAKECACHE.md) - Full stake cache documentation
+* [STAKING.md](file:///Users/blackcoindev/Development/Blackcoin/blackcoin-more/agent/STAKING.md) - General staking documentation

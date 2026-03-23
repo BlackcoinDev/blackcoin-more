@@ -1,7 +1,7 @@
 # Blackcoin More — Agent Knowledge Base
 
-**Generated:** 2026-01-20
-**Commit:** 13addfc8
+**Generated:** 2026-03-22
+**Commit:** (current)
 **Branch:** (current)
 **Project:** Blackcoin More (PoS cryptocurrency fork from Bitcoin Core)
 
@@ -9,7 +9,26 @@
 
 ## ⚠️ CRITICAL: Bitcoin 26.x → 30.x Upgrade Context
 
-### Non-Negotiable Blackcoin More Differences
+### Current Upgrade Status (March 2026)
+
+| Phase | Status | Version | Notes |
+|-------|--------|---------|-------|
+| Phase 1: v27.x | ✅ COMPLETE | 27.2.0 | C++20, GetAdjustedTime preserved |
+| Phase 2: v28.x | 🏗️ IN PROGRESS | - | GenTxid partial, DataStream partial |
+| Phase 3: v29.x | ⏳ NOT STARTED | - | GenTxid→variant refactor |
+| Phase 4: v30.x | ⏳ NOT STARTED | - | CMake migration, uint256 cleanup |
+
+### Upgrade Progress
+
+| Component | 27.x Status | 28.x Status | Notes |
+|-----------|-------------|-------------|-------|
+| GetAdjustedTime() | ✅ Preserved | ✅ Ready | UPGRADE NOTE markers added |
+| nStakeModifier | ✅ Preserved | ✅ Ready | chain.h:230 |
+| nFlags/vchBlockSig | ✅ Preserved | ✅ Ready | block.h |
+| SegWit (80%) | ✅ Activated | ✅ Ready | Height 5805000 |
+| GenTxid/Txid | - | 🏗️ Partial | Used in validation.cpp |
+| DataStream | - | 🏗️ Partial | Preferred in new code |
+| Staking Cache | ✅ Complete | ✅ Ready | 3-layer architecture |
 
 | Feature | Bitcoin Core | Blackcoin More | Never Port |
 |---------|--------------|----------------|------------|
@@ -22,7 +41,9 @@
 | **Taproot** | Active | **NEVER_ACTIVE** | ✅ Never enable |
 | **C++ Standard** | C++20 | C++17 → C++20 | Upgrade required |
 | **Build System** | CMake | Autotools | Migration planned |
+| **Block Pruning** | Available | **REMOVED** | ✅ Never implement |
 | **nStakeModifier** | Not present | **REQUIRED** | ✅ Must preserve |
+| **OP_RETURN Stake** | Banned/Unsupported | **SUPPORTED** | ✅ Segment Leader |
 
 ### Never-Port List (Critical)
 
@@ -57,21 +78,41 @@
    - Used in `src/pos.cpp:CheckStakeKernelHash()`
    - Must preserve this field exactly
 
-### SegWit Status (January 2026)
+7. **❌ Block Pruning**
+   - Staking requires access to complete blockchain history
+   - Never implement block file pruning
+   - Never add `-prune` argument or pruning UI
+   - Complete blockchain must always be available for PoS validation
+
+### SegWit Status (March 2026)
 
 - **Testnet**: ✅ ACTIVATED September 2024 (80% BIP-9 threshold)
-- **Mainnet**: ⚠️ IN PROGRESS (~65% signaling, needs 80%)
+- **Mainnet**: ✅ ACTIVATED March 2026 at height 5805000 (80% BIP-9 threshold)
 - **Critical**: 80% threshold is hardcoded, different from Bitcoin's 95%
+
+### Staking Performance Architecture (3-Layer Cache)
+
+**Status**: Implemented in v27.2.0 (Jan 2026). Future agents MUST maintain this structure:
+
+1. **Layer 0: Zero Disk I/O**: removed `g_txindex` reads in `CreateCoinStake`. **NEVER** re-introduce disk lookups in the staking loop.
+2. **Logic Cache (`m_cached_spks`)**: Maps Script→Descriptor. Must reside in `CWallet`.
+3. **Data Cache (`stakeCache`)**: Cache of UTXO timestamps. Must reside in `CWallet`.
+4. **Key Cache (`GetPubKey` Zero-Alloc)**: Direct map access in `DescriptorScriptPubKeyMan`. **NEVER** revert to `GetSolvingProvider` for staking loops.
+5. **Safety Bump Pre-Calculation (v27.2.0+)**: Pre-calculates next staking window using `GetAdjustedTimeSeconds()` in `updatedBlockTip()`. Strips MTP inflation attacks via modulo 16000 (`sleepMs %= 16000`). Uses same time reference as block validation. Local policy only — does not change consensus.
+6. **Ghost Block Logging (v27.2.0+)**: Logs dropped kernels due to timestamp validation. NOTE: With Safety Bump, ghost blocks should NEVER occur — logging retained for debugging only.
 
 ### Recommended Upgrade Strategy
 
 **Incremental Approach (Recommended)**:
+
 ```
 26.x → 27.x → 28.x → 29.x → 30.x
 ```
+
 Each step smaller, easier to test and debug issues.
 
 **Key Milestones**:
+
 - 27.x: GetAdjustedTime() removed (must preserve in Blackcoin)
 - 28.x: Txid/Wtxid types, CDataStream→DataStream
 - 29.x: GenTxid→std::variant
@@ -86,8 +127,10 @@ When working on the upgrade, reference these files for critical information:
 | File | Purpose |
 |------|---------|
 | `UPGRADE.md` | Complete upgrade plan with phase details |
-| `BLOCK_SERIALIZATION.md` | **CRITICAL**: PoS block serialization (nFlags, vchBlockSig, nStakeModifier) |
-| `CMake_MIGRATION.md` | Build system migration (29.x → 30.x) |
+| `agent/BLOCK_SERIALIZATION.md` | **CRITICAL**: PoS block serialization (nFlags, vchBlockSig, nStakeModifier) |
+| `agent/CMake_MIGRATION.md` | Build system migration (29.x → 30.x) |
+| `agent/DESCRIPTOR_STAKING.md` | **Staking analysis** (Legacy vs Descriptor wallets) |
+| `agent/STAKECACHE.md` | **Stake cache documentation** with Qtum cross-reference |
 | `src/primitives/block.h` | PoS header fields (nFlags, vchBlockSig) |
 | `src/chain.h` | nStakeModifier field (CRITICAL) |
 | `src/pos.h` / `src/pos.cpp` | PoS kernel validation |
@@ -234,7 +277,7 @@ Prefer `std::unique_ptr`, `std::shared_ptr`. Use exceptions for exceptional case
 |---------|--------|
 | **RBF (Replace-By-Fee)** | Disabled in Blackcoin - NEVER enable |
 | **Taproot** | `NEVER_ACTIVE` flag set - NEVER enable |
-| **Dynamic fees** | Static fee structure only - NEVER port estimation |
+| **Dynamic fees - fee estimation** | Static fee structure only - NEVER port estimation |
 | **GUIX** | Incompatible, never adapted |
 | **BDB wallet creation** | Deprecated, will be removed (but BDB READ support MUST be preserved) |
 
@@ -247,12 +290,11 @@ Prefer `std::unique_ptr`, `std::shared_ptr`. Use exceptions for exceptional case
 | BDB removal | BDB 6.2 required | Never remove BDB |
 | GetAdjustedTime() removal | Required for PoS | Never remove |
 | Taproot activation | NEVER_ACTIVE | Never enable |
-| Descriptor wallet migration | BDB still supported | Never force |
+| Descriptor wallet migration | BDB still supported | Never force migration, but code must be ported from Bitcoin Core |
 
 ### FORBIDDEN: Never Port
 
 - Bitcoin Core 30.x+ features — not compatible with Blackcoin's PoS model
-- Bitcoin's functional tests — never adapted for PoS, will fail
 
 ### Deprecated RPCs (Use Alternatives)
 
@@ -285,7 +327,7 @@ Prefer `std::unique_ptr`, `std::shared_ptr`. Use exceptions for exceptional case
 
 1. Legacy BDB wallets deprecated
 2. Migration to descriptor wallets via `migratewallet` RPC
-3. BDB support will be removed in future version
+3. BDB support will be removed in future version, but will be preserved for Blackcoin More
 
 ### Static Fee Structure
 
@@ -302,6 +344,10 @@ Prefer `std::unique_ptr`, `std::shared_ptr`. Use exceptions for exceptional case
 ## Commands
 
 ### Build
+
+**Note:**
+
+- ONLY build when approved by user. agent MUST NOT build without approval.
 
 ```bash
 ./autogen.sh
@@ -360,12 +406,13 @@ gdb --args src/test/test_blackmore  # Debug tests
 | Phase | When | Action |
 |-------|------|--------|
 | Autotools | 26.x → 29.x | Current build system |
-| **CMake Migration** | **29.x → 30.x** | **Migrate per `CMake_MIGRATION.md`** |
+| **CMake Migration** | **29.x → 30.x** | **Migrate per `agent/CMake_MIGRATION.md`** |
 | CMake | 30.x+ | New build system |
 
 **Plan**:
+
 1. Complete Bitcoin upgrade to 30.x using Autotools
-2. Execute CMake migration (see `CMake_MIGRATION.md` for details)
+2. Execute CMake migration (see `agent/CMake_MIGRATION.md` for details)
 3. Preserve Blackcoin More differences in CMake configuration:
    - RBF: DISABLED
    - Static fees: 100,000 sat/kvB

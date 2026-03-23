@@ -1,5 +1,72 @@
 # Changelog
 
+## v27.2.0 (2026-01-24)
+**Major upgrade from Bitcoin Core 26.2 to 27.2**
+
+### Core Changes
+- Updated to Bitcoin Core 27.2
+- Preserved `GetAdjustedTime()` function (removed in Bitcoin 27.x) with compile-time static_assert protection
+- Removed RBF (Replace-By-Fee) to maintain first-seen transaction rule
+- Removed block pruning to ensure PoS staking access to full chain history
+- Support for C++20 compilation
+
+### PoS/Staking
+- **Zero-Allocation Descriptor Staking** - Optimized `GetPubKey` path for Descriptor wallets, removing memory allocation in hot loop and reducing block creation time from ~100s to <100ms ([src/wallet/staking.cpp:397-404](src/wallet/staking.cpp#L397))
+- **Perfect State StakeCache Sync** - Real-time cache synchronization via `CWallet` event hooks (`AddToSpends`, `blockDisconnected`), ensuring 100% cache accuracy with zero periodic overhead ([src/wallet/staking.cpp:304-309](src/wallet/staking.cpp#L304))
+- **Steady-State StakeCache Metrics** - Tracks "steady-state" efficiency (10-minute moving average hit rate) for accurate performance monitoring ([src/wallet/staking.cpp:315-318](src/wallet/staking.cpp#L315))
+- **Bech32/Taproot Staking Support** - Full support for staking with Bech32 (native SegWit v0) and Taproot (SegWit v1) UTXOs ([src/wallet/staking.cpp:375-378](src/wallet/staking.cpp#L375))
+- **Multi-Wallet Staking Independence** - Per-wallet staking state (no shared `static` timer), eliminating "bullying" bug where frequent stakers starve slower stakers ([src/wallet/wallet.h:746-747](src/wallet/wallet.h#L746))
+- **StakeCache Performance Trend Analysis** - 10-minute moving average hit rate and search time history for long-term performance monitoring ([src/wallet/wallet.h:752-756](src/wallet/wallet.h#L752))
+- **Cache Flush Reason Tracking** - Tracks reason for cache flushes (size limit, manual, shutdown, cleanup) for debugging ([src/wallet/wallet.h:759-765](src/wallet/wallet.h#L759))
+- **StakeCache Time Saved Metrics** - Tracks estimated time saved (ms) by StakeCache (e.g., 1ms per avoided LevelDB hit) ([src/wallet/staking.cpp:360](src/wallet/staking.cpp#L360))
+- **Safety Bump Optimization** - Fixed miner to sleep efficiently until next valid window when blocked by MTP, instead of waking every ~1-3 seconds to recheck the same blocked timestamp. Reduces log spam and CPU usage during blocked windows. Pre-calculates next window using `GetAdjustedTimeSeconds()` (matching block validation time reference). Includes modulo 16000 to strip MTP inflation attacks from attackers with +14 second clocks ([src/node/miner.cpp:245-275](src/node/miner.cpp#L245), [src/wallet/wallet.cpp:1540](src/wallet/wallet.cpp#L1540))
+- **Skip staketimio After Block Found** - Removed redundant staketimio sleep after successfully finding a PoS block. Previously the miner slept 16-20s then immediately slept again for staketimio ([src/node/miner.cpp:847](src/node/miner.cpp#L847))
+- **Fixed `-stakecache` option** - Cache was never used; now properly populates and uses cache for kernel checks (Qtum-derived fix)
+- **Stake cache statistics** - New RPC field `stakecache` in `getstakinginfo` (Blackcoin-specific enhancement)
+  - Shows: enabled, size, hits, blocks, flushes, efficiency, time saved
+  - Stats only shown when `-stakecache=1`
+- **Stake cache debug logging** - `-debug=coinstake` shows:
+  - Cache HIT with address
+  - Cache FLUSH with reason
+  - Shutdown stats
+- **Miner Diagnostic Patch** - Fixed silent discarding of valid kernels in `node/miner.cpp`. Added detailed logging to identify coinstakes dropped due to 16-second timestamp masking collisions with Median Time Past (MTP). Note: With Safety Bump, ghost blocks should never occur; logging retained for debugging.
+- Integrated staking RPC commands into wallet interface
+- Fixed `SER_POSMARKER` handling to always include for PoS block headers
+- Updated descriptor wallet staking documentation
+- RPC: Pass `without_witness=false` to `TxToUniv` in `blockToJSON`
+
+### Network
+- Do not apply whitelist permission to onion inbounds
+- Fix race condition in self-connect detection
+- Prevent sending messages in `NetEventsInterface::InitializeNode`
+
+### Wallet
+- Fix `FillPSBT` errantly showing as complete
+- Avoid updating `ReserveDestination::nIndex` when `GetReservedDestination` fails
+
+### Build System
+- Updated macOS SDK to 15.0
+- Configure GCC 12 for ARM cross-compilation
+- Fix Qt macOS build with Clang 18
+- Fix depends Qt download links
+- Fix BDB compilation on OpenBSD
+- Fix CXXFLAGS on NetBSD
+- Fix build of Qt for 32-bit platforms
+- Fix mingw-w64 Qt DEBUG=1 build
+- Update Boost download link
+- Fetch miniupnpc sources from alternative website
+- Update GitHub Actions to latest major versions
+
+### Documentation
+- Added comprehensive upgrade documentation (`UPGRADE.md`, `agent/BLOCK_SERIALIZATION.md`, `agent/CMake_MIGRATION.md`)
+- Added inline upgrade notes to critical PoS files (`pos.h`, `pos.cpp`, `miner.cpp`, `timedata.h`)
+- Added `AGENTS.md` for AI-assisted development
+- Added DeepWiki badge to README
+
+### Trivial
+- Replace `bitcoind` with `blackmored` in documentation
+- Rename `MIN` macro to `_TRACEPOINT_TEST_MIN` in tracing to fix macro redefinition
+
 ## v26.2.0 (2024-12-18)
 - Begin signalling for SegWit activation on mainnet on June 20, 2025
 

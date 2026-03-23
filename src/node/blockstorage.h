@@ -93,9 +93,7 @@ struct CBlockIndexHeightOnlyComparator {
     bool operator()(const CBlockIndex* pa, const CBlockIndex* pb) const;
 };
 
-struct PruneLockInfo {
-    int height_first{std::numeric_limits<int>::max()}; //! Height of earliest block that should be kept and not pruned
-};
+// Blackcoin: PruneLockInfo removed - pruning disabled
 
 enum BlockfileType {
     // Values used as array indexes - do not change carelessly.
@@ -211,14 +209,7 @@ private:
     /** Dirty block file entries. */
     std::set<int> m_dirty_fileinfo;
 
-    /**
-     * Map from external index name to oldest block that must not be pruned.
-     *
-     * @note Internally, only blocks at height (height_first - PRUNE_LOCK_BUFFER - 1) and
-     * below will be pruned, but callers should avoid assuming any particular buffer size.
-     */
-    // Blackcoin
-    std::unordered_map<std::string, PruneLockInfo> m_prune_locks GUARDED_BY(::cs_main);
+    // Blackcoin: m_prune_locks removed - pruning disabled
 
     BlockfileType BlockfileTypeForHeight(int height);
 
@@ -228,7 +219,7 @@ public:
     using Options = kernel::BlockManagerOpts;
 
     explicit BlockManager(const util::SignalInterrupt& interrupt, Options opts)
-        : m_prune_mode{opts.prune_target > 0},
+        : m_prune_mode{false}, // Blackcoin: Pruning permanently disabled
           m_opts{std::move(opts)},
           m_interrupt{interrupt} {};
 
@@ -320,8 +311,7 @@ public:
     //! Check whether the block associated with this index entry is pruned or not.
     bool IsBlockPruned(const CBlockIndex& block) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
-    //! Create or update a prune lock identified by its name
-    void UpdatePruneLock(const std::string& name, const PruneLockInfo& lock_info) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    // Blackcoin: UpdatePruneLock removed - pruning disabled
 
 
     /** Open a block file (blk?????.dat) */

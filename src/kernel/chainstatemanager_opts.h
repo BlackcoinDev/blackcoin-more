@@ -47,7 +47,7 @@ struct ChainstateManagerOpts {
     Notifications& notifications;
     //! Number of script check worker threads. Zero means no parallel verification.
     int worker_threads_num{0};
-    // Blackcoin More: GetAdjustedTime callback - REQUIRED for PoS timestamp validation
+    // BLACKCOIN-SPECIFIC: GetAdjustedTime callback - REQUIRED for PoS timestamp validation
     // This callback is used instead of GetAdjustedTime() directly
     std::function<NodeClock::time_point()> adjusted_time_callback{};
 };

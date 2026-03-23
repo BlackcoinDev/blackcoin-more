@@ -99,7 +99,7 @@ src/qt/
 - Preserve BDB wallet support in Qt
 - Never enable dynamic fee estimation UI
 
-**Reference**: `CMake_MIGRATION.md` for complete build system migration details.
+**Reference**: `agent/CMake_MIGRATION.md` for complete build system migration details.
 
 ---
 

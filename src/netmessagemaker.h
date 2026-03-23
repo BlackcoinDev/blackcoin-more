@@ -15,10 +15,9 @@ namespace NetMsg {
     {
         CSerializedNetMsg msg;
         msg.m_type = std::move(msg_type);
-        // Blackcoin ToDo: revert after nodes upgrade to current version
-        // OLD_VERSION and SER_POSMARKER should be defined or included.
-        // For now, I'll use common constants or check where they are defined.
-        int32_t serModes = nVersion <= 70018 ? SER_NETWORK : SER_NETWORK | SER_POSMARKER;
+        // Always include SER_POSMARKER for PoS block headers
+        // CRITICAL: Without this, nFlags won't be transmitted and PoS headers sync breaks
+        int32_t serModes = SER_NETWORK | SER_POSMARKER;
         VectorWriter{serModes, msg.data, 0, std::forward<Args>(args)...};
         return msg;
     }

@@ -308,9 +308,7 @@ static bool rest_block(const std::any& context,
         if (!pblockindex) {
             return RESTERR(req, HTTP_NOT_FOUND, hashStr + " not found");
         }
-        if (chainman.m_blockman.IsBlockPruned(*pblockindex)) {
-            return RESTERR(req, HTTP_NOT_FOUND, hashStr + " not available (pruned data)");
-        }
+        // Blackcoin: Pruning disabled - blocks always available
     }
 
     if (!chainman.m_blockman.ReadBlockFromDisk(block, *pblockindex)) {

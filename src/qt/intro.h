@@ -63,7 +63,6 @@ private Q_SLOTS:
 
 private:
     Ui::Intro *ui;
-    bool m_prune_checkbox_is_default{true};
     QThread* thread{nullptr};
     QMutex mutex;
     bool signalled{false};
@@ -73,7 +72,7 @@ private:
     //! Total required space (in GB).
     int64_t m_required_space_gb{0};
     uint64_t m_bytes_available{0};
-    int m_prune_target_gb;
+    // Blackcoin: m_prune_target_gb removed - pruning disabled
 
     void startThread();
     void checkPath(const QString &dataDir);

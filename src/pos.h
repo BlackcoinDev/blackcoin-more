@@ -14,18 +14,18 @@
 #ifndef BLACKCOIN_POS_H
 #define BLACKCOIN_POS_H
 
-#include <chain.h>
-#include <primitives/transaction.h>
-#include <txdb.h>
-#include <validation.h>
 #include <arith_uint256.h>
+#include <chain.h>
+#include <chainparams.h>
+#include <consensus/consensus.h>
 #include <consensus/validation.h>
 #include <hash.h>
-#include <timedata.h>
-#include <chainparams.h>
+#include <primitives/transaction.h>
 #include <script/sign.h>
-#include <consensus/consensus.h>
 #include <stdint.h>
+#include <timedata.h>
+#include <txdb.h>
+#include <validation.h>
 
 using namespace std;
 
@@ -42,8 +42,9 @@ using namespace std;
  */
 uint256 ComputeStakeModifier(const CBlockIndex* pindexPrev, const uint256& kernel);
 
-struct CStakeCache{
-    CStakeCache(uint32_t blockFromTime_, CAmount amount_) : blockFromTime(blockFromTime_), amount(amount_){
+struct CStakeCache {
+    CStakeCache(uint32_t blockFromTime_, CAmount amount_) : blockFromTime(blockFromTime_), amount(amount_)
+    {
     }
     uint32_t blockFromTime;
     CAmount amount;

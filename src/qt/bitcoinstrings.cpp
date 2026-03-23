@@ -127,8 +127,7 @@ QT_TRANSLATE_NOOP("bitcoin-core", ""
 QT_TRANSLATE_NOOP("bitcoin-core", ""
 "Please contribute if you find %s useful. Visit %s for further information "
 "about the software."),
-QT_TRANSLATE_NOOP("bitcoin-core", ""
-"Prune configured below the minimum of %d MiB.  Please use a higher number."),
+// Blackcoin: Prune string removed - pruning disabled
 QT_TRANSLATE_NOOP("bitcoin-core", ""
 "Rename of '%s' -> '%s' failed. You should resolve this by manually moving or "
 "deleting the invalid snapshot directory %s, otherwise you will encounter the "
@@ -315,7 +314,7 @@ QT_TRANSLATE_NOOP("bitcoin-core", "No addresses available"),
 QT_TRANSLATE_NOOP("bitcoin-core", "Not enough file descriptors available."),
 QT_TRANSLATE_NOOP("bitcoin-core", "Not found pre-selected input %s"),
 QT_TRANSLATE_NOOP("bitcoin-core", "Not solvable pre-selected input %s"),
-QT_TRANSLATE_NOOP("bitcoin-core", "Prune cannot be configured with a negative value."),
+// Blackcoin: Prune string removed - pruning disabled
 QT_TRANSLATE_NOOP("bitcoin-core", "Reducing -maxconnections from %d to %d, because of system limitations."),
 QT_TRANSLATE_NOOP("bitcoin-core", "Replaying blocks…"),
 QT_TRANSLATE_NOOP("bitcoin-core", "Rescanning…"),

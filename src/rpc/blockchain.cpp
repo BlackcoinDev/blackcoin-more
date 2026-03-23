@@ -229,7 +229,7 @@ UniValue blockToJSON(BlockManager& blockman, const CBlock& block, const CBlockIn
                 // coinbase transaction (i.e. i == 0) doesn't have undo data
                 const CTxUndo* txundo = (have_undo && i > 0) ? &blockUndo.vtxundo.at(i - 1) : nullptr;
                 UniValue objTx(UniValue::VOBJ);
-                TxToUniv(*tx, /*block_hash=*/uint256(), /*entry=*/objTx, /*include_hex=*/true, txundo, verbosity);
+                TxToUniv(*tx, /*block_hash=*/uint256(), /*entry=*/objTx, /*include_hex=*/true, /*without_witness=*/false, txundo, verbosity);
                 txs.push_back(std::move(objTx));
             }
             break;
@@ -508,11 +508,7 @@ static RPCHelpMan getblockfrompeer()
         throw JSONRPCError(RPC_MISC_ERROR, "Block header missing");
     }
 
-    // Fetching blocks before the node has syncing past their height can prevent block files from
-    // being pruned, so we avoid it if the node is in prune mode.
-    if (chainman.m_blockman.IsPruneMode() && index->nHeight > WITH_LOCK(chainman.GetMutex(), return chainman.ActiveTip()->nHeight)) {
-        throw JSONRPCError(RPC_MISC_ERROR, "In prune mode, only blocks that the node has already synced previously can be fetched from a peer");
-    }
+    // Blackcoin: Pruning disabled - no need to check prune mode
 
     const bool block_has_data = WITH_LOCK(::cs_main, return index->nStatus & BLOCK_HAVE_DATA);
     if (block_has_data) {
@@ -631,9 +627,7 @@ static CBlock GetBlockChecked(BlockManager& blockman, const CBlockIndex& blockin
     CBlock block;
     {
         LOCK(cs_main);
-        if (blockman.IsBlockPruned(blockindex)) {
-            throw JSONRPCError(RPC_MISC_ERROR, "Block not available (pruned data)");
-        }
+        // Blackcoin: Pruning disabled - blocks are always available
     }
 
     if (!blockman.ReadBlockFromDisk(block, blockindex)) {
@@ -655,9 +649,7 @@ static CBlockUndo GetUndoChecked(BlockManager& blockman, const CBlockIndex& bloc
 
     {
         LOCK(cs_main);
-        if (blockman.IsBlockPruned(blockindex)) {
-            throw JSONRPCError(RPC_MISC_ERROR, "Undo data not available (pruned data)");
-        }
+        // Blackcoin: Pruning disabled - undo data always available
     }
 
     if (!blockman.UndoReadFromDisk(blockUndo, blockindex)) {

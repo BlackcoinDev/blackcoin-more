@@ -3,7 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <merkleblock.h>
-#include <policy/fees.h>
+#include <policy/feerate.h>
 #include <rpc/util.h>
 #include <test/fuzz/FuzzedDataProvider.h>
 #include <test/fuzz/fuzz.h>

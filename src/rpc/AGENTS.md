@@ -123,7 +123,7 @@ src/rpc/
 - Never port estimateSmartFee or fee estimation RPCs
 - Preserve GetAdjustedTime() usage in mining RPCs
 
-**Reference**: `CMake_MIGRATION.md` for complete build system migration details.
+**Reference**: `agent/CMake_MIGRATION.md` for complete build system migration details.
 
 ---
 

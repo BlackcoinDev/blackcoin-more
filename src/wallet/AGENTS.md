@@ -34,11 +34,13 @@ src_wallet_SOURCES += db.cpp db.h bdb.cpp bdb.h  // PRESERVE THIS
 ### Wallet Database Support
 
 **Current State**:
+
 - ✅ BDB 6.2: **REQUIRED** (read/write support for existing wallets)
 - ✅ SQLite: Supported (for new wallets)
 - ❌ BDB creation: **DEPRECATED** (new wallets use SQLite)
 
 **Migration Path**:
+
 - Users CAN migrate BDB → SQLite via `migratewallet` RPC
 - Migration is OPTIONAL, not required
 - Existing BDB wallets continue to work
@@ -51,6 +53,7 @@ static const CAmount MIN_FEE = 100000;  // Fixed, not dynamic
 ```
 
 **Implications**:
+
 - No dynamic fee estimation in wallet
 - Fixed 100,000 sat/kvB minimum
 - No RBF fee bumping capability
@@ -72,6 +75,31 @@ static const CAmount MIN_FEE = 100000;  // Fixed, not dynamic
 - **NEVER**: Remove BDB wallet code (READ support REQUIRED)
 - **NEVER**: Force wallet migration (must be user-initiated)
 - **NEVER**: Enable RBF wallet signaling
+
+### Staking Features (v27.2.0+)
+
+| Feature | Location | Description |
+|---------|----------|-------------|
+| Safety Bump Pre-Calculation | `wallet.cpp:1540` | Pre-calculates next window using MTP + `GetAdjustedTimeSeconds()`, strips MTP inflation via modulo 16000 |
+| Wake-on-Block | `wallet.cpp:1561-1565` | Signals staker thread on new block |
+| Per-Wallet Timers | `wallet.h:750` | Independent `m_last_coin_stake_search_time` per wallet |
+| StakeCache | `wallet.h:798` | UTXO timestamp cache with thread safety |
+
+**MTP Inflation Attack Mitigation (v27.2.0+)**:
+
+The Safety Bump now strips artificial MTP inflation using modulo arithmetic:
+
+```cpp
+// wallet.cpp:1556-1559
+if (sleepMs > 16000) {
+    sleepMs %= 16000;
+    if (sleepMs == 0) sleepMs = 16000;
+}
+```
+
+Attackers with +14 second clocks inflate MTP, causing naive sleep calculations to oversleep. The modulo operation strips this inflation, ensuring honest nodes and attackers wake at the same wall-clock moment relative to the true 16-second boundary.
+
+All staking logs use `BCLog::COINSTAKE` category (`-debug=coinstake`).
 
 ---
 
@@ -137,12 +165,13 @@ src/wallet/
 **Bitcoin Core 30.x migrated from Autotools to CMake.**
 
 **When migrating wallet module to CMake**:
+
 - Preserve BDB 6.2 support (REQUIRED for Blackcoin More)
 - Never remove USE_BDB conditional compilation
 - Preserve static fees (no fee estimation)
 - Never enable RBF wallet signaling
 
-**Reference**: `CMake_MIGRATION.md` for complete build system migration details.
+**Reference**: `agent/CMake_MIGRATION.md` for complete build system migration details.
 
 ---
 

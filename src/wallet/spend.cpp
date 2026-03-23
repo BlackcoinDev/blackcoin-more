@@ -880,63 +880,7 @@ static bool IsCurrentForAntiFeeSniping(interfaces::Chain& chain, const uint256& 
     return true;
 }
 
-/**
- * Set a height-based locktime for new transactions (uses the height of the
- * current chain tip unless we are not synced with the current chain
- */
-static void DiscourageFeeSniping(CMutableTransaction& tx, FastRandomContext& rng_fast,
-                                 interfaces::Chain& chain, const uint256& block_hash, int block_height)
-{
-    // All inputs must be added by now
-    assert(!tx.vin.empty());
-    // Discourage fee sniping.
-    //
-    // For a large miner the value of the transactions in the best block and
-    // the mempool can exceed the cost of deliberately attempting to mine two
-    // blocks to orphan the current best block. By setting nLockTime such that
-    // only the next block can include the transaction, we discourage this
-    // practice as the height restricted and limited blocksize gives miners
-    // considering fee sniping fewer options for pulling off this attack.
-    //
-    // A simple way to think about this is from the wallet's point of view we
-    // always want the blockchain to move forward. By setting nLockTime this
-    // way we're basically making the statement that we only want this
-    // transaction to appear in the next block; we don't want to potentially
-    // encourage reorgs by allowing transactions to appear at lower heights
-    // than the next block in forks of the best chain.
-    //
-    // Of course, the subsidy is high enough, and transaction volume low
-    // enough, that fee sniping isn't a problem yet, but by implementing a fix
-    // now we ensure code won't be written that makes assumptions about
-    // nLockTime that preclude a fix later.
-    if (IsCurrentForAntiFeeSniping(chain, block_hash)) {
-        tx.nLockTime = block_height;
-
-        // Secondly occasionally randomly pick a nLockTime even further back, so
-        // that transactions that are delayed after signing for whatever reason,
-        // e.g. high-latency mix networks and some CoinJoin implementations, have
-        // better privacy.
-        if (rng_fast.randrange(10) == 0) {
-            tx.nLockTime = std::max(0, int(tx.nLockTime) - int(rng_fast.randrange(100)));
-        }
-    } else {
-        // If our chain is lagging behind, we can't discourage fee sniping nor help
-        // the privacy of high-latency transactions. To avoid leaking a potentially
-        // unique "nLockTime fingerprint", set nLockTime to a constant.
-        tx.nLockTime = 0;
-    }
-    // Sanity check all values
-    assert(tx.nLockTime < LOCKTIME_THRESHOLD); // Type must be block height
-    assert(tx.nLockTime <= uint64_t(block_height));
-    for (const auto& in : tx.vin) {
-        // Can not be FINAL for locktime to work
-        assert(in.nSequence != CTxIn::SEQUENCE_FINAL);
-        // May be MAX NONFINAL to disable both BIP68 and BIP125
-        if (in.nSequence == CTxIn::MAX_SEQUENCE_NONFINAL) continue;
-        // The wallet does not support any other sequence-use right now.
-        assert(false);
-    }
-}
+// Blackcoin: DiscourageFeeSniping removed - incompatible with SEQUENCE_FINAL (RBF disabled)
 
 static util::Result<CreatedTransactionResult> CreateTransactionInternal(
         CWallet& wallet,
@@ -1141,14 +1085,7 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
             });
     }
 
-    // The sequence number is set to non-maxint so that DiscourageFeeSniping
-    // works.
-    //
-    // BIP125 defines opt-in RBF as any nSequence < maxint-1, so
-    // we use the highest possible value in that range (maxint-2)
-    // to avoid conflicting with other possible uses of nSequence,
-    // and in the spirit of "smallest possible change from prior
-    // behavior."
+    // Blackcoin: Use SEQUENCE_FINAL (RBF disabled, anti-fee-sniping removed)
     bool use_anti_fee_sniping = true;
     const uint32_t default_sequence{CTxIn::SEQUENCE_FINAL};
     for (const auto& coin : selected_coins) {
@@ -1172,9 +1109,7 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
         // If we have a locktime set, we can't use anti-fee-sniping
         use_anti_fee_sniping = false;
     }
-    if (use_anti_fee_sniping) {
-        DiscourageFeeSniping(txNew, rng_fast, wallet.chain(), wallet.GetLastBlockHash(), wallet.GetLastBlockHeight());
-    }
+    // Blackcoin: Anti-fee-sniping disabled (RBF not supported)
 
     // Calculate the transaction fee
     TxSize tx_sizes = CalculateMaximumSignedTxSize(CTransaction(txNew), &wallet, &coin_control);
@@ -1290,19 +1225,10 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
     // Before we return success, we assume any change key will be used to prevent
     // accidental reuse.
     reservedest.KeepDestination();
-    
-    FeeCalculation feeCalc;
 
     wallet.WalletLogPrintf("Coin Selection: Algorithm:%s, Waste Metric Score:%d\n", GetAlgorithmName(result.GetAlgo()), result.GetWaste());
-    wallet.WalletLogPrintf("Fee Calculation: Fee:%d Bytes:%u Tgt:%d (requested %d) Reason:\"%s\" Decay %.5f: Estimation: (%g - %g) %.2f%% %.1f/(%.1f %d mem %.1f out) Fail: (%g - %g) %.2f%% %.1f/(%.1f %d mem %.1f out)\n",
-              current_fee, nBytes, feeCalc.returnedTarget, feeCalc.desiredTarget, "Unknown", feeCalc.est.decay,
-              feeCalc.est.pass.start, feeCalc.est.pass.end,
-              (feeCalc.est.pass.totalConfirmed + feeCalc.est.pass.inMempool + feeCalc.est.pass.leftMempool) > 0.0 ? 100 * feeCalc.est.pass.withinTarget / (feeCalc.est.pass.totalConfirmed + feeCalc.est.pass.inMempool + feeCalc.est.pass.leftMempool) : 0.0,
-              feeCalc.est.pass.withinTarget, feeCalc.est.pass.totalConfirmed, feeCalc.est.pass.inMempool, feeCalc.est.pass.leftMempool,
-              feeCalc.est.fail.start, feeCalc.est.fail.end,
-              (feeCalc.est.fail.totalConfirmed + feeCalc.est.fail.inMempool + feeCalc.est.fail.leftMempool) > 0.0 ? 100 * feeCalc.est.fail.withinTarget / (feeCalc.est.fail.totalConfirmed + feeCalc.est.fail.inMempool + feeCalc.est.fail.leftMempool) : 0.0,
-              feeCalc.est.fail.withinTarget, feeCalc.est.fail.totalConfirmed, feeCalc.est.fail.inMempool, feeCalc.est.fail.leftMempool);
-    return CreatedTransactionResult(tx, current_fee, change_pos, feeCalc);
+    wallet.WalletLogPrintf("Fee Calculation: Fee:%d Bytes:%u (static fee rate)\n", current_fee, nBytes);
+    return CreatedTransactionResult(tx, current_fee, change_pos);
 }
 
 util::Result<CreatedTransactionResult> CreateTransaction(

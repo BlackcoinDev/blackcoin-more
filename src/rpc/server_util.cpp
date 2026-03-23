@@ -7,7 +7,7 @@
 #include <common/args.h>
 #include <net_processing.h>
 #include <node/context.h>
-#include <policy/fees.h>
+#include <policy/feerate.h>
 #include <rpc/protocol.h>
 #include <rpc/request.h>
 #include <txmempool.h>

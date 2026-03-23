@@ -318,19 +318,8 @@ static void entryToJSON(const CTxMemPool& pool, UniValue& info, const CTxMemPool
 
     info.pushKV("spentby", spent);
 
-    /*
-    // Blackcoin
-    // Add opt-in RBF status
-    bool rbfStatus = false;
-    RBFTransactionState rbfState = IsRBFOptIn(tx, pool);
-    if (rbfState == RBFTransactionState::UNKNOWN) {
-        throw JSONRPCError(RPC_MISC_ERROR, "Transaction is not in mempool");
-    } else if (rbfState == RBFTransactionState::REPLACEABLE_BIP125) {
-        rbfStatus = true;
-    }
-
-    info.pushKV("bip125-replaceable", rbfStatus);
-    */
+    // Blackcoin: RBF permanently disabled
+    info.pushKV("bip125-replaceable", false);
 
     info.pushKV("unbroadcast", pool.IsUnbroadcastTx(tx.GetHash()));
 }

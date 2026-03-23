@@ -74,25 +74,7 @@ void OptionTests::migrateSettings()
         "}\n");
 }
 
-void OptionTests::integerGetArgBug()
-{
-    /*
-    // Test regression https://github.com/bitcoin/bitcoin/issues/24457. Ensure
-    // that setting integer prune value doesn't cause an exception to be thrown
-    // in the OptionsModel constructor
-    gArgs.LockSettings([&](common::Settings& settings) {
-        settings.forced_settings.erase("prune");
-        settings.rw_settings["prune"] = 3814;
-    });
-    gArgs.WriteSettingsFile();
-    bilingual_str error;
-    QVERIFY(OptionsModel{m_node}.Init(error));
-    gArgs.LockSettings([&](common::Settings& settings) {
-        settings.rw_settings.erase("prune");
-    });
-    gArgs.WriteSettingsFile();
-    */
-}
+// Blackcoin: integerGetArgBug test removed - pruning functionality removed
 
 void OptionTests::parametersInteraction()
 {

@@ -145,7 +145,7 @@ struct FuzzedWallet {
             [&] { /* no op (leave uninitialized) */ });
         coin_control.fAllowWatchOnly = fuzzed_data_provider.ConsumeBool();
         coin_control.m_include_unsafe_inputs = fuzzed_data_provider.ConsumeBool();
-        // Blackcoin More: RBF is disabled, m_signal_bip125_rbf doesn't exist
+        // BLACKCOIN-SPECIFIC: RBF is disabled, m_signal_bip125_rbf doesn't exist
         /*
         {
             auto& r{coin_control.m_signal_bip125_rbf};
@@ -158,7 +158,7 @@ struct FuzzedWallet {
             fuzzed_data_provider.ConsumeIntegralInRange<CAmount>(0, 2 * total_amt),
             tx_size,
         };
-        // Blackcoin More: GetMinimumFeeRate doesn't exist (static fees only)
+        // BLACKCOIN-SPECIFIC: GetMinimumFeeRate doesn't exist (static fees only)
         /*
         if (fuzzed_data_provider.ConsumeBool()) {
             *coin_control.m_feerate += GetMinimumFeeRate(*wallet, coin_control, nullptr);

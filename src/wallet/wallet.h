@@ -151,26 +151,19 @@ class CCoinControl;
 constexpr OutputType DEFAULT_ADDRESS_TYPE{OutputType::LEGACY};
 
 static constexpr uint64_t KNOWN_WALLET_FLAGS =
-        WALLET_FLAG_AVOID_REUSE
-    |   WALLET_FLAG_BLANK_WALLET
-    |   WALLET_FLAG_KEY_ORIGIN_METADATA
-    |   WALLET_FLAG_LAST_HARDENED_XPUB_CACHED
-    |   WALLET_FLAG_DISABLE_PRIVATE_KEYS
-    |   WALLET_FLAG_DESCRIPTORS
-    |   WALLET_FLAG_EXTERNAL_SIGNER;
+    WALLET_FLAG_AVOID_REUSE | WALLET_FLAG_BLANK_WALLET | WALLET_FLAG_KEY_ORIGIN_METADATA | WALLET_FLAG_LAST_HARDENED_XPUB_CACHED | WALLET_FLAG_DISABLE_PRIVATE_KEYS | WALLET_FLAG_DESCRIPTORS | WALLET_FLAG_EXTERNAL_SIGNER;
 
 static constexpr uint64_t MUTABLE_WALLET_FLAGS =
-        WALLET_FLAG_AVOID_REUSE;
+    WALLET_FLAG_AVOID_REUSE;
 
-static const std::map<std::string,WalletFlags> WALLET_FLAG_MAP{
+static const std::map<std::string, WalletFlags> WALLET_FLAG_MAP{
     {"avoid_reuse", WALLET_FLAG_AVOID_REUSE},
     {"blank", WALLET_FLAG_BLANK_WALLET},
     {"key_origin_metadata", WALLET_FLAG_KEY_ORIGIN_METADATA},
     {"last_hardened_xpub_cached", WALLET_FLAG_LAST_HARDENED_XPUB_CACHED},
     {"disable_private_keys", WALLET_FLAG_DISABLE_PRIVATE_KEYS},
     {"descriptor_wallet", WALLET_FLAG_DESCRIPTORS},
-    {"external_signer", WALLET_FLAG_EXTERNAL_SIGNER}
-};
+    {"external_signer", WALLET_FLAG_EXTERNAL_SIGNER}};
 
 /** A wrapper to reserve an address from a wallet
  *
@@ -205,8 +198,7 @@ protected:
 public:
     //! Construct a ReserveDestination object. This does NOT reserve an address yet
     explicit ReserveDestination(CWallet* pwallet, OutputType type)
-      : pwallet(pwallet)
-      , type(type) { }
+        : pwallet(pwallet), type(type) {}
 
     ReserveDestination(const ReserveDestination&) = delete;
     ReserveDestination& operator=(const ReserveDestination&) = delete;
@@ -228,8 +220,7 @@ public:
 /**
  * Address book data.
  */
-struct CAddressBookData
-{
+struct CAddressBookData {
     /**
      * Address label which is always nullopt for change addresses. For sending
      * and receiving addresses, it will be set to an arbitrary label string
@@ -272,7 +263,7 @@ struct CAddressBookData
 
 inline std::string PurposeToString(AddressPurpose p)
 {
-    switch(p) {
+    switch (p) {
     case AddressPurpose::RECEIVE: return "receive";
     case AddressPurpose::SEND: return "send";
     case AddressPurpose::REFUND: return "refund";
@@ -282,20 +273,22 @@ inline std::string PurposeToString(AddressPurpose p)
 
 inline std::optional<AddressPurpose> PurposeFromString(std::string_view s)
 {
-    if (s == "receive") return AddressPurpose::RECEIVE;
-    else if (s == "send") return AddressPurpose::SEND;
-    else if (s == "refund") return AddressPurpose::REFUND;
+    if (s == "receive")
+        return AddressPurpose::RECEIVE;
+    else if (s == "send")
+        return AddressPurpose::SEND;
+    else if (s == "refund")
+        return AddressPurpose::REFUND;
     return {};
 }
 
-struct CRecipient
-{
+struct CRecipient {
     CTxDestination dest;
     CAmount nAmount;
     bool fSubtractFeeFromAmount;
 };
 
-class WalletRescanReserver; //forward declarations for ScanForWalletTransactions/RescanFromTime
+class WalletRescanReserver; // forward declarations for ScanForWalletTransactions/RescanFromTime
 /**
  * A CWallet maintains a set of transactions and balances, and provides the ability to create new transactions.
  */
@@ -323,9 +316,7 @@ private:
      * prompt rebroadcasts (see ResendWalletTransactions()). */
     bool fBroadcastTransactions = false;
     // Local time that the tip block was received. Used to schedule wallet rebroadcasts.
-    std::atomic<int64_t> m_best_block_time {0};
-
-    std::map<COutPoint, CStakeCache> stakeCache;
+    std::atomic<int64_t> m_best_block_time{0};
 
     // First created key time. Used to skip blocks prior to this time.
     // 'std::numeric_limits<int64_t>::max()' if wallet is blank.
@@ -362,7 +353,9 @@ private:
     /** Mark a transaction (and its in-wallet descendants) as conflicting with a particular block. */
     void MarkConflicted(const uint256& hashBlock, int conflicting_height, const uint256& hashTx);
 
-    enum class TxUpdate { UNCHANGED, CHANGED, NOTIFY_CHANGED };
+    enum class TxUpdate { UNCHANGED,
+                          CHANGED,
+                          NOTIFY_CHANGED };
 
     using TryUpdatingStateFn = std::function<TxUpdate(CWalletTx& wtx)>;
 
@@ -426,7 +419,10 @@ private:
     // Same as 'AddActiveScriptPubKeyMan' but designed for use within a batch transaction context
     void AddActiveScriptPubKeyManWithDb(WalletBatch& batch, uint256 id, OutputType type, bool internal);
 
-    //! Cache of descriptor ScriptPubKeys used for IsMine. Maps ScriptPubKey to set of spkms
+    // BLACKCOIN-SPECIFIC: Cache of descriptor ScriptPubKeys used for IsMine and staking performance.
+    // Maps ScriptPubKey to set of ScriptPubKeyMan pointers for O(1) lookup during stake attempts.
+    // Layer 1 of the 3-layer staking cache architecture - eliminates linear descriptor scan.
+    // See agent/STAKECACHE.md for full documentation.
     std::unordered_map<CScript, std::vector<ScriptPubKeyMan*>, SaltedSipHasher> m_cached_spks;
 
     /**
@@ -472,6 +468,10 @@ public:
         // Stop stake
         StopStake();
 
+        // Clear script cache to prevent memory leaks
+        // This cache accumulates entries during staking operations
+        m_cached_spks.clear();
+
         // Should not have slots connected at this point.
         assert(NotifyUnload.empty());
     }
@@ -506,7 +506,11 @@ public:
     std::unique_ptr<interfaces::Handler> m_chain_notifications_handler;
 
     /** Interface for accessing chain state. */
-    interfaces::Chain& chain() const { assert(m_chain); return *m_chain; }
+    interfaces::Chain& chain() const
+    {
+        assert(m_chain);
+        return *m_chain;
+    }
 
     const CWalletTx* GetWalletTx(const uint256& hash) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
@@ -543,7 +547,11 @@ public:
     bool IsTxImmatureCoinStake(const CWalletTx& wtx) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     //! check whether we support the named feature
-    bool CanSupportFeature(enum WalletFeature wf) const override EXCLUSIVE_LOCKS_REQUIRED(cs_wallet) { AssertLockHeld(cs_wallet); return IsFeatureSupported(nWalletVersion, wf); }
+    bool CanSupportFeature(enum WalletFeature wf) const override EXCLUSIVE_LOCKS_REQUIRED(cs_wallet)
+    {
+        AssertLockHeld(cs_wallet);
+        return IsFeatureSupported(nWalletVersion, wf);
+    }
 
     bool IsSpent(const COutPoint& outpoint) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
@@ -568,7 +576,7 @@ public:
     bool IsScanning() const { return fScanningWallet; }
     bool IsScanningWithPassphrase() const { return m_scanning_with_passphrase; }
     SteadyClock::duration ScanningDuration() const { return fScanningWallet ? SteadyClock::now() - m_scanning_start.load() : SteadyClock::duration{}; }
-    double ScanningProgress() const { return fScanningWallet ? (double) m_scanning_progress : 0; }
+    double ScanningProgress() const { return fScanningWallet ? (double)m_scanning_progress : 0; }
 
     //! Upgrade stored CKeyMetadata objects to store key origin info as KeyOriginInfo
     void UpgradeKeyMetadata() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
@@ -576,7 +584,12 @@ public:
     //! Upgrade DescriptorCaches
     void UpgradeDescriptorCache() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
-    bool LoadMinVersion(int nVersion) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet) { AssertLockHeld(cs_wallet); nWalletVersion = nVersion; return true; }
+    bool LoadMinVersion(int nVersion) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet)
+    {
+        AssertLockHeld(cs_wallet);
+        nWalletVersion = nVersion;
+        return true;
+    }
 
     //! Marks destination as previously spent.
     void LoadAddressPreviouslySpent(const CTxDestination& dest) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
@@ -595,14 +608,14 @@ public:
     bool ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase);
     bool EncryptWallet(const SecureString& strWalletPassphrase);
 
-    void GetKeyBirthTimes(std::map<CKeyID, int64_t> &mapKeyBirth) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    void GetKeyBirthTimes(std::map<CKeyID, int64_t>& mapKeyBirth) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     unsigned int ComputeTimeSmart(const CWalletTx& wtx, bool rescanning_old_block) const;
 
     /**
      * Increment the next transaction order id
      * @return next transaction order id
      */
-    int64_t IncOrderPosNext(WalletBatch *batch = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    int64_t IncOrderPosNext(WalletBatch* batch = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     DBErrors ReorderTransactions();
 
     void MarkDirty();
@@ -619,7 +632,7 @@ public:
      * Add the transaction to the wallet, wrapping it up inside a CWalletTx
      * @return the recently added wtx pointer or nullptr if there was a db write error.
      */
-    CWalletTx* AddToWallet(CTransactionRef tx, const TxState& state, const UpdateWalletTxFn& update_wtx=nullptr, bool fFlushOnClose=true, bool rescanning_old_block = false);
+    CWalletTx* AddToWallet(CTransactionRef tx, const TxState& state, const UpdateWalletTxFn& update_wtx = nullptr, bool fFlushOnClose = true, bool rescanning_old_block = false);
     bool LoadToWallet(const uint256& hash, const UpdateWalletTxFn& fill_wtx) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     void transactionAddedToMempool(const CTransactionRef& tx) override;
     void blockConnected(ChainstateRole role, const interfaces::BlockInfo& block) override;
@@ -628,7 +641,9 @@ public:
     int64_t RescanFromTime(int64_t startTime, const WalletRescanReserver& reserver, bool update);
 
     struct ScanResult {
-        enum { SUCCESS, FAILURE, USER_ABORT } status = SUCCESS;
+        enum { SUCCESS,
+               FAILURE,
+               USER_ABORT } status = SUCCESS;
 
         //! Hash and height of most recent block that was successfully scanned.
         //! Unset if no blocks were scanned due to read errors or the chain
@@ -657,7 +672,7 @@ public:
     /** Sign the tx given the input coins and sighash. */
     bool SignTransaction(CMutableTransaction& tx, const std::map<COutPoint, Coin>& coins, int sighash, std::map<int, bilingual_str>& input_errors) const;
     SigningResult SignMessage(const std::string& message, const PKHash& pkhash, std::string& str_sig) const;
-    SigningResult SignBlockHash(const uint256 &hash, const PKHash& pkhash, std::vector<unsigned char>& vchSig) const;
+    SigningResult SignBlockHash(const uint256& hash, const PKHash& pkhash, std::vector<unsigned char>& vchSig) const;
 
     /**
      * Fills out a PSBT with information from the wallet. Fills in UTXOs if we have
@@ -675,12 +690,12 @@ public:
      * return error
      */
     TransactionError FillPSBT(PartiallySignedTransaction& psbtx,
-                  bool& complete,
-                  int sighash_type = SIGHASH_DEFAULT,
-                  bool sign = true,
-                  bool bip32derivs = true,
-                  size_t* n_signed = nullptr,
-                  bool finalize = true) const;
+                              bool& complete,
+                              int sighash_type = SIGHASH_DEFAULT,
+                              bool sign = true,
+                              bool bip32derivs = true,
+                              size_t* n_signed = nullptr,
+                              bool finalize = true) const;
 
     /**
      * Submit the transaction to the node's mempool and then relay to peers.
@@ -731,12 +746,85 @@ public:
     // serves to disable the trivial sendmoney when OS account compromised
     // provides no real security
     std::atomic<bool> m_wallet_unlock_staking_only{false};
-    int64_t m_last_coin_stake_search_interval{0};
+    int64_t m_last_coin_stake_search_interval{0}; // BLACKCOIN-SPECIFIC: Track search time per wallet for performance monitoring
+    int64_t m_last_coin_stake_search_time{0};     // BLACKCOIN-SPECIFIC: Individual wallet timer for multi-wallet staker
+
+    // BLACKCOIN-SPECIFIC: Full stake cache statistics for performance monitoring
+    std::atomic<int64_t> m_stakecache_time_saved{0}; // Track estimated time saved (ms)
+
+    // BLACKCOIN-SPECIFIC: Performance trend tracking
+    double m_stakecache_hit_rate_avg{0.0};      // 10-minute moving average hit rate
+    int64_t m_last_hit_rate_update{0};          // Last update timestamp for moving average
+    std::vector<double> m_hit_rate_history;     // Last 10 hit rates for trend analysis
+    std::vector<int64_t> m_search_time_history; // Last 10 search times for trend analysis
+
+    // BLACKCOIN-SPECIFIC: Cache flush reason tracking
+    enum class CacheFlushReason {
+        SIZE_LIMIT, // Cache grew too large
+        MANUAL,     // Manual flush requested
+        SHUTDOWN,   // Wallet shutdown
+        CLEANUP     // Automatic cleanup of stale entries
+    };
+    CacheFlushReason m_last_flush_reason{CacheFlushReason::SIZE_LIMIT};
+
+    // BLACKCOIN-SPECIFIC: Helper function to calculate cache efficiency
+    // Thread Safety: Uses atomic counters - safe to call from any thread
+    // Note: Total and misses are read atomically but separately, so efficiency
+    // may be slightly inconsistent during high churn. Acceptable for monitoring.
+    double GetCacheEfficiency() const
+    {
+        // BLACKCOIN-SPECIFIC: Memory order relaxed is sufficient for statistics
+        // We don't need strict ordering - this is for observability only
+        uint64_t total = m_stakecache_lookups.load(std::memory_order_relaxed);
+        uint64_t misses = m_stakecache_cache_misses.load(std::memory_order_relaxed);
+        // Avoid division by zero: return 100% if no lookups yet
+        return total > 0 ? (double)(total - misses) / total * 100.0 : 100.0;
+    }
+
+    // BLACKCOIN-SPECIFIC: Update moving average hit rate
+    void UpdateHitRateAverage();
+
+    // BLACKCOIN-SPECIFIC: Log stake cache statistics for performance analysis
+    void LogStakeCacheStats() const;
+
     CAmount m_min_staking_amount{DEFAULT_MIN_STAKING_AMOUNT};
     CAmount m_reserve_balance{DEFAULT_RESERVE_BALANCE};
     unsigned int m_donation_percentage{DEFAULT_DONATION_PERCENTAGE};
     std::atomic<bool> m_enabled_staking{false};
     std::atomic<bool> m_stop_staking_thread{false};
+    // BLACKCOIN-SPECIFIC: Layer 2 of staking cache - caches UTXO blockFromTime and amount to eliminate
+    // disk I/O during kernel checks. Originally from Qtum but with Blackcoin-specific enhancements:
+    // statistics tracking, flush reasons, hit rate monitoring. See agent/STAKECACHE.md for full docs.
+    std::map<COutPoint, CStakeCache> stakeCache GUARDED_BY(cs_wallet);
+    // BLACKCOIN-SPECIFIC: stakeCache is protected by cs_wallet - all accesses must hold this lock
+    
+    // BLACKCOIN-SPECIFIC: Time to sleep after Safety Bump (in milliseconds)
+    // Set by CreateNewBlock when timestamp window is blocked by MTP
+    // Staker uses this to sleep until next available 16-second window
+    std::atomic<int64_t> m_safety_bump_sleep_ms{0};
+
+    // BLACKCOIN-SPECIFIC: Wake staker when new block arrives on active chain
+    // Only triggers when active chain tip advances (updatedBlockTip() callback)
+    // Fork blocks (headers-only) do NOT trigger this - ensures staker only wakes when MTP actually changes
+    // Uses condition variable wait_until() for efficient wake-ups during safety bump sleep
+    std::atomic<bool> m_new_block_arrived{false};
+    std::condition_variable cv_new_block;
+    std::mutex cv_block_mutex;
+
+    /**
+     * BLACKCOIN-SPECIFIC: Stake cache statistics counters
+     * These counters track stake cache usage for observability.
+     * Not present in upstream Qtum - Blackcoin enhancement for debugging/monitoring.
+     * Exposed via getstakinginfo RPC under "stakecache" object.
+     */
+    std::atomic<uint64_t> m_stakecache_hits{0};                  // Times kernel found (Lottery win)
+    std::atomic<uint64_t> m_stakecache_lookups{0};               // Total internal cache lookups
+    std::atomic<uint64_t> m_stakecache_cache_misses{0};          // Times data not in cache (Disk Read)
+    std::atomic<uint64_t> m_stakecache_blocks{0};                // Blocks successfully staked using cache
+    std::atomic<uint64_t> m_stakecache_flushes{0};               // Times cache was cleared
+    std::atomic<bool> m_stakecache_initial_load_complete{false}; // BLACKCOIN-SPECIFIC: Gate stats until warm
+    std::atomic<double> m_stakecache_efficiency_avg{0.0};        // BLACKCOIN-SPECIFIC: Average efficiency trend
+
     uint64_t GetStakeWeight() const;
 
     /** Number of pre-generated keys/scripts by each spkm (part of the look-ahead process, used to detect payments) */
@@ -822,7 +910,11 @@ public:
     void SetMinVersion(enum WalletFeature, WalletBatch* batch_in = nullptr) override;
 
     //! get the current wallet format (the oldest client version guaranteed to understand this wallet)
-    int GetVersion() const { LOCK(cs_wallet); return nWalletVersion; }
+    int GetVersion() const
+    {
+        LOCK(cs_wallet);
+        return nWalletVersion;
+    }
 
     //! Get wallet transactions that conflict with given transaction (spend same outputs)
     std::set<uint256> GetConflicts(const uint256& txid) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
@@ -837,7 +929,7 @@ public:
     void Close();
 
     /** Wallet is about to be unloaded */
-    boost::signals2::signal<void ()> NotifyUnload;
+    boost::signals2::signal<void()> NotifyUnload;
 
     /**
      * Address book entry changed.
@@ -855,19 +947,19 @@ public:
     boost::signals2::signal<void(const uint256& hashTx, ChangeType status)> NotifyTransactionChanged;
 
     /** Show progress e.g. for rescan */
-    boost::signals2::signal<void (const std::string &title, int nProgress)> ShowProgress;
+    boost::signals2::signal<void(const std::string& title, int nProgress)> ShowProgress;
 
     /** Watch-only address added */
-    boost::signals2::signal<void (bool fHaveWatchOnly)> NotifyWatchonlyChanged;
+    boost::signals2::signal<void(bool fHaveWatchOnly)> NotifyWatchonlyChanged;
 
     /** Keypool has new keys */
-    boost::signals2::signal<void ()> NotifyCanGetAddressesChanged;
+    boost::signals2::signal<void()> NotifyCanGetAddressesChanged;
 
     /**
      * Wallet status (encrypted, locked) changed.
      * Note: Called without locks held.
      */
-    boost::signals2::signal<void (CWallet* wallet)> NotifyStatusChanged;
+    boost::signals2::signal<void(CWallet* wallet)> NotifyStatusChanged;
 
     /** Inquire whether this wallet broadcasts transactions. */
     bool GetBroadcastTransactions() const { return fBroadcastTransactions; }
@@ -965,6 +1057,9 @@ public:
     std::unique_ptr<SigningProvider> GetSolvingProvider(const CScript& script) const;
     std::unique_ptr<SigningProvider> GetSolvingProvider(const CScript& script, SignatureData& sigdata) const;
 
+    // BLACKCOIN-SPECIFIC: Fast public key lookup
+    bool GetPubKey(const CScript& script, const CKeyID& address, CPubKey& pubkey) const;
+
     //! Get the wallet descriptors for a script.
     std::vector<WalletDescriptor> GetWalletDescriptors(const CScript& script) const;
 
@@ -975,7 +1070,7 @@ public:
     //! Make a LegacyScriptPubKeyMan and set it for all types, internal, and external.
     void SetupLegacyScriptPubKeyMan();
 
-    bool WithEncryptionKey(std::function<bool (const CKeyingMaterial&)> cb) const override;
+    bool WithEncryptionKey(std::function<bool(const CKeyingMaterial&)> cb) const override;
 
     bool HasEncryptionKeys() const override;
 
@@ -1089,6 +1184,7 @@ private:
     CWallet& m_wallet;
     bool m_could_reserve{false};
     NowFn m_now;
+
 public:
     explicit WalletRescanReserver(CWallet& w) : m_wallet(w) {}
 

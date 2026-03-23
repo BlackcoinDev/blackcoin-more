@@ -133,7 +133,10 @@ bool BlockTreeDB::LoadBlockIndexGuts(const Consensus::Params& consensusParams, s
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
 
-                // peercoin/blackcoin related block index fields
+                // UPGRADE NOTE: CRITICAL PoS fields - NOT present in Bitcoin Core
+                // nFlags: Marks PoS blocks (BLOCK_PROOF_OF_STAKE)
+                // nStakeModifier: Required for PoS kernel hash validation
+                // Bitcoin 30.x does NOT have these fields - must be preserved
                 pindexNew->nFlags         = diskindex.nFlags;
                 pindexNew->nStakeModifier = diskindex.nStakeModifier;
 
@@ -250,148 +253,42 @@ CBlockIndex* BlockManager::AddToBlockIndex(const CBlockHeader& block, CBlockInde
     return pindexNew;
 }
 
+// Blackcoin: Pruning completely removed - this function should never be called
 void BlockManager::PruneOneBlockFile(const int fileNumber)
 {
+    // Blackcoin: Staking requires complete blockchain - pruning disabled
+    // This function is kept for API compatibility but should never execute
     AssertLockHeld(cs_main);
-    LOCK(cs_LastBlockFile);
-
-    for (auto& entry : m_block_index) {
-        CBlockIndex* pindex = &entry.second;
-        if (pindex->nFile == fileNumber) {
-            pindex->nStatus &= ~BLOCK_HAVE_DATA;
-            pindex->nStatus &= ~BLOCK_HAVE_UNDO;
-            pindex->nFile = 0;
-            pindex->nDataPos = 0;
-            pindex->nUndoPos = 0;
-            m_dirty_blockindex.insert(pindex);
-
-            // Prune from m_blocks_unlinked -- any block we prune would have
-            // to be downloaded again in order to consider its chain, at which
-            // point it would be considered as a candidate for
-            // m_blocks_unlinked or setBlockIndexCandidates.
-            auto range = m_blocks_unlinked.equal_range(pindex->pprev);
-            while (range.first != range.second) {
-                std::multimap<CBlockIndex*, CBlockIndex*>::iterator _it = range.first;
-                range.first++;
-                if (_it->second == pindex) {
-                    m_blocks_unlinked.erase(_it);
-                }
-            }
-        }
-    }
-
-    m_blockfile_info.at(fileNumber) = CBlockFileInfo{};
-    m_dirty_fileinfo.insert(fileNumber);
+    // No-op: pruning is permanently disabled in Blackcoin
 }
 
+// Blackcoin: Pruning completely removed - manual pruning disabled
 void BlockManager::FindFilesToPruneManual(
     std::set<int>& setFilesToPrune,
     int nManualPruneHeight,
     const Chainstate& chain,
     ChainstateManager& chainman)
 {
-    assert(IsPruneMode() && nManualPruneHeight > 0);
-
-    LOCK2(cs_main, cs_LastBlockFile);
-    if (chain.m_chain.Height() < 0) {
-        return;
-    }
-
-    const auto [min_block_to_prune, last_block_can_prune] = chainman.GetPruneRange(chain, nManualPruneHeight);
-
-    int count = 0;
-    for (int fileNumber = 0; fileNumber < this->MaxBlockfileNum(); fileNumber++) {
-        const auto& fileinfo = m_blockfile_info[fileNumber];
-        if (fileinfo.nSize == 0 || fileinfo.nHeightLast > (unsigned)last_block_can_prune || fileinfo.nHeightFirst < (unsigned)min_block_to_prune) {
-            continue;
-        }
-
-        PruneOneBlockFile(fileNumber);
-        setFilesToPrune.insert(fileNumber);
-        count++;
-    }
-    LogPrintf("[%s] Prune (Manual): prune_height=%d removed %d blk/rev pairs\n",
-        chain.GetRole(), last_block_can_prune, count);
+    // Blackcoin: Staking requires complete blockchain - manual pruning disabled
+    // This function is kept for API compatibility but should never execute
+    // Return empty set - no files to prune
+    return;
 }
 
+// Blackcoin: Pruning completely removed - this function should never prune
 void BlockManager::FindFilesToPrune(
     std::set<int>& setFilesToPrune,
     int last_prune,
     const Chainstate& chain,
     ChainstateManager& chainman)
 {
+    // Blackcoin: Staking requires complete blockchain - pruning permanently disabled
+    // This function is kept for API compatibility but will never prune
     LOCK2(cs_main, cs_LastBlockFile);
-    // Distribute our -prune budget over all chainstates.
-    const auto target = std::max(
-        MIN_DISK_SPACE_FOR_BLOCK_FILES, GetPruneTarget() / chainman.GetAll().size());
-    const uint64_t target_sync_height = chainman.m_best_header->nHeight;
-
-    if (chain.m_chain.Height() < 0 || target == 0) {
-        return;
-    }
-    if (static_cast<uint64_t>(chain.m_chain.Height()) <= chainman.GetParams().PruneAfterHeight()) {
-        return;
-    }
-
-    const auto [min_block_to_prune, last_block_can_prune] = chainman.GetPruneRange(chain, last_prune);
-
-    uint64_t nCurrentUsage = CalculateCurrentUsage();
-    // We don't check to prune until after we've allocated new space for files
-    // So we should leave a buffer under our target to account for another allocation
-    // before the next pruning.
-    uint64_t nBuffer = BLOCKFILE_CHUNK_SIZE + UNDOFILE_CHUNK_SIZE;
-    uint64_t nBytesToPrune;
-    int count = 0;
-
-    if (nCurrentUsage + nBuffer >= target) {
-        // On a prune event, the chainstate DB is flushed.
-        // To avoid excessive prune events negating the benefit of high dbcache
-        // values, we should not prune too rapidly.
-        // So when pruning in IBD, increase the buffer to avoid a re-prune too soon.
-        const auto chain_tip_height = chain.m_chain.Height();
-        if (chainman.IsInitialBlockDownload() && target_sync_height > (uint64_t)chain_tip_height) {
-            // Since this is only relevant during IBD, we assume blocks are at least 1 MB on average
-            static constexpr uint64_t average_block_size = 1000000;  /* 1 MB */
-            const uint64_t remaining_blocks = target_sync_height - chain_tip_height;
-            nBuffer += average_block_size * remaining_blocks;
-        }
-
-        for (int fileNumber = 0; fileNumber < this->MaxBlockfileNum(); fileNumber++) {
-            const auto& fileinfo = m_blockfile_info[fileNumber];
-            nBytesToPrune = fileinfo.nSize + fileinfo.nUndoSize;
-
-            if (fileinfo.nSize == 0) {
-                continue;
-            }
-
-            if (nCurrentUsage + nBuffer < target) { // are we below our target?
-                break;
-            }
-
-            // don't prune files that could have a block that's not within the allowable
-            // prune range for the chain being pruned.
-            if (fileinfo.nHeightLast > (unsigned)last_block_can_prune || fileinfo.nHeightFirst < (unsigned)min_block_to_prune) {
-                continue;
-            }
-
-            PruneOneBlockFile(fileNumber);
-            // Queue up the files for removal
-            setFilesToPrune.insert(fileNumber);
-            nCurrentUsage -= nBytesToPrune;
-            count++;
-        }
-    }
-
-    LogPrint(BCLog::PRUNE, "[%s] target=%dMiB actual=%dMiB diff=%dMiB min_height=%d max_prune_height=%d removed %d blk/rev pairs\n",
-             chain.GetRole(), target / 1024 / 1024, nCurrentUsage / 1024 / 1024,
-             (int64_t(target) - int64_t(nCurrentUsage)) / 1024 / 1024,
-             min_block_to_prune, last_block_can_prune, count);
+    // Return empty set - no files to prune
+    return;
 }
-
-void BlockManager::UpdatePruneLock(const std::string& name, const PruneLockInfo& lock_info) {
-    AssertLockHeld(::cs_main);
-    m_prune_locks[name] = lock_info;
-}
+// Blackcoin: UpdatePruneLock function removed - pruning disabled
 
 
 CBlockIndex* BlockManager::InsertBlockIndex(const uint256& hash)
@@ -611,10 +508,12 @@ bool BlockManager::CheckSyncCheckpoint(int nHeight, const CBlockIndex *pindexBes
     return true;
 }
 
+// Blackcoin: Pruning disabled - blocks are never pruned
 bool BlockManager::IsBlockPruned(const CBlockIndex& block)
 {
     AssertLockHeld(::cs_main);
-    return m_have_pruned && !(block.nStatus & BLOCK_HAVE_DATA) && (block.nTx > 0);
+    // Blackcoin: Staking requires complete blockchain - pruning never occurs
+    return false;
 }
 
 const CBlockIndex* BlockManager::GetFirstStoredBlock(const CBlockIndex& upper_block, const CBlockIndex* lower_block)

@@ -33,7 +33,7 @@ static const unsigned int MAX_CMPCTBLOCKS_INFLIGHT_PER_BLOCK = 3;
 /** Default for -headerspamfilter, use header spam filter */
 static const bool DEFAULT_HEADER_SPAM_FILTER = true;
 /** Default for -headerspamfiltermaxsize, maximum size of the list of indexes in the header spam filter */
-static const unsigned int DEFAULT_HEADER_SPAM_FILTER_MAX_SIZE = 500;
+static const unsigned int DEFAULT_HEADER_SPAM_FILTER_MAX_SIZE = 2000;
 /** Default for -headerspamfiltermaxavg, maximum average size of an index occurrence in the header spam filter */
 static const unsigned int DEFAULT_HEADER_SPAM_FILTER_MAX_AVG = 10;
 /** Default for -headerspamfilterignoreport, ignore the port in the ip address when looking for header spam,
@@ -81,7 +81,7 @@ public:
     static std::unique_ptr<PeerManager> make(CConnman& connman, AddrMan& addrman,
                                              BanMan* banman, ChainstateManager& chainman,
                                              CTxMemPool& pool, Options opts);
-    virtual ~PeerManager() { }
+    virtual ~PeerManager() {}
 
     /**
      * Attempt to manually fetch block from a given peer. We must already have the header.
@@ -146,7 +146,7 @@ public:
      * guaranteed to not change dependent on state - ie they are suitable for
      * use when describing peers which we know to be desirable, but for which
      * we do not have a confirmed set of service flags.
-    */
+     */
     virtual ServiceFlags GetDesirableServiceFlags(ServiceFlags services) const = 0;
 };
 

@@ -8,7 +8,7 @@
 #include <consensus/amount.h>
 #include <interfaces/chain.h>
 #include <interfaces/handler.h>
-#include <policy/fees.h>
+#include <policy/feerate.h>
 #include <primitives/transaction.h>
 #include <rpc/server.h>
 #include <scheduler.h>
@@ -25,6 +25,7 @@
 #include <wallet/load.h>
 #include <wallet/receive.h>
 #include <wallet/rpc/wallet.h>
+#include <wallet/rpc/staking.h>
 #include <wallet/spend.h>
 #include <wallet/wallet.h>
 
@@ -590,6 +591,7 @@ public:
     {
         std::vector<Span<const CRPCCommand>> commands;
         commands.push_back(GetWalletRPCCommands());
+        commands.push_back(GetStakingRPCCommands());
 
         for(size_t i = 0; i < commands.size(); i++) {
             for (const CRPCCommand& command : commands[i]) {

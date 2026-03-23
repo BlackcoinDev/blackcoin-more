@@ -203,10 +203,7 @@ OptionsDialog::OptionsDialog(QWidget* parent, bool enableWallet)
         ui->minimizeToTray->setEnabled(false);
     }
 
-    // Blackcoin More: Font options UI not available
-    /*
     setupFontOptions(ui->moneyFont, ui->moneyFont_preview);
-    */
 
     GUIUtil::handleCloseWindowShortcut(this);
 }
@@ -240,11 +237,8 @@ void OptionsDialog::setModel(OptionsModel *_model)
         setMapper();
         mapper->toFirst();
 
-        // Blackcoin More: Font options UI not available
-        /*
         const auto& font_for_money = _model->data(_model->index(OptionsModel::FontForMoney, 0), Qt::EditRole).value<OptionsModel::FontChoice>();
         setFontChoice(ui->moneyFont, font_for_money);
-        */
 
         updateDefaultProxyNets();
     }
@@ -383,10 +377,7 @@ void OptionsDialog::on_openBitcoinConfButton_clicked()
 
 void OptionsDialog::on_okButton_clicked()
 {
-    // Blackcoin More: Font options UI not available
-    /*
     model->setData(model->index(OptionsModel::FontForMoney, 0), ui->moneyFont->itemData(ui->moneyFont->currentIndex()));
-    */
 
     mapper->submit();
     accept();

@@ -11,7 +11,8 @@
 #include <cstdint>
 #include <vector>
 
-static const int64_t DEFAULT_MAX_TIME_ADJUSTMENT = 70 * 60;
+// Blackcoin: Timejacking protection. NTP sync is mandatory for staking security.
+static const int64_t DEFAULT_MAX_TIME_ADJUSTMENT = 0;
 
 class CNetAddr;
 
@@ -118,7 +119,7 @@ int64_t GetAdjustedTimeSeconds();
  * this file will fail to compile, protecting PoS functionality.
  */
 static_assert(std::is_invocable_v<decltype(GetAdjustedTime)>,
-    "ERROR: GetAdjustedTime() has been removed! This is CRITICAL for PoS validation. "
-    "Blackcoin More MUST preserve this function. See UPGRADE.md Section 10.");
+              "ERROR: GetAdjustedTime() has been removed! This is CRITICAL for PoS validation. "
+              "Blackcoin More MUST preserve this function. See UPGRADE.md Section 10.");
 
 #endif // BITCOIN_TIMEDATA_H

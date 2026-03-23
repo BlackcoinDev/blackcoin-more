@@ -6,21 +6,22 @@
 // Stake cache by Qtum
 // Copyright (c) 2016-2018 The Qtum developers
 
-#include <pos.h>
-#include <txdb.h>
+#include <arith_uint256.h>
 #include <chain.h>
 #include <chainparams.h>
 #include <clientversion.h>
 #include <coins.h>
+#include <consensus/consensus.h>
 #include <hash.h>
-#include <timedata.h>
-#include <validation.h>
-#include <arith_uint256.h>
-#include <uint256.h>
+#include <key_io.h>
+#include <pos.h>
 #include <primitives/transaction.h>
 #include <script/sign.h>
-#include <consensus/consensus.h>
 #include <stdio.h>
+#include <timedata.h>
+#include <txdb.h>
+#include <uint256.h>
+#include <validation.h>
 
 using namespace std;
 
@@ -52,7 +53,7 @@ bool CheckCoinStakeTimestamp(int64_t nTimeBlock, int64_t nTimeTx)
 // Simplified version of CheckCoinStakeTimestamp() to check header-only timestamp
 bool CheckStakeBlockTimestamp(int64_t nTimeBlock)
 {
-   return CheckCoinStakeTimestamp(nTimeBlock, nTimeBlock);
+    return CheckCoinStakeTimestamp(nTimeBlock, nTimeBlock);
 }
 
 // BlackCoin kernel protocol v3
@@ -84,7 +85,7 @@ bool CheckStakeBlockTimestamp(int64_t nTimeBlock)
 //
 bool CheckStakeKernelHash(const CBlockIndex* pindexPrev, unsigned int nBits, uint32_t blockFromTime, CAmount prevoutValue, const COutPoint& prevout, unsigned int nTimeTx, bool fPrintProofOfStake)
 {
-    if (nTimeTx < blockFromTime)  // Transaction timestamp violation
+    if (nTimeTx < blockFromTime) // Transaction timestamp violation
         return error("CheckStakeKernelHash() : nTime violation");
 
     // Base target
@@ -107,24 +108,22 @@ bool CheckStakeKernelHash(const CBlockIndex* pindexPrev, unsigned int nBits, uin
 
     uint256 hashProofOfStake = ss.GetHash();
 
-    if (fPrintProofOfStake)
-    {
+    if (fPrintProofOfStake) {
         LogPrintf("CheckStakeKernelHash() : nStakeModifier=%s, txPrev.nTime=%u, txPrev.vout.hash=%s, txPrev.vout.n=%u, nTimeTx=%u, hashProof=%s\n",
-            nStakeModifier.GetHex().c_str(),
-            blockFromTime, prevout.hash.ToString(), prevout.n, nTimeTx,
-            hashProofOfStake.ToString());
+                  nStakeModifier.GetHex().c_str(),
+                  blockFromTime, prevout.hash.ToString(), prevout.n, nTimeTx,
+                  hashProofOfStake.ToString());
     }
 
     // Now check if proof-of-stake hash meets target protocol
     if (UintToArith256(hashProofOfStake) > bnTarget)
         return false;
-        
-    if (LogInstance().WillLogCategory(BCLog::COINSTAKE) && !fPrintProofOfStake)
-    {
+
+    if (LogInstance().WillLogCategory(BCLog::COINSTAKE) && !fPrintProofOfStake) {
         LogPrintf("CheckStakeKernelHash() : nStakeModifier=%s, txPrev.nTime=%u, txPrev.vout.hash=%s, txPrev.vout.n=%u, nTimeTx=%u, hashProof=%s\n",
-            nStakeModifier.GetHex().c_str(),
-            blockFromTime, prevout.hash.ToString(), prevout.n, nTimeTx,
-            hashProofOfStake.ToString());
+                  nStakeModifier.GetHex().c_str(),
+                  blockFromTime, prevout.hash.ToString(), prevout.n, nTimeTx,
+                  hashProofOfStake.ToString());
     }
 
     return true;
@@ -138,7 +137,7 @@ bool CheckProofOfStake(CBlockIndex* pindexPrev, const CTransaction& tx, unsigned
 
     // Kernel (input 0) must match the stake hash target per coin age (nBits)
     const CTxIn& txin = tx.vin[0];
-    
+
     Coin coinPrev;
 
     if (!view.GetCoin(txin.prevout, coinPrev)) {
@@ -146,7 +145,7 @@ bool CheckProofOfStake(CBlockIndex* pindexPrev, const CTransaction& tx, unsigned
     }
 
     // Min age requirement
-    if (pindexPrev->nHeight + 1 - coinPrev.nHeight < Params().GetConsensus().nCoinbaseMaturity){
+    if (pindexPrev->nHeight + 1 - coinPrev.nHeight < Params().GetConsensus().nCoinbaseMaturity) {
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "stake-prevout-not-mature", strprintf("CheckProofOfStake() : Stake prevout is not mature, expecting %i and only matured to %i", Params().GetConsensus().nCoinbaseMaturity, pindexPrev->nHeight + 1 - coinPrev.nHeight));
     }
 
@@ -165,7 +164,8 @@ bool CheckProofOfStake(CBlockIndex* pindexPrev, const CTransaction& tx, unsigned
     return true;
 }
 
-bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, uint32_t nTime, const COutPoint& prevout, CCoinsViewCache& view){
+bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, uint32_t nTime, const COutPoint& prevout, CCoinsViewCache& view)
+{
     std::map<COutPoint, CStakeCache> tmp;
     return CheckKernel(pindexPrev, nBits, nTime, prevout, view, tmp);
 }
@@ -176,6 +176,8 @@ bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, uint32_t nTime, co
 
     if (it == cache.end()) {
         // not found in cache (shouldn't happen during staking, only during verification which does not use cache)
+        if (!cache.empty())
+            LogPrint(BCLog::COINSTAKE, "CheckKernel: cache MISS for %s:%d (cache size=%d)\n", prevout.hash.ToString(), prevout.n, cache.size());
         Coin coinPrev;
         if (!view.GetCoin(prevout, coinPrev)) {
             return false;
@@ -197,9 +199,19 @@ bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, uint32_t nTime, co
         return CheckStakeKernelHash(pindexPrev, nBits, (coinPrev.nTime ? coinPrev.nTime : blockFrom->nTime), coinPrev.out.nValue, prevout, nTime);
     } else {
         // found in cache
+        // BLACKCOIN-SPECIFIC: Include address in log for easier debugging
+        std::string addressStr = "unknown";
+        Coin coinForLog;
+        if (view.GetCoin(prevout, coinForLog)) {
+            CTxDestination dest;
+            if (ExtractDestination(coinForLog.out.scriptPubKey, dest)) {
+                addressStr = EncodeDestination(dest);
+            }
+        }
         const CStakeCache& stake = it->second;
         if (CheckStakeKernelHash(pindexPrev, nBits, stake.blockFromTime, stake.amount, prevout, nTime)) {
-            // Cache could potentially cause false positive stakes in the event of deep reorgs, so check without cache also return CheckKernel(pindexPrev, nBits, nTime, prevout, view); }
+            // Cache could potentially cause false positive stakes in the event of deep reorgs, so check without cache also
+            LogPrint(BCLog::COINSTAKE, "CheckKernel: cache hit SUCCESS, re-validating without cache...\n");
             return CheckKernel(pindexPrev, nBits, nTime, prevout, view);
         }
     }
@@ -209,7 +221,7 @@ bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, uint32_t nTime, co
 void CacheKernel(std::map<COutPoint, CStakeCache>& cache, const COutPoint& prevout, CBlockIndex* pindexPrev, CCoinsViewCache& view)
 {
     if (cache.find(prevout) != cache.end()) {
-        //already in cache
+        // already in cache
         return;
     }
 

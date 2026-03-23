@@ -35,8 +35,7 @@
 #include <node/peerman_args.h>
 #include <node/validation_cache_args.h>
 #include <noui.h>
-#include <policy/fees.h>
-#include <policy/fees_args.h>
+#include <policy/feerate.h>
 #include <pow.h>
 #include <random.h>
 #include <rpc/blockchain.h>
@@ -52,7 +51,7 @@
 #include <txmempool.h>
 #include <util/chaintype.h>
 #include <util/check.h>
-#include <util/rbf.h>
+
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/thread.h>
@@ -185,12 +184,12 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
     const ChainstateManager::Options chainman_opts{
         .chainparams = chainparams,
         .datadir = m_args.GetDataDirNet(),
-        // UPGRADE NOTE: GetAdjustedTime callback is REQUIRED for PoS timestamp validation
-        // GetAdjustedTime() is REMOVED in Bitcoin 28.x - MUST preserve in Blackcoin More
-        .adjusted_time_callback = GetAdjustedTime,
         .check_block_index = true,
         .notifications = *m_node.notifications,
         .worker_threads_num = 2,
+        // UPGRADE NOTE: GetAdjustedTime callback is REQUIRED for PoS timestamp validation
+        // GetAdjustedTime() is REMOVED in Bitcoin 28.x - MUST preserve in Blackcoin More
+        .adjusted_time_callback = GetAdjustedTime,
     };
     const BlockManager::Options blockman_opts{
         .chainparams = chainman_opts.chainparams,
@@ -215,7 +214,6 @@ ChainTestingSetup::~ChainTestingSetup()
     m_node.netgroupman.reset();
     m_node.args = nullptr;
     m_node.mempool.reset();
-    m_node.fee_estimator.reset();
     m_node.chainman.reset();
     m_node.scheduler.reset();
 }
@@ -363,7 +361,7 @@ std::pair<CMutableTransaction, CAmount> TestChain100Setup::CreateValidTransactio
     mempool_txn.vout.reserve(outputs.size());
 
     for (const auto& outpoint : inputs) {
-        mempool_txn.vin.emplace_back(outpoint, CScript(), MAX_BIP125_RBF_SEQUENCE);
+        mempool_txn.vin.emplace_back(outpoint, CScript(), 0xffffffff);
     }
     mempool_txn.vout = outputs;
 

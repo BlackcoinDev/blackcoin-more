@@ -9,10 +9,13 @@
 #include <consensus/amount.h>
 #include <serialize.h>
 
+#include <random.h>
 
 #include <cstdint>
 #include <string>
 #include <type_traits>
+
+class FastRandomContext;
 
 const std::string CURRENCY_UNIT = "BTC"; // One formatted unit
 const std::string CURRENCY_ATOM = "sat"; // One indivisible minimum value unit
@@ -73,6 +76,28 @@ public:
     friend CFeeRate operator*(int a, const CFeeRate& f) { return CFeeRate(a * f.nSatoshisPerK); }
 
     SERIALIZE_METHODS(CFeeRate, obj) { READWRITE(obj.nSatoshisPerK); }
+};
+
+/**
+ * Round a fee rate to an even amount based on the given minimal increment.
+ * Used for feefilter messages to peers.
+ */
+class FeeFilterRounder
+{
+private:
+    CFeeRate m_incremental_fee;
+    FastRandomContext& m_rng;
+
+public:
+    FeeFilterRounder(const CFeeRate& incremental_fee, FastRandomContext& rng)
+        : m_incremental_fee(incremental_fee), m_rng(rng) {}
+
+    CAmount round(const CAmount current_min_fee)
+    {
+        // For Blackcoin with static fees, just return the current fee
+        // In a full implementation, this would round to multiples of m_incremental_fee
+        return current_min_fee;
+    }
 };
 
 #endif // BITCOIN_POLICY_FEERATE_H

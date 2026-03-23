@@ -903,9 +903,9 @@ RPCHelpMan rescanblockchain()
             }
         }
 
-        // We can't rescan beyond non-pruned blocks, stop and throw an error
+        // Check that we have the required blocks for rescanning
         if (!pwallet->chain().hasBlocks(pwallet->GetLastBlockHash(), start_height, stop_height)) {
-            throw JSONRPCError(RPC_MISC_ERROR, "Can't rescan beyond pruned data. Use RPC call getblockchaininfo to determine your pruned height."); // peercoin: should never happen
+            throw JSONRPCError(RPC_MISC_ERROR, "Can't rescan: required blocks are not available.");
         }
 
         CHECK_NONFATAL(pwallet->chain().findAncestorByHeight(pwallet->GetLastBlockHash(), start_height, FoundBlock().hash(start_block)));

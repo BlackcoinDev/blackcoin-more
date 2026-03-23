@@ -22,7 +22,7 @@
 #include <interfaces/node.h>
 #include <key_io.h>
 #include <node/interface_ui.h>
-#include <policy/fees.h>
+#include <policy/feerate.h>
 #include <txmempool.h>
 #include <validation.h>
 #include <wallet/coincontrol.h>

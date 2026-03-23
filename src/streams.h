@@ -160,6 +160,7 @@ protected:
     using vector_type = SerializeData;
     vector_type vch;
     vector_type::size_type m_read_pos{0};
+    int nType{0};
 
 public:
     typedef vector_type::allocator_type   allocator_type;
@@ -181,10 +182,10 @@ public:
         return std::string{UCharCast(data()), UCharCast(data() + size())};
     }
 
-    // Blackcoin: compatibility methods
-    int GetType() const { return 0; }
-    void SetType(int n) {}
-    int GetVersion() const { return 0; }
+    // Blackcoin: compatibility methods for PoS serialization flags
+    int GetType() const          { return nType; }
+    void SetType(int n)          { nType = n; }
+    int GetVersion() const       { return 0; }
 
 
     //

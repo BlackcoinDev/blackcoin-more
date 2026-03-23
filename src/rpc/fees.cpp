@@ -5,7 +5,6 @@
 
 #include <core_io.h>
 #include <policy/feerate.h>
-#include <policy/fees.h>
 #include <rpc/protocol.h>
 #include <rpc/request.h>
 #include <rpc/server.h>

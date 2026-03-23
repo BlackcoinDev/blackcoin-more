@@ -896,6 +896,11 @@ void PoSMiner(CWallet* pwallet)
                     
                     if (!SleepStaker(pwallet, sleepTime))
                         return;
+
+                    // BLACKCOIN-SPECIFIC: Diagnostic log confirming successful wake-up from Safety Bump
+                    if (safetyBumpSleep > 0) {
+                        LogPrint(BCLog::COINSTAKE, "Minter: Woke up from safety bump sleep, resuming staking search\n");
+                    }
                     continue;
                 }
                 pwallet->WalletLogPrintf("Error in PoSMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");

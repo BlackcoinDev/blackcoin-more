@@ -11,8 +11,9 @@
 
 #include <cassert>
 
-/** Expiration time for orphan transactions in seconds */
-static constexpr int64_t ORPHAN_TX_EXPIRE_TIME = 20 * 60;
+/** Expiration time for orphan transactions in seconds
+ * BLACKCOIN-SPECIFIC: 5 minutes ≈ 5 blocks at 64s spacing (was 20 min = 18 blocks) */
+static constexpr int64_t ORPHAN_TX_EXPIRE_TIME = 5 * 60;
 /** Minimum time between orphan transactions expire time checks in seconds */
 static constexpr int64_t ORPHAN_TX_EXPIRE_INTERVAL = 5 * 60;
 

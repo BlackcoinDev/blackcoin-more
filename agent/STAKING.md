@@ -4,6 +4,11 @@
 
 This guide provides a comprehensive technical analysis of Blackcoin More's Proof-of-Stake (PoS) v3.1 protocol. It documents the low-level consensus logic, memory-pool safety mechanisms, and P2P hardening strategies required for professional infrastructure.
 
+**Related Documents**:
+- `SYNC_ARCHITECTURE.md` - Synchronization parameters analysis (block time impact)
+- `STAKECACHE.md` - 3-layer staking cache architecture
+- `BLOCK_SERIALIZATION.md` - PoS block structure documentation
+
 ---
 
 ## 1. PoS v3.1 Kernel Protocol (Deep Dive)

@@ -39,6 +39,7 @@ Non-standard AI agent documentation directory. Contains project-specific knowled
 | `DESCRIPTOR_STAKING.md` | Staking analysis (Legacy vs Descriptor wallets) |
 | `STAKECACHE.md` | Stake cache documentation (3-layer architecture) |
 | `STAKING.md` | General staking documentation |
+| `SYNC_ARCHITECTURE.md` | **Sync parameters analysis** (block time differences, timeout tuning) |
 | `CHECKKERNEL.md` | Kernel validation checks |
 | `ANALYSIS.md` | Comprehensive codebase analysis |
 | `fee_rbf_analysis.md` | Fee and RBF analysis |
@@ -55,6 +56,16 @@ Documents PoS-specific block structure elements:
 - `CDiskBlockIndex::nStakeModifier` — Stake modifier for kernel hash
 
 **⚠️ MUST READ before any serialization changes.**
+
+### SYNC_ARCHITECTURE.md
+
+Documents synchronization parameter differences between Bitcoin Core and Blackcoin More:
+- Timeout constants tuned for 64-second block time
+- `STALE_CHECK_INTERVAL`, `STALE_RELAY_AGE_LIMIT` adjustments
+- `GetAdjustedTime()` preservation in headers sync
+- `CompressedHeader.nFlags` extension for PoS
+
+**⚠️ MUST READ before modifying any sync-related constants.**
 
 ### STAKECACHE.md
 

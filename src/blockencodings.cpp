@@ -31,7 +31,8 @@ CBlockHeaderAndShortTxIDs::CBlockHeaderAndShortTxIDs(const CBlock& block) :
 }
 
 void CBlockHeaderAndShortTxIDs::FillShortTxIDSelector() const {
-    CDataStream stream(SER_NETWORK);
+    DataStream stream{};
+    stream.SetType(SER_NETWORK | SER_POSMARKER); // BLACKCOIN-SPECIFIC: SER_POSMARKER required to include nFlags (PoS marker) in the short ID calculation
     stream << header << nonce;
     CSHA256 hasher;
     hasher.Write((unsigned char*)&(*stream.begin()), stream.end() - stream.begin());

@@ -206,7 +206,8 @@ bool DecodeHexBlockHeader(CBlockHeader& header, const std::string& hex_header)
     if (!IsHex(hex_header)) return false;
 
     const std::vector<unsigned char> header_data{ParseHex(hex_header)};
-    CDataStream ser_header(header_data, SER_NETWORK);
+    DataStream ser_header{header_data};
+    ser_header.SetType(SER_NETWORK | SER_POSMARKER); // BLACKCOIN-SPECIFIC: Include nFlags
     try {
         ser_header >> header;
     } catch (const std::exception&) {
@@ -221,7 +222,8 @@ bool DecodeHexBlk(CBlock& block, const std::string& strHexBlk)
         return false;
 
     std::vector<unsigned char> blockData(ParseHex(strHexBlk));
-    CDataStream ssBlock(blockData, SER_NETWORK);
+    DataStream ssBlock{blockData};
+    ssBlock.SetType(SER_NETWORK | SER_POSMARKER); // BLACKCOIN-SPECIFIC: Include nFlags
     try {
         ssBlock >> TX_WITH_WITNESS(block);
     }

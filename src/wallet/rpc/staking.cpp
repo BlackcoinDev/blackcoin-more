@@ -375,7 +375,8 @@ static RPCHelpMan checkkernel()
             // Rebuild merkle root after timestamp change
             pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
 
-            CDataStream ss(SER_DISK);
+            DataStream ss{};
+            ss.SetType(SER_DISK | SER_POSMARKER);
             ss << RPCTxSerParams(*pblock);
 
             result.pushKV("blocktemplate", HexStr(ss));

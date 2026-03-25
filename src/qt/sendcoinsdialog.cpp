@@ -284,7 +284,8 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
 void SendCoinsDialog::presentPSBT(PartiallySignedTransaction& psbtx)
 {
     // Serialize the PSBT
-    CDataStream ssTx(SER_NETWORK);
+    DataStream ssTx{};
+    ssTx.SetType(SER_NETWORK);
     ssTx << psbtx;
     GUIUtil::setClipboard(EncodeBase64(ssTx.str()).c_str());
     QMessageBox msgBox(this);

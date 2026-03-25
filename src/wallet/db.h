@@ -66,7 +66,8 @@ public:
         ssKey.reserve(1000);
         ssKey << key;
 
-        CDataStream ssValue(SER_DISK);
+        DataStream ssValue{};
+        ssValue.SetType(SER_DISK);
         if (!ReadKey(std::move(ssKey), ssValue)) return false;
         try {
             ssValue >> value;
@@ -83,7 +84,8 @@ public:
         ssKey.reserve(1000);
         ssKey << key;
 
-        CDataStream ssValue(SER_DISK);
+        DataStream ssValue{};
+        ssValue.SetType(SER_DISK);
         ssValue.reserve(10000);
         ssValue << value;
 

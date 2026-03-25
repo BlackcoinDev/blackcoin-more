@@ -611,7 +611,8 @@ static RPCHelpMan getblockheader()
 
     if (!fVerbose)
     {
-        CDataStream ssBlock(SER_NETWORK);
+        DataStream ssBlock{};
+        ssBlock.SetType(SER_NETWORK | SER_POSMARKER); // BLACKCOIN-SPECIFIC: Include nFlags
         ssBlock << pblockindex->GetBlockHeader();
         std::string strHex = HexStr(ssBlock);
         return strHex;
@@ -781,7 +782,9 @@ static RPCHelpMan getblock()
     const CBlock block{GetBlockChecked(chainman.m_blockman, *pblockindex)};
 
     if (verbosity <= 0) {
-        DataStream ssBlock;
+        DataStream ssBlock{};
+        // BLACKCOIN-SPECIFIC: Must inject SER_POSMARKER to output nFlags correctly
+        ssBlock.SetType(SER_NETWORK | SER_POSMARKER);
         ssBlock << RPCTxSerParams(block);
         std::string strHex = HexStr(ssBlock);
         return strHex;

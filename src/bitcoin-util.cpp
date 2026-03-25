@@ -142,7 +142,8 @@ static int Grind(const std::vector<std::string>& args, std::string& strPrint)
         return EXIT_FAILURE;
     }
 
-    CDataStream ss(SER_NETWORK);
+    DataStream ss{};
+    ss.SetType(SER_NETWORK | SER_POSMARKER);
     ss << header;
     strPrint = HexStr(ss);
     return EXIT_SUCCESS;

@@ -6,6 +6,8 @@
 
 ## ⚠️ CRITICAL: Bitcoin 26.x → 30.x Upgrade Context
 
+**Current Phase**: See .sisyphus/plans/bitcoin-28.4.0-merge-plan.md v2.7
+
 ### UI Considerations for Upgrades
 
 | Component | Bitcoin Core | Blackcoin More | Action |

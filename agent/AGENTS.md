@@ -2,7 +2,7 @@
 
 **Scope**: `agent/` | **Purpose**: AI-assisted development documentation
 
-**Current Version**: v27.2.0 | **C++ Standard**: C++20 | **Upgrade Phase**: 28.x Preparation
+**Current Version**: v27.2.0 | **C++ Standard**: C++20 | **Upgrade Phase**: Phase 2 (v28.x) COMPLETE ✅
 
 ---
 
@@ -11,9 +11,14 @@
 | Phase | Status | Key Achievements |
 |-------|--------|------------------|
 | Phase 1: v27.x | ✅ COMPLETE | C++20, GetAdjustedTime preserved, staking cache |
-| Phase 2: v28.x | 🏗️ IN PROGRESS | GenTxid partial, DataStream partial |
-| Phase 3: v29.x | ⏳ PENDING | GenTxid→variant |
-| Phase 4: v30.x | ⏳ PENDING | CMake migration |
+| Phase 2: v28.x | ✅ **COMPLETE** | See .sisyphus/plans/bitcoin-28.4.0-merge-plan.md v2.7 |
+| Phase 3: v29.x | ⏳ PENDING | GenTxid→std::variant (NOT in any released Bitcoin version — unreleased) |
+| Phase 4: v30.x | ⏳ PENDING | CMake migration, uint256→Txid final |
+
+### Bitcoin 28.4.0 Source Reference
+- **Location**: `/Users/blackcoindev/Development/Blackcoin/bitcoin30/`
+- **Commit**: `b110304705e1e1f97c88c4bb1455ab03c909450a` (Mar 16, 2026)
+- **Key finding**: GenTxid is still OLD class (`uint256` + `bool m_is_wtxid`) — matches Blackcoin More exactly. The `std::variant` version (#32631) is unreleased.
 
 ---
 

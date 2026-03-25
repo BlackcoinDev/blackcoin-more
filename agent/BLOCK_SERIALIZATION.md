@@ -6,7 +6,7 @@
 
 ## Overview
 
-Blackcoin More uses a **Proof-of-Stake (PoS)** block structure that extends Bitcoin Core's block format with PoS-specific fields. These fields are **NOT present in Bitcoin Core** and must be preserved during the Bitcoin 26.x → 30.x upgrade.
+Blackcoin More uses a **Proof-of-Stake (PoS)** block structure that extends Bitcoin Core's block format with PoS-specific fields. These fields and associated logic (including `GetAdjustedTime()`, which was removed in Bitcoin 28.0) are **NOT present in Bitcoin Core** and must be preserved or restored during the Bitcoin 28.4.0 upgrade.
 
 ---
 
@@ -20,6 +20,24 @@ Blackcoin More uses a **Proof-of-Stake (PoS)** block structure that extends Bitc
 | `CBlock::vchBlockSig` | ❌ Not present | ✅ `vector<unsigned char>` | **CRITICAL** |
 | `CBlockIndex::nStakeModifier` | ❌ Not present | ✅ `uint256` | **CRITICAL** |
 | `SERIALIZE_METHODS` | Standard | Uses `SER_POSMARKER` | **CRITICAL** |
+| `SER_POSMARKER` | ❌ Not present | ✅ `(1 << 18)` | **CRITICAL** |
+
+---
+
+## 🚀 SER_POSMARKER Blast Radius
+
+Analysis during the Bitcoin 28.4.0 merge (March 2026) revealed that `SER_POSMARKER` is required in **12 critical files** to ensure PoS block headers and flags (nFlags) are correctly transmitted over the network and RPC.
+
+| Category | Files | Usage |
+|----------|-------|-------|
+| **Network** | `net_processing.cpp`, `netmessagemaker.h` | Mandatory for headers-first sync |
+| **RPC** | `rpc/blockchain.cpp`, `rpc/mining.cpp`, `rest.cpp` | Mandatory for block visibility |
+| **Wallet** | `wallet/rpc/staking.cpp` | Mandatory for kernel search |
+| **Logic** | `blockencodings.cpp`, `core_read.cpp` | Mandatory for short ID & hex decoding |
+| **Testing** | `test/ser_posmarker_tests.cpp` | Continuous integration |
+| **Foundation**| `serialize.h`, `primitives/block.h`, `streams.h`| Base definitions |
+
+**⚠️ WARNING**: Any file using `DataStream` to serialize a `CBlock` or `CBlockHeader` MUST call `.SetType(SER_NETWORK | SER_POSMARKER)` or `nFlags` will be lost (defaults to 0), causing consensus failures.
 
 ---
 

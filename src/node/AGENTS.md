@@ -12,6 +12,8 @@ Node state management layer. Contains `NodeContext`, chainstate management, memp
 
 ## ⚠️ CRITICAL: Bitcoin 26.x → 30.x Upgrade Context
 
+**Current Phase**: See .sisyphus/plans/bitcoin-28.4.0-merge-plan.md v2.7
+
 ### Never-Port Features (Node Module)
 
 | Bitcoin Core Feature | Blackcoin More Status | Action |

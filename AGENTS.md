@@ -14,8 +14,8 @@
 | Phase | Status | Version | Notes |
 |-------|--------|---------|-------|
 | Phase 1: v27.x | ✅ COMPLETE | 27.2.0 | C++20, GetAdjustedTime preserved |
-| Phase 2: v28.x | 🏗️ IN PROGRESS | - | GenTxid partial, DataStream partial |
-| Phase 3: v29.x | ⏳ NOT STARTED | - | GenTxid→variant refactor |
+| Phase 2: v28.x | ✅ COMPLETE | 28.4.0 prep done | See .sisyphus/plans/bitcoin-28.4.0-merge-plan.md v2.7 |
+| Phase 3: v29.x | ⏳ NOT STARTED | - | GenTxid→std::variant (unreleased in Bitcoin) |
 | Phase 4: v30.x | ⏳ NOT STARTED | - | CMake migration, uint256 cleanup |
 
 ### Upgrade Progress
@@ -26,8 +26,8 @@
 | nStakeModifier | ✅ Preserved | ✅ Ready | chain.h:230 |
 | nFlags/vchBlockSig | ✅ Preserved | ✅ Ready | block.h |
 | SegWit (80%) | ✅ Activated | ✅ Ready | Height 5805000 |
-| GenTxid/Txid | - | 🏗️ Partial | Used in validation.cpp |
-| DataStream | - | 🏗️ Partial | Preferred in new code |
+| GenTxid/Txid | ✅ Matched | ✅ Ready | Matches Bitcoin 28.4.0 old class |
+| DataStream | ✅ Migrated | ✅ Ready | 0 production CDataStream uses (CDataStream preserved in streams.h for test/bench compatibility, 42 uses total)
 | Staking Cache | ✅ Complete | ✅ Ready | 3-layer architecture |
 
 | Feature | Bitcoin Core | Blackcoin More | Never Port |
@@ -35,53 +35,37 @@
 | **RBF** | Enabled | **DISABLED** | ✅ Never enable |
 | **Fees** | Dynamic | **Static (100k sat/kvB)** | ✅ Never port estimation |
 | **BDB** | Removed in 30.x | **REQUIRED (6.2)** | ✅ Never remove |
-| **GetAdjustedTime()** | Removed in 28.x | **REQUIRED** | ✅ Never remove |
+| **GetAdjustedTime()** | Removed in 30.x | **REQUIRED FOREVER** | ✅ Never remove |
+| **nStakeModifier** | Not present | **REQUIRED** | ✅ Never remove |
+| **nFlags/vchBlockSig** | Not present | **REQUIRED** | ✅ Never remove |
+| **fCoinStake/nTime** | Not present | **REQUIRED** | ✅ Never remove |
 | **PoS Block Header** | Standard | **Extended** | ✅ Preserve exactly |
 | **SegWit Threshold** | 95% | **80%** | ✅ Keep 80% |
 | **Taproot** | Active | **NEVER_ACTIVE** | ✅ Never enable |
 | **C++ Standard** | C++20 | C++17 → C++20 | Upgrade required |
 | **Build System** | CMake | Autotools | Migration planned |
 | **Block Pruning** | Available | **REMOVED** | ✅ Never implement |
-| **nStakeModifier** | Not present | **REQUIRED** | ✅ Must preserve |
 | **OP_RETURN Stake** | Banned/Unsupported | **SUPPORTED** | ✅ Segment Leader |
 
-### Never-Port List (Critical)
+### Blackcoin-Specific Code (ALREADY IMPLEMENTED & TESTED - NEVER REMOVE)
 
-1. **❌ RBF Implementation**
-   - Blackcoin uses first-seen rule only
-   - `mempoolreplacement` policy must remain disabled
-   - Never add `opt_in_rbf` transaction signaling
+**These elements are ALREADY IMPLEMENTED in Blackcoin More v27.2.0, RUNNING on both mainnet and testnet. They define Blackcoin's PoS consensus and must NEVER be removed:**
 
-2. **❌ Dynamic Fee Estimation**
-   - Static 100,000 sat/kvB only
-   - Never port `fee_estimates.dat` system
-   - Never implement `estimateSmartFee`
+| Element | Location | Purpose | Production Status |
+|---------|----------|---------|-------------------|
+| `nStakeModifier` | chain.h:237 | PoS kernel hash calculation | ✅ Live on mainnet |
+| `nFlags` (block header) | block.h:42 | PoS block marker | ✅ Live on mainnet |
+| `vchBlockSig` | block.h:102 | PoS block signature | ✅ Live on mainnet |
+| `fCoinStake` | coins.h:47 | Coinstake UTXO flag | ✅ Live on mainnet |
+| `Coin::nTime` | coins.h:53 | Stake timestamp | ✅ Live on mainnet |
+| `GetAdjustedTime()` | timedata.h:94 | PoS timestamp validation | ✅ Live on mainnet |
+| `IsProofOfStake()` | block.h | Block type detection | ✅ Live on mainnet |
+| `IsCoinStake()` | transaction.h | Transaction type detection | ✅ Live on mainnet |
+| `CheckBlockSignature()` | validation.cpp | PoS block signature validation | ✅ Live on mainnet |
+| `CheckStakeKernelHash()` | pos.cpp | PoS kernel hash | ✅ Live on mainnet |
+| `SER_POSMARKER` | serialize.h:18 | PoS serialization flag | ✅ Live on mainnet |
 
-3. **❌ BDB Removal**
-   - Bitcoin 30.x removed BDB wallet support
-   - Blackcoin More MUST preserve BDB 6.2
-   - Never force SQLite/descriptor migration
-
-4. **❌ GetAdjustedTime() Removal**
-   - Critical for PoS kernel validation (removed in Bitcoin 28.x)
-   - Never replace with `GetTime()` only
-   - Never remove from `src/timedata.h`
-
-5. **❌ Taproot/Script Versions 1+**
-   - Taproot marked `NEVER_ACTIVE`
-   - Never enable taproot deployment
-   - Never implement future script versions
-
-6. **❌ nStakeModifier Loss**
-   - CBlockIndex::nStakeModifier is CRITICAL for PoS
-   - NOT present in Bitcoin Core
-   - Used in `src/pos.cpp:CheckStakeKernelHash()`
-   - Must preserve this field exactly
-
-7. **❌ Block Pruning**
-   - Staking requires access to complete blockchain history
-   - Never implement block file pruning
-   - Never add `-prune` argument or pruning UI
+**Upgrade Context**: All these features are **already working** in v27.2.0. The Bitcoin 28.4.0 upgrade must preserve them exactly as they are. No new implementation needed - just protection from being overwritten during merge.
    - Complete blockchain must always be available for PoS validation
 
 ### SegWit Status (March 2026)

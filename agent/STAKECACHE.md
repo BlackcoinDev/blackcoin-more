@@ -161,7 +161,7 @@ std::atomic<double> m_stakecache_efficiency_avg{0.0};        // Average efficien
 | `last_flush_reason` | Why cache was last flushed: `size_limit`, `manual`, `shutdown`, `cleanup` |
 | `time_saved_ms` | Estimated time saved by cache (milliseconds) |
 
-When `stakecache=0`:
+When stake cache is disabled (`-stakecache=0`):
 
 ```json
 {
@@ -199,8 +199,11 @@ Enable with: `-debug=coinstake`
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `-stakecache` | `1` (enabled) | Enable/disable stake cache |
+| `-stakecache` | `0` (disabled) | Enable/disable stake cache |
 | `-debug=coinstake` | disabled | Enable cache debug logging |
+
+> [!NOTE]
+> Stake cache is **disabled by default** (`DEFAULT_STAKE_CACHE = false` in `src/node/miner.h:49`). Enable with `-stakecache=1` for better staking performance at the cost of higher memory usage.
 
 ---
 

@@ -11,10 +11,20 @@ This analysis was performed in December 2025. The following critical information
 | **RBF** | Enabled by default | **COMPLETELY DISABLED** | Never port RBF code |
 | **Fee Structure** | Dynamic estimation | **Static (100,000 sat/kvB)** | Never port fee estimation |
 | **BDB Wallets** | Removed in 30.x | **Required (6.2)** | Never remove BDB code |
-| **GetAdjustedTime()** | Removed in 27.x | **REQUIRED** | Never remove this function |
+| **GetAdjustedTime()** | Removed in 28.0 (#28849) | **REQUIRED** | Restore locally in `util/time.cpp` |
 | **PoS Block Header** | Standard | **Extended** (nFlags, nStakeModifier, vchBlockSig) | Must preserve exactly |
 | **SegWit Threshold** | 95% | **80%** | Testnet activated Sept 2024 |
 | **C++ Standard** | C++20 required | C++17 → C++20 | Upgrade required |
+
+### 📂 Bitcoin 28.4.0 Merge Findings (March 2026)
+
+The 100% depth audit for the v28.4.0 merge identified a significant expansion of the "PoS Blast Radius":
+
+1.  **Category B Expansion**: 18 files previously considered "safe" (Category C) contain PoS-specific logic and must be merged with manual care. Notable examples include `net_processing.cpp` and `headerssync.cpp`.
+2.  **API Migration**: Bitcoin 28.x has replaced `CDataStream` with `DataStream` and removed many serialization flags. Blackcoin-specific `SER_POSMARKER` must be manually injected into the new `DataStream` objects.
+3.  **Strict Typing**: Introduction of strict `Txid` types in Bitcoin 28.x requires auditing `IsCoinStake` and `fCoinStake` usage to ensure type safety without breaking bitfield logic.
+4.  **Consensus Divergence**: `tx_verify.cpp` and `net_processing.cpp` remain primary divergence points. With the removal of `GetAdjustedTime()` in Bitcoin 28.0, Blackcoin More MUST bring its own implementation of the `timedata` logic forward to ensure kernel validation remains possible.
+
 
 ### Critical Warning: Never Port These Bitcoin Core Features
 

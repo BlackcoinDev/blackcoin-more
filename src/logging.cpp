@@ -49,7 +49,7 @@ bool BCLog::Logger::StartLogging()
 {
     StdLockGuard scoped_lock(m_cs);
 
-    assert(m_buffering);
+    if (!m_buffering) return true;
     assert(m_fileout == nullptr);
 
     if (m_print_to_file) {

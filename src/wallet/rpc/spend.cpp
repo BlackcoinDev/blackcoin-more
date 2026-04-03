@@ -1289,7 +1289,7 @@ RPCHelpMan send()
             PreventOutdatedOptions(options);
 
 
-            bool rbf = false;
+            // bool rbf = false;
             UniValue outputs(UniValue::VOBJ);
             outputs = NormalizeOutputs(request.params[0]);
             std::vector<CRecipient> recipients = CreateRecipients(
@@ -1723,7 +1723,7 @@ RPCHelpMan walletcreatefundedpsbt()
 
     UniValue options{request.params[3].isNull() ? UniValue::VOBJ : request.params[3]};
 
-    const bool rbf = false;
+    // const bool rbf = false;
     CMutableTransaction rawTx = ConstructTransaction(request.params[0], request.params[1], request.params[2]);
     UniValue outputs(UniValue::VOBJ);
     outputs = NormalizeOutputs(request.params[1]);

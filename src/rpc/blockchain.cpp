@@ -102,6 +102,7 @@ double GetDifficulty(const CBlockIndex& blockindex)
 
 double GetPoSKernelPS(ChainstateManager& chainman)
 {
+    LOCK(cs_main);
     int nPoSInterval = 72;
     double dStakeKernelsTriedAvg = 0;
     int nStakesHandled = 0, nStakesTime = 0;

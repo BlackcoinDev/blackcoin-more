@@ -6,6 +6,7 @@
 #include <primitives/block.h>
 #include <chain.h>
 #include <kernel/chain.h>
+#include <kernel/cs_main.h>
 #include <test/util/setup_common.h>
 
 #include <boost/test/unit_test.hpp>
@@ -180,7 +181,10 @@ BOOST_AUTO_TEST_CASE(ser_posmarker_stakemodifier_roundtrip)
     diskIndex.nHashBlock = uint256::ZERO;
     diskIndex.nFlags = 0x04; // BLOCK_PROOF_OF_STAKE
     diskIndex.nStakeModifier = uint256::ONE; // Non-zero modifier
-    diskIndex.nStatus = 0; // No BLOCK_HAVE_DATA/UNDO — simplest serialization path
+    {
+        LOCK(::cs_main);
+        diskIndex.nStatus = 0; // No BLOCK_HAVE_DATA/UNDO — simplest serialization path
+    }
 
     // Serialize (CDiskBlockIndex always writes nFlags + nStakeModifier)
     DataStream ss{};

@@ -20,6 +20,7 @@ BOOST_AUTO_TEST_CASE(CanProvide)
 {
     // Set up wallet and keyman variables.
     CWallet wallet(m_node.chain.get(), "", CreateMockableWalletDatabase());
+    LOCK(wallet.cs_wallet);
     LegacyScriptPubKeyMan& keyman = *wallet.GetOrCreateLegacyScriptPubKeyMan();
 
     // Make a 1 of 2 multisig script

@@ -225,56 +225,43 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         CMutableTransaction txCoinStake;
         txCoinStake.nTime &= ~chainparams.GetConsensus().nStakeTimestampMask;
 
-        // BLACKCOIN-SPECIFIC: Check if safety bump was pre-calculated using network time (updatedBlockTip)
-        // If so, use the pre-calculated sleep duration directly — avoids redundant MTP/window recalculation.
+        // BLACKCOIN-SPECIFIC: "Safety Bump" Fallback Logic.
+        // The primary safety bump is handled by the short-circuit in PoSMiner()
+        // which consumes m_safety_bump_sleep_ms before entering CreateNewBlock().
+        // This fallback handles edge cases where updatedBlockTip() didn't fire
+        // (e.g., first iteration after startup, or timing races).
         //
-        // IMPORTANT: The pre-calculated nNextWindow timestamp is NOT used here because:
-        // 1. By the time we wake up, MTP may have advanced beyond the pre-calculated window
-        // 2. CreateNewBlock() assigns a fresh timestamp anyway (line 226 masks current time)
-        // 3. Using a stale future window would cause kernel validation to fail
-        //
-        // The sleep duration (m_safety_bump_sleep_ms) is still valid — it's a relative wait time.
+        // If the current slot (e.g., :00) is already taken by the previous block (MTP),
+        // we are guaranteed to fail. Instead of failing and retrying in a tight loop,
+        // proactively bump to the *next* window (e.g., :16).
         int64_t nSafetyBumpSleepMs = 0;
-        int64_t precalcSleep = pwallet->m_safety_bump_sleep_ms.load();
-        if (precalcSleep > 0) {
-            // Use pre-calculated sleep duration from updatedBlockTip()
-            // Window recalculation will happen naturally via the fallback path after we wake
-            nSafetyBumpSleepMs = precalcSleep;
-            LogPrint(BCLog::COINSTAKE, "Minter: Using pre-calculated safety bump sleep=%lld ms (from UpdatedBlockTip)\n",
-                     nSafetyBumpSleepMs);
-        } else {
-            // No pre-calculated value — use original calculation
-            // BLACKCOIN-SPECIFIC: "Safety Bump" Logic.
-            // If the current slot (e.g., :00) is already taken by the previous block (MTP), we are guaranteed to fail.
-            // Instead of failing and retrying in a tight loop, proactively bump to the *next* window (e.g., :16).
-            if (txCoinStake.nTime <= pindexPrev->GetMedianTimePast()) {
-                uint32_t oldTime = txCoinStake.nTime;
-                while (txCoinStake.nTime <= pindexPrev->GetMedianTimePast()) {
-                    txCoinStake.nTime += (chainparams.GetConsensus().nStakeTimestampMask + 1);
-                }
-
-                // Calculate how long to sleep until the bumped window begins
-                // We need to wait until real time reaches txCoinStake.nTime
-                int64_t now = GetAdjustedTimeSeconds();
-                int64_t timeUntilWindow = (txCoinStake.nTime - now) * 1000;
-                if (timeUntilWindow > 0) {
-                    nSafetyBumpSleepMs = timeUntilWindow;
-                    
-                    // CRITICAL: Strip artificial MTP inflation using modulo.
-                    // If MTP is manipulated +14s into the future, sleepMs becomes 30000.
-                    // Modulo 16000 strips the inflation: 30000 % 16000 = 14000.
-                    // This preserves the true offset to the next window boundary.
-                    if (nSafetyBumpSleepMs > 16000) {
-                        LogPrint(BCLog::COINSTAKE, "Minter: Stripping MTP inflation from sleep: %lld ms -> %lld ms\n",
-                                 nSafetyBumpSleepMs, nSafetyBumpSleepMs % 16000);
-                        nSafetyBumpSleepMs %= 16000;
-                        if (nSafetyBumpSleepMs == 0) nSafetyBumpSleepMs = 16000;
-                    }
-                }
-
-                LogPrint(BCLog::COINSTAKE, "Minter: Safety Bump triggered! Skipped window %d, starting search at %d (Next Window), sleeping %lld ms\n",
-                         oldTime, txCoinStake.nTime, nSafetyBumpSleepMs);
+        if (txCoinStake.nTime <= pindexPrev->GetMedianTimePast()) {
+            uint32_t oldTime = txCoinStake.nTime;
+            while (txCoinStake.nTime <= pindexPrev->GetMedianTimePast()) {
+                txCoinStake.nTime += (chainparams.GetConsensus().nStakeTimestampMask + 1);
             }
+
+            // Calculate how long to sleep until the bumped window begins
+            // We need to wait until real time reaches txCoinStake.nTime
+            int64_t now = GetAdjustedTimeSeconds();
+            int64_t timeUntilWindow = (txCoinStake.nTime - now) * 1000;
+            if (timeUntilWindow > 0) {
+                nSafetyBumpSleepMs = timeUntilWindow;
+
+                // CRITICAL: Strip artificial MTP inflation using modulo.
+                // If MTP is manipulated +14s into the future, sleepMs becomes 30000.
+                // Modulo 16000 strips the inflation: 30000 % 16000 = 14000.
+                // This preserves the true offset to the next window boundary.
+                if (nSafetyBumpSleepMs > 16000) {
+                    LogPrint(BCLog::COINSTAKE, "Minter: Stripping MTP inflation from sleep: %lld ms -> %lld ms\n",
+                             nSafetyBumpSleepMs, nSafetyBumpSleepMs % 16000);
+                    nSafetyBumpSleepMs %= 16000;
+                    if (nSafetyBumpSleepMs == 0) nSafetyBumpSleepMs = 16000;
+                }
+            }
+
+            LogPrint(BCLog::COINSTAKE, "Minter: Safety Bump fallback triggered! Skipped window %d, starting search at %d (Next Window), sleeping %lld ms\n",
+                     oldTime, txCoinStake.nTime, nSafetyBumpSleepMs);
         }
 
         // BLACKCOIN-SPECIFIC: Individual wallet timer for multi-wallet staker.
@@ -854,6 +841,24 @@ void PoSMiner(CWallet* pwallet)
                 pwallet->WalletLogPrintf("Staker thread sleeps while sync at %f\n", GuessVerificationProgress(Params().TxData(), pwallet->chain().getTip()));
                 if (!SleepStaker(pwallet, 10000))
                     return;
+            }
+
+            // BLACKCOIN-SPECIFIC: Short-circuit — if updatedBlockTip() pre-calculated a
+            // safety bump sleep, consume it directly without entering CreateNewBlock().
+            // This avoids unnecessary LOCK2(cs_wallet, cs_main) acquisition and wasted
+            // block template construction when we know the current timestamp <= MTP.
+            // The fallback path inside CreateNewBlock() handles edge cases where
+            // updatedBlockTip() didn't fire (startup, timing races).
+            {
+                int64_t safetyBump = pwallet->m_safety_bump_sleep_ms.exchange(0);
+                if (safetyBump > 0) {
+                    LogPrint(BCLog::COINSTAKE, "Minter: Short-circuit safety bump sleep=%lld ms (skipping block assembly)\n",
+                             safetyBump);
+                    if (!SleepStaker(pwallet, safetyBump))
+                        return;
+                    LogPrint(BCLog::COINSTAKE, "Minter: Woke up from short-circuit safety bump, resuming staking search\n");
+                    continue;
+                }
             }
 
             //

@@ -868,7 +868,7 @@ util::Result<SelectionResult> AutomaticCoinSelection(const CWallet& wallet, Coin
     return res;
 }
 
-static bool IsCurrentForAntiFeeSniping(interfaces::Chain& chain, const uint256& block_hash)
+/* static bool IsCurrentForAntiFeeSniping(interfaces::Chain& chain, const uint256& block_hash)
 {
     if (chain.isInitialBlockDownload()) {
         return false;
@@ -880,7 +880,7 @@ static bool IsCurrentForAntiFeeSniping(interfaces::Chain& chain, const uint256& 
         return false;
     }
     return true;
-}
+} */
 
 // Blackcoin: DiscourageFeeSniping removed - incompatible with SEQUENCE_FINAL (RBF disabled)
 
@@ -1088,13 +1088,17 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
     }
 
     // Blackcoin: Use SEQUENCE_FINAL (RBF disabled, anti-fee-sniping removed)
+    /*
     bool use_anti_fee_sniping = true;
+    */
     const uint32_t default_sequence{CTxIn::SEQUENCE_FINAL};
     for (const auto& coin : selected_coins) {
         std::optional<uint32_t> sequence = coin_control.GetSequence(coin->outpoint);
         if (sequence) {
             // If an input has a preset sequence, we can't do anti-fee-sniping
+            /*
             use_anti_fee_sniping = false;
+            */
         }
         txNew.vin.emplace_back(coin->outpoint, CScript{}, sequence.value_or(default_sequence));
 
@@ -1109,7 +1113,9 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
     if (coin_control.m_locktime) {
         txNew.nLockTime = coin_control.m_locktime.value();
         // If we have a locktime set, we can't use anti-fee-sniping
+        /*
         use_anti_fee_sniping = false;
+        */
     }
     // Blackcoin: Anti-fee-sniping disabled (RBF not supported)
 

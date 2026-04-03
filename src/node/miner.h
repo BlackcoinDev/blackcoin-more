@@ -172,7 +172,7 @@ private:
     Chainstate& m_chainstate;
 
 #ifdef ENABLE_WALLET
-    CWallet *pwallet = 0;
+    [[maybe_unused]] CWallet *pwallet = nullptr;
 #endif
 
 public:

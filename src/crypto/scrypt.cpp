@@ -55,7 +55,7 @@
 #endif
 #endif
 #ifndef __FreeBSD__
-static inline uint32_t be32dec(const void *pp)
+[[maybe_unused]] static inline uint32_t be32dec(const void *pp)
 {
 	const uint8_t *p = (uint8_t const *)pp;
 	return ((uint32_t)(p[3]) + ((uint32_t)(p[2]) << 8) +

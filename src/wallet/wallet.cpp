@@ -3099,13 +3099,11 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
 
         walletInstance->InitWalletFlags(wallet_creation_flags);
 
-        // Only create LegacyScriptPubKeyMan when not descriptor wallet
-        if (!walletInstance->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
-            walletInstance->SetupLegacyScriptPubKeyMan();
-        }
-
         if ((wallet_creation_flags & WALLET_FLAG_EXTERNAL_SIGNER) || !(wallet_creation_flags & (WALLET_FLAG_DISABLE_PRIVATE_KEYS | WALLET_FLAG_BLANK_WALLET))) {
             LOCK(walletInstance->cs_wallet);
+            if (!walletInstance->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
+                walletInstance->SetupLegacyScriptPubKeyMan();
+            }
             if (walletInstance->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
                 walletInstance->SetupDescriptorScriptPubKeyMans();
                 // SetupDescriptorScriptPubKeyMans already calls SetupGeneration for us so we don't need to call SetupGeneration separately

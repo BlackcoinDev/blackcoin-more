@@ -316,6 +316,7 @@ static RPCHelpMan checkkernel()
             int64_t nTime = GetAdjustedTimeSeconds();
             nTime &= ~Params().GetConsensus().nStakeTimestampMask;
 
+            LOCK(pwallet->cs_wallet);
             for (unsigned int idx = 0; idx < inputs.size(); idx++) {
                 const UniValue& o = inputs[idx].get_obj();
 

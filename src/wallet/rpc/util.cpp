@@ -117,6 +117,7 @@ LegacyScriptPubKeyMan& EnsureLegacyScriptPubKeyMan(CWallet& wallet, bool also_cr
 {
     LegacyScriptPubKeyMan* spk_man = wallet.GetLegacyScriptPubKeyMan();
     if (!spk_man && also_create) {
+        LOCK(wallet.cs_wallet);
         spk_man = wallet.GetOrCreateLegacyScriptPubKeyMan();
     }
     if (!spk_man) {
@@ -148,6 +149,7 @@ std::string LabelFromValue(const UniValue& value)
 void PushParentDescriptors(const CWallet& wallet, const CScript& script_pubkey, UniValue& entry)
 {
     UniValue parent_descs(UniValue::VARR);
+    LOCK(wallet.cs_wallet);
     for (const auto& desc: wallet.GetWalletDescriptors(script_pubkey)) {
         parent_descs.push_back(desc.descriptor->ToString());
     }

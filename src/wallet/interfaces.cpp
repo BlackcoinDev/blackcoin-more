@@ -163,6 +163,7 @@ public:
     }
     bool getPubKey(const CScript& script, const CKeyID& address, CPubKey& pub_key) override
     {
+        LOCK(m_wallet->cs_wallet);
         std::unique_ptr<SigningProvider> provider = m_wallet->GetSolvingProvider(script);
         if (provider) {
             return provider->GetPubKey(address, pub_key);

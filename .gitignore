@@ -189,3 +189,5 @@ db62/
 
 #others
 *.tmp
+compile_commands.json
+.bear/

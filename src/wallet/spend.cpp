@@ -8,7 +8,6 @@
 #include <consensus/amount.h>
 #include <consensus/validation.h>
 #include <interfaces/chain.h>
-#include <numeric>
 #include <policy/policy.h>
 #include <primitives/transaction.h>
 #include <script/script.h>
@@ -26,7 +25,7 @@
 
 #include <cmath>
 
-using interfaces::FoundBlock;
+
 
 namespace wallet {
 static constexpr size_t OUTPUT_GROUP_MAX_ENTRIES{100};
@@ -127,17 +126,20 @@ static std::optional<int64_t> GetSignedTxinWeight(const CWallet* wallet, const C
 }
 
 // txouts needs to be in the order of tx.vin
-TxSize CalculateMaximumSignedTxSize(const CTransaction &tx, const CWallet *wallet, const std::vector<CTxOut>& txouts, const CCoinControl* coin_control)
+TxSize CalculateMaximumSignedTxSize(const CTransaction &tx, const CWallet *wallet, const std::vector<CTxOut>& txouts, const CCoinControl* coin_control) EXCLUSIVE_LOCKS_REQUIRED(wallet->cs_wallet)
 {
     // nVersion + nLockTime + input count + output count
     int64_t weight = (4 + 4 + GetSizeOfCompactSize(tx.vin.size()) + GetSizeOfCompactSize(tx.vout.size())) * WITNESS_SCALE_FACTOR;
     // Whether any input spends a witness program. Necessary to run before the next loop over the
     // inputs in order to accurately compute the compactSize length for the witness data per input.
-    bool is_segwit = std::any_of(txouts.begin(), txouts.end(), [&](const CTxOut& txo) {
+    bool is_segwit = false;
+    for (const auto& txo : txouts) {
         std::unique_ptr<Descriptor> desc{GetDescriptor(wallet, coin_control, txo.scriptPubKey)};
-        if (desc) return IsSegwit(*desc);
-        return false;
-    });
+        if (desc && IsSegwit(*desc)) {
+            is_segwit = true;
+            break;
+        }
+    }
     // Segwit marker and flag
     if (is_segwit) weight += 2;
 

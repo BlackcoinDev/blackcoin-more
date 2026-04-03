@@ -555,8 +555,13 @@ void ArgsManager::AddCommand(const std::string& cmd, const std::string& help)
     LOCK(cs_args);
     m_accept_any_command = false; // latch to false
     std::map<std::string, Arg>& arg_map = m_available_args[OptionsCategory::COMMANDS];
+    // Blackcoin
+    /*
     auto ret = arg_map.emplace(cmd, Arg{"", help, ArgsManager::COMMAND});
     Assert(ret.second); // Fail on duplicate commands
+    */
+    if (arg_map.count(cmd)) return;
+    arg_map.emplace(cmd, Arg{"", help, ArgsManager::COMMAND});
 }
 
 void ArgsManager::AddArg(const std::string& name, const std::string& help, unsigned int flags, const OptionsCategory& cat)
@@ -572,8 +577,13 @@ void ArgsManager::AddArg(const std::string& name, const std::string& help, unsig
 
     LOCK(cs_args);
     std::map<std::string, Arg>& arg_map = m_available_args[cat];
+    // Blackcoin
+    /*
     auto ret = arg_map.emplace(arg_name, Arg{name.substr(eq_index, name.size() - eq_index), help, flags});
     assert(ret.second); // Make sure an insertion actually happened
+    */
+    if (arg_map.count(arg_name)) return;
+    arg_map.emplace(arg_name, Arg{name.substr(eq_index, name.size() - eq_index), help, flags});
 
     if (flags & ArgsManager::NETWORK_ONLY) {
         m_network_only_args.emplace(arg_name);

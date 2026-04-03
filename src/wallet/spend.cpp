@@ -87,7 +87,7 @@ int CalculateMaximumSignedInputSize(const CTxOut& txout, const COutPoint outpoin
     return -1;
 }
 
-int CalculateMaximumSignedInputSize(const CTxOut& txout, const CWallet* wallet, const CCoinControl* coin_control)
+int CalculateMaximumSignedInputSize(const CTxOut& txout, const CWallet* wallet, const CCoinControl* coin_control) EXCLUSIVE_LOCKS_REQUIRED(wallet->cs_wallet)
 {
     const std::unique_ptr<SigningProvider> provider = wallet->GetSolvingProvider(txout.scriptPubKey);
     return CalculateMaximumSignedInputSize(txout, COutPoint(), provider.get(), wallet->CanGrindR(), coin_control);
@@ -95,7 +95,7 @@ int CalculateMaximumSignedInputSize(const CTxOut& txout, const CWallet* wallet, 
 
 /** Infer a descriptor for the given output script. */
 static std::unique_ptr<Descriptor> GetDescriptor(const CWallet* wallet, const CCoinControl* coin_control,
-                                                 const CScript script_pubkey)
+                                                 const CScript script_pubkey) EXCLUSIVE_LOCKS_REQUIRED(wallet->cs_wallet)
 {
     MultiSigningProvider providers;
     for (const auto spkman: wallet->GetScriptPubKeyMans(script_pubkey)) {
@@ -110,7 +110,7 @@ static std::unique_ptr<Descriptor> GetDescriptor(const CWallet* wallet, const CC
 /** Infer the maximum size of this input after it will be signed. */
 static std::optional<int64_t> GetSignedTxinWeight(const CWallet* wallet, const CCoinControl* coin_control,
                                                   const CTxIn& txin, const CTxOut& txo, const bool tx_is_segwit,
-                                                  const bool can_grind_r)
+                                                  const bool can_grind_r) EXCLUSIVE_LOCKS_REQUIRED(wallet->cs_wallet)
 {
     // If weight was provided, use that.
     std::optional<int64_t> weight;

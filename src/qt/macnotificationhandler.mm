@@ -24,11 +24,14 @@ void MacNotificationHandler::showNotification(const QString &title, const QStrin
 {
     // check if users OS has support for NSUserNotification
     if(this->hasUserNotificationCenterSupport()) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         NSUserNotification* userNotification = [[NSUserNotification alloc] init];
         userNotification.title = title.toNSString();
         userNotification.informativeText = text.toNSString();
         [[NSUserNotificationCenter defaultUserNotificationCenter] deliverNotification: userNotification];
         [userNotification release];
+#pragma clang diagnostic pop
     }
 }
 

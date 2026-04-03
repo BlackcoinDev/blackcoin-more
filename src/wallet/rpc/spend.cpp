@@ -446,14 +446,13 @@ RPCHelpMan optimizeutxoset()
     }
 
     // Calculate transaction input size
-    const CWallet& wallet{*pwallet};
-    TxSize tx_sizes = CalculateMaximumSignedTxSize(CTransaction(txTmp), &wallet, &coin_control);
+    TxSize tx_sizes = CalculateMaximumSignedTxSize(CTransaction(txTmp), pwallet.get(), &coin_control);
     int nBytes = tx_sizes.vsize;
 
     // calculate size of output
     CTxOut txout(amount, script_pub_key);
     txTmp.vout.push_back(txout);
-    tx_sizes = CalculateMaximumSignedTxSize(CTransaction(txTmp), &wallet, &coin_control);
+    tx_sizes = CalculateMaximumSignedTxSize(CTransaction(txTmp), pwallet.get(), &coin_control);
     int nBytesPerOut = tx_sizes.vsize - nBytes;
 
     CAmount fee = GetMinFee(nBytes + (unsigned int)(remaining / amount) * nBytesPerOut, GetAdjustedTimeSeconds());

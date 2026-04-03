@@ -172,7 +172,7 @@ static RPCHelpMan staking()
             std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
             if (!pwallet) return NullUniValue;
 
-            std::string error = "";
+            std::string error;
             if (request.params.size() > 0) {
                 if (request.params[0].get_bool() && node::CanStake()) {
                     if (pwallet->IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {

@@ -51,9 +51,15 @@ static RPCHelpMan getstakinginfo()
                                               {RPCResult::Type::OBJ, "stakecache", "Stake cache statistics (Blackcoin-specific)", {
                                                                                                                                       {RPCResult::Type::BOOL, "enabled", "whether -stakecache is enabled"},
                                                                                                                                       {RPCResult::Type::NUM, "size", /* optional */ true, "number of cached UTXOs"},
-                                                                                                                                      {RPCResult::Type::NUM, "hits", /* optional */ true, "times kernel was found via cache"},
+                                                                                                                                      {RPCResult::Type::NUM, "staked", /* optional */ true, "times kernel was found via cache"},
+                                                                                                                                      {RPCResult::Type::NUM, "lookups", /* optional */ true, "total internal cache lookups"},
+                                                                                                                                      {RPCResult::Type::NUM, "cache_misses", /* optional */ true, "times data not in cache (disk read)"},
+                                                                                                                                      {RPCResult::Type::NUM, "efficiency", /* optional */ true, "current cache hit rate percentage"},
+                                                                                                                                      {RPCResult::Type::NUM, "efficiency_avg", /* optional */ true, "rolling average hit rate (10-min EMA)"},
                                                                                                                                       {RPCResult::Type::NUM, "blocks", /* optional */ true, "blocks staked using cache"},
                                                                                                                                       {RPCResult::Type::NUM, "flushes", /* optional */ true, "times cache was cleared"},
+                                                                                                                                      {RPCResult::Type::STR, "last_flush_reason", /* optional */ true, "why cache was last flushed: size_limit, manual, shutdown, cleanup"},
+                                                                                                                                      {RPCResult::Type::NUM, "time_saved_ms", /* optional */ true, "estimated time saved by cache (milliseconds)"},
                                                                                                                                   }},
                                           }},
         RPCExamples{HelpExampleCli("getstakinginfo", "") + HelpExampleRpc("getstakinginfo", "")},
@@ -120,7 +126,7 @@ static RPCHelpMan getstakinginfo()
                 stakecache.pushKV("flushes", pwallet->m_stakecache_flushes.load());
 
                 // BLACKCOIN-SPECIFIC: Add flush reason to RPC
-                switch (pwallet->m_last_flush_reason) {
+                switch (pwallet->m_last_flush_reason.load()) {
                 case CWallet::CacheFlushReason::SIZE_LIMIT:
                     stakecache.pushKV("last_flush_reason", "size_limit");
                     break;

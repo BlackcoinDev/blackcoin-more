@@ -765,7 +765,7 @@ public:
         SHUTDOWN,   // Wallet shutdown
         CLEANUP     // Automatic cleanup of stale entries
     };
-    CacheFlushReason m_last_flush_reason{CacheFlushReason::SIZE_LIMIT};
+    std::atomic<CacheFlushReason> m_last_flush_reason{CacheFlushReason::SIZE_LIMIT};
 
     // BLACKCOIN-SPECIFIC: Helper function to calculate cache efficiency
     // Thread Safety: Uses atomic counters - safe to call from any thread

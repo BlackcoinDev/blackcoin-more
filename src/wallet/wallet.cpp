@@ -3746,9 +3746,15 @@ void CWallet::AddScriptPubKeyMan(const uint256& id, std::unique_ptr<ScriptPubKey
 
     // Update birth time if needed
     MaybeUpdateBirthTime(spkm->GetTimeFirstKey());
+
+    // BLACKCOIN-SPECIFIC: Update scriptPubKey cache (Layer 1 staking cache)
+    // Ensures IsMine and staking loop see the new scripts immediately.
+    for (const auto& script : spkm->GetScriptPubKeys()) {
+        m_cached_spks[script].push_back(spkm.get());
+    }
 }
 
-void CWallet::SetupLegacyScriptPubKeyMan()
+void CWallet::SetupLegacyScriptPubKeyMan() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet)
 {
     if (!m_internal_spk_managers.empty() || !m_external_spk_managers.empty() || !m_spk_managers.empty() || IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
         return;

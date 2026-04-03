@@ -46,7 +46,11 @@ FUZZ_TARGET(wallet_fees, .init = initialize_setup)
     }
     (void)GetDiscardRate(wallet);
 
+    // Blackcoin
+    /*
+    GetRequiredFee is bypassed (static fees only)
     const auto tx_bytes{fuzzed_data_provider.ConsumeIntegral<unsigned int>()};
+    */
 
     if (fuzzed_data_provider.ConsumeBool()) {
         wallet.m_pay_tx_fee = CFeeRate{ConsumeMoney(fuzzed_data_provider, /*max=*/COIN)};

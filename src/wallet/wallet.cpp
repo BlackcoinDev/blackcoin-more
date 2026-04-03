@@ -1633,7 +1633,7 @@ isminetype CWallet::IsMine(const CTxDestination& dest) const
 // BLACKCOIN-SPECIFIC: IsMine using m_cached_spks (Layer 1 staking cache).
 // Provides O(1) lookup for descriptor wallets, avoiding linear scan of m_spk_managers.
 // Called on every UTXO during staking - critical for performance with many descriptors.
-isminetype CWallet::IsMine(const CScript& script) const
+isminetype CWallet::IsMine(const CScript& script) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet)
 {
     AssertLockHeld(cs_wallet);
 
@@ -3609,7 +3609,7 @@ ScriptPubKeyMan* CWallet::GetScriptPubKeyMan(const OutputType& type, bool intern
 // BLACKCOIN-SPECIFIC: GetScriptPubKeyMans using m_cached_spks (Layer 1 staking cache).
 // Provides O(1) lookup for descriptor wallets during staking operations.
 // Falls back to descriptor scan only on cache miss (rare after warm-up).
-std::set<ScriptPubKeyMan*> CWallet::GetScriptPubKeyMans(const CScript& script) const
+std::set<ScriptPubKeyMan*> CWallet::GetScriptPubKeyMans(const CScript& script) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet)
 {
     std::set<ScriptPubKeyMan*> spk_mans;
 
@@ -3647,13 +3647,13 @@ ScriptPubKeyMan* CWallet::GetScriptPubKeyMan(const uint256& id) const
     return nullptr;
 }
 
-std::unique_ptr<SigningProvider> CWallet::GetSolvingProvider(const CScript& script) const
+std::unique_ptr<SigningProvider> CWallet::GetSolvingProvider(const CScript& script) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet)
 {
     SignatureData sigdata;
     return GetSolvingProvider(script, sigdata);
 }
 
-std::unique_ptr<SigningProvider> CWallet::GetSolvingProvider(const CScript& script, SignatureData& sigdata) const
+std::unique_ptr<SigningProvider> CWallet::GetSolvingProvider(const CScript& script, SignatureData& sigdata) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet)
 {
     // Search the cache for relevant SPKMs instead of iterating m_spk_managers
     const auto& it = m_cached_spks.find(script);
@@ -3679,7 +3679,7 @@ std::unique_ptr<SigningProvider> CWallet::GetSolvingProvider(const CScript& scri
 }
 
 // BLACKCOIN-SPECIFIC: Fast public key lookup
-bool CWallet::GetPubKey(const CScript& script, const CKeyID& address, CPubKey& pubkey) const
+bool CWallet::GetPubKey(const CScript& script, const CKeyID& address, CPubKey& pubkey) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet)
 {
     // Search the cache for relevant SPKMs
     const auto& it = m_cached_spks.find(script);
@@ -3702,8 +3702,9 @@ bool CWallet::GetPubKey(const CScript& script, const CKeyID& address, CPubKey& p
     return false;
 }
 
-std::vector<WalletDescriptor> CWallet::GetWalletDescriptors(const CScript& script) const
+std::vector<WalletDescriptor> CWallet::GetWalletDescriptors(const CScript& script) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet)
 {
+    AssertLockHeld(cs_wallet);
     std::vector<WalletDescriptor> descs;
     for (const auto spk_man : GetScriptPubKeyMans(script)) {
         if (const auto desc_spk_man = dynamic_cast<DescriptorScriptPubKeyMan*>(spk_man)) {
@@ -3726,13 +3727,13 @@ LegacyScriptPubKeyMan* CWallet::GetLegacyScriptPubKeyMan() const
     return dynamic_cast<LegacyScriptPubKeyMan*>(it->second);
 }
 
-LegacyScriptPubKeyMan* CWallet::GetOrCreateLegacyScriptPubKeyMan()
+LegacyScriptPubKeyMan* CWallet::GetOrCreateLegacyScriptPubKeyMan() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet)
 {
     SetupLegacyScriptPubKeyMan();
     return GetLegacyScriptPubKeyMan();
 }
 
-void CWallet::AddScriptPubKeyMan(const uint256& id, std::unique_ptr<ScriptPubKeyMan> spkm_man)
+void CWallet::AddScriptPubKeyMan(const uint256& id, std::unique_ptr<ScriptPubKeyMan> spkm_man) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet)
 {
     // Add spkm_man to m_spk_managers before calling any method
     // that might access it.
@@ -3777,7 +3778,7 @@ void CWallet::ConnectScriptPubKeyManNotifiers()
     }
 }
 
-DescriptorScriptPubKeyMan& CWallet::LoadDescriptorScriptPubKeyMan(uint256 id, WalletDescriptor& desc)
+DescriptorScriptPubKeyMan& CWallet::LoadDescriptorScriptPubKeyMan(uint256 id, WalletDescriptor& desc) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet)
 {
     DescriptorScriptPubKeyMan* spk_manager;
     if (IsWalletFlagSet(WALLET_FLAG_EXTERNAL_SIGNER)) {
@@ -4663,7 +4664,7 @@ void CWallet::TopUpCallback(const std::set<CScript>& spks, ScriptPubKeyMan* spkm
 // BLACKCOIN-SPECIFIC: Update moving average hit rate for performance trends
 // Uses exponential moving average with 10-minute window
 // Thread Safety: MUST be called while holding cs_wallet to protect m_hit_rate_history
-void CWallet::UpdateHitRateAverage()
+void CWallet::UpdateHitRateAverage() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet)
 {
     AssertLockHeld(cs_wallet);  // BLACKCOIN-SPECIFIC: Ensure thread safety for m_hit_rate_history
 

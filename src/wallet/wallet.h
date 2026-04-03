@@ -414,7 +414,7 @@ private:
 
     // Appends spk managers into the main 'm_spk_managers'.
     // Must be the only method adding data to it.
-    void AddScriptPubKeyMan(const uint256& id, std::unique_ptr<ScriptPubKeyMan> spkm_man);
+    void AddScriptPubKeyMan(const uint256& id, std::unique_ptr<ScriptPubKeyMan> spkm_man) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     // Same as 'AddActiveScriptPubKeyMan' but designed for use within a batch transaction context
     void AddActiveScriptPubKeyManWithDb(WalletBatch& batch, uint256 id, OutputType type, bool internal);
@@ -753,10 +753,10 @@ public:
     std::atomic<int64_t> m_stakecache_time_saved{0}; // Track estimated time saved (ms)
 
     // BLACKCOIN-SPECIFIC: Performance trend tracking
-    double m_stakecache_hit_rate_avg{0.0};      // 10-minute moving average hit rate
-    int64_t m_last_hit_rate_update{0};          // Last update timestamp for moving average
-    std::vector<double> m_hit_rate_history;     // Last 10 hit rates for trend analysis
-    std::vector<int64_t> m_search_time_history; // Last 10 search times for trend analysis
+    double m_stakecache_hit_rate_avg GUARDED_BY(cs_wallet){0.0};      // 10-minute moving average hit rate
+    int64_t m_last_hit_rate_update GUARDED_BY(cs_wallet){0};          // Last update timestamp for moving average
+    std::vector<double> m_hit_rate_history GUARDED_BY(cs_wallet);     // Last 10 hit rates for trend analysis
+    std::vector<int64_t> m_search_time_history GUARDED_BY(cs_wallet); // Last 10 search times for trend analysis
 
     // BLACKCOIN-SPECIFIC: Cache flush reason tracking
     enum class CacheFlushReason {
@@ -782,7 +782,7 @@ public:
     }
 
     // BLACKCOIN-SPECIFIC: Update moving average hit rate
-    void UpdateHitRateAverage();
+    void UpdateHitRateAverage() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     // BLACKCOIN-SPECIFIC: Log stake cache statistics for performance analysis
     void LogStakeCacheStats() const;
@@ -1049,26 +1049,26 @@ public:
     ScriptPubKeyMan* GetScriptPubKeyMan(const OutputType& type, bool internal) const;
 
     //! Get all the ScriptPubKeyMans for a script
-    std::set<ScriptPubKeyMan*> GetScriptPubKeyMans(const CScript& script) const;
+    std::set<ScriptPubKeyMan*> GetScriptPubKeyMans(const CScript& script) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     //! Get the ScriptPubKeyMan by id
     ScriptPubKeyMan* GetScriptPubKeyMan(const uint256& id) const;
 
     //! Get the SigningProvider for a script
-    std::unique_ptr<SigningProvider> GetSolvingProvider(const CScript& script) const;
-    std::unique_ptr<SigningProvider> GetSolvingProvider(const CScript& script, SignatureData& sigdata) const;
+    std::unique_ptr<SigningProvider> GetSolvingProvider(const CScript& script) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    std::unique_ptr<SigningProvider> GetSolvingProvider(const CScript& script, SignatureData& sigdata) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     // BLACKCOIN-SPECIFIC: Fast public key lookup
-    bool GetPubKey(const CScript& script, const CKeyID& address, CPubKey& pubkey) const;
+    bool GetPubKey(const CScript& script, const CKeyID& address, CPubKey& pubkey) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     //! Get the wallet descriptors for a script.
-    std::vector<WalletDescriptor> GetWalletDescriptors(const CScript& script) const;
+    std::vector<WalletDescriptor> GetWalletDescriptors(const CScript& script) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     //! Get the LegacyScriptPubKeyMan which is used for all types, internal, and external.
     LegacyScriptPubKeyMan* GetLegacyScriptPubKeyMan() const;
-    LegacyScriptPubKeyMan* GetOrCreateLegacyScriptPubKeyMan();
+    LegacyScriptPubKeyMan* GetOrCreateLegacyScriptPubKeyMan() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     //! Make a LegacyScriptPubKeyMan and set it for all types, internal, and external.
-    void SetupLegacyScriptPubKeyMan();
+    void SetupLegacyScriptPubKeyMan() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     bool WithEncryptionKey(std::function<bool(const CKeyingMaterial&)> cb) const override;
 
@@ -1099,7 +1099,7 @@ public:
     void ConnectScriptPubKeyManNotifiers();
 
     //! Instantiate a descriptor ScriptPubKeyMan from the WalletDescriptor and load it
-    DescriptorScriptPubKeyMan& LoadDescriptorScriptPubKeyMan(uint256 id, WalletDescriptor& desc);
+    DescriptorScriptPubKeyMan& LoadDescriptorScriptPubKeyMan(uint256 id, WalletDescriptor& desc) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     //! Adds the active ScriptPubKeyMan for the specified type and internal. Writes it to the wallet file
     //! @param[in] id The unique id for the ScriptPubKeyMan
@@ -1164,9 +1164,9 @@ public:
     bool CanGrindR() const;
 
     //! Add scriptPubKeys for this ScriptPubKeyMan into the scriptPubKey cache
-    void CacheNewScriptPubKeys(const std::set<CScript>& spks, ScriptPubKeyMan* spkm);
+    void CacheNewScriptPubKeys(const std::set<CScript>& spks, ScriptPubKeyMan* spkm) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
-    void TopUpCallback(const std::set<CScript>& spks, ScriptPubKeyMan* spkm) override;
+    void TopUpCallback(const std::set<CScript>& spks, ScriptPubKeyMan* spkm) override EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 };
 
 /**

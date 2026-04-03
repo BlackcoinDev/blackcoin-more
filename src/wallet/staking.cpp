@@ -327,9 +327,8 @@ bool CreateCoinStake(CWallet& wallet, unsigned int nBits, int64_t nSearchInterva
                     LogPrint(BCLog::COINSTAKE, "StakeCache: POPULATE - added kernel for %s (cache size: %d)\n",
                              prevoutStake.ToString().c_str(), wallet.stakeCache.size());
                 }
-            } else {
-                CacheKernel(wallet.stakeCache, prevoutStake, pindexPrev, wallet.chain().getCoinsTip());
             }
+            // Already in cache — no action needed (CacheKernel returns immediately for existing entries)
         }
         // BLACKCOIN-SPECIFIC: Mark initial mass-load complete so stats can begin tracking steady state
         wallet.m_stakecache_initial_load_complete = true;

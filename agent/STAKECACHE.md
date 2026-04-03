@@ -59,20 +59,27 @@ struct CStakeCache {
 
 ### 1. Population
 
-**Location:** `src/wallet/staking.cpp:283-297`
+**Location:** `src/wallet/staking.cpp:295-334`
 
 ```cpp
 if (gArgs.GetBoolArg("-stakecache", node::DEFAULT_STAKE_CACHE)) {
+    // Clear cache if too large (stale entries from spent UTXOs)
+    if (wallet.stakeCache.size() > setCoins.size() + 100) {
+        wallet.stakeCache.clear();
+    }
+    // Populate cache with mature UTXOs
     for (const auto& pcoin : setCoins) {
         COutPoint prevoutStake = COutPoint(pcoin.first->GetHash(), pcoin.second);
-        CacheKernel(wallet.stakeCache, prevoutStake, pindexPrev, view);
+        if (!wallet.stakeCache.count(prevoutStake)) {
+            CacheKernel(wallet.stakeCache, prevoutStake, pindexPrev, wallet.chain().getCoinsTip());
+        }
     }
 }
 ```
 
 ### 2. Usage
 
-**Location:** `src/pos.cpp:172-218`
+**Location:** `src/pos.cpp:173-218`
 
 ```cpp
 bool CheckKernel(..., const std::map<COutPoint, CStakeCache>& cache) {

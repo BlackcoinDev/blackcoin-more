@@ -119,7 +119,7 @@ When the cache has 100+ more entries than current stakeable UTXOs (indicating st
 
 ### 1. Statistics Counters
 
-**File:** `src/wallet/wallet.h:807-813`
+**File:** `src/wallet/wallet.h:820-826`
 
 ```cpp
 std::atomic<uint64_t> m_stakecache_hits{0};                  // Times kernel found (Lottery win)
@@ -135,7 +135,7 @@ std::atomic<double> m_stakecache_efficiency_avg{0.0};        // Average efficien
 
 **Command:** `getstakinginfo`
 
-**File:** `src/wallet/rpc/staking.cpp:51-138`
+**File:** `src/wallet/rpc/staking.cpp:51-146`
 
 ```json
 {
@@ -161,7 +161,7 @@ std::atomic<double> m_stakecache_efficiency_avg{0.0};        // Average efficien
 | `staked` | Total kernels found (lottery wins) via cache |
 | `lookups` | Total internal cache lookups performed |
 | `cache_misses` | Times data was not in cache (disk read required) |
-| `efficiency` | Current cache efficiency percentage (staked / lookups * 100) |
+| `efficiency` | Current cache hit rate percentage ((lookups - misses) / lookups * 100) |
 | `efficiency_avg` | Rolling average efficiency (10-minute window) |
 | `blocks` | Blocks successfully staked using cached data |
 | `flushes` | Times the cache was cleared |

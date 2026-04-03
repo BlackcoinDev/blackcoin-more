@@ -3822,11 +3822,11 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
             assert(tx_state.GetResult() == TxValidationResult::TX_CONSENSUS);
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, tx_state.GetRejectReason(),
                                  strprintf("Transaction check failed (tx hash %s) %s", tx->GetHash().ToString(), tx_state.GetDebugMessage()));
-
-            // Check transaction timestamp
-            if (block.GetBlockTime() < (tx->nTime ? (int64_t)tx->nTime : block.GetBlockTime()))
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-tx-time", strprintf("%s : block timestamp earlier than transaction timestamp", __func__));
         }
+
+        // Check transaction timestamp
+        if (block.GetBlockTime() < (tx->nTime ? (int64_t)tx->nTime : block.GetBlockTime()))
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-tx-time", strprintf("%s : block timestamp earlier than transaction timestamp", __func__));
     }
     unsigned int nSigOps = 0;
     for (const auto& tx : block.vtx) {

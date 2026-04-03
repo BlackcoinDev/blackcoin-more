@@ -260,7 +260,7 @@ public Q_SLOTS:
 
 private:
     /** Set the encryption status as shown in the UI.
-       @param[in] status            current encryption status
+       @param[in] walletModel       current wallet model to extract encryption status from
        @see WalletModel::EncryptionStatus
     */
     void setEncryptionStatus(WalletModel *walletModel);

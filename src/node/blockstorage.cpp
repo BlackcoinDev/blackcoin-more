@@ -258,7 +258,6 @@ void BlockManager::PruneOneBlockFile(const int fileNumber)
 {
     // Blackcoin: Staking requires complete blockchain - pruning disabled
     // This function is kept for API compatibility but should never execute
-    AssertLockHeld(cs_main);
     // No-op: pruning is permanently disabled in Blackcoin
 }
 

@@ -818,7 +818,7 @@ private:
 
     /** Process net block. */
     bool ProcessNetBlockHeaders(CNode& node, const std::vector<CBlockHeader>& block, bool min_pow_checked, BlockValidationState& state, bool old_client, const CBlockIndex** ppindex = nullptr);
-    bool ProcessNetBlock(const std::shared_ptr<const CBlock> pblock, bool force_processing, bool min_pow_checked, bool* new_block, CNode& node);
+    bool ProcessNetBlock(const std::shared_ptr<const CBlock> pblock, bool force_processing, bool min_pow_checked, bool* new_block, CNode& node) EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
 
     CNodeHeaders& ServiceHeaders(const CService& address) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     void CleanAddressHeaders(const CAddress& addr) EXCLUSIVE_LOCKS_REQUIRED(cs_main);

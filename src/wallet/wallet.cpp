@@ -1648,10 +1648,17 @@ isminetype CWallet::IsMine(const CScript& script) const EXCLUSIVE_LOCKS_REQUIRED
         return res;
     }
 
-    // Legacy wallet
-    if (IsLegacy()) return GetLegacyScriptPubKeyMan()->IsMine(script);
+    isminetype res = ISMINE_NO;
+    // For descriptor wallets, we should check all managers if the cache miss happens
+    // This provides a fallback similar to the Legacy wallet's safety net
+    for (const auto& spk_man_pair : m_spk_managers) {
+        res = std::max(res, spk_man_pair.second->IsMine(script));
+    }
 
-    return ISMINE_NO;
+    // Legacy wallet
+    if (IsLegacy()) return std::max(res, GetLegacyScriptPubKeyMan()->IsMine(script));
+
+    return res;
 }
 
 bool CWallet::IsMine(const CTransaction& tx) const

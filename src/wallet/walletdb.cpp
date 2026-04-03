@@ -583,6 +583,7 @@ static DBErrors LoadLegacyWalletRecords(CWallet* pwallet, DatabaseBatch& batch, 
     // Load scripts
     LoadResult script_res = LoadRecords(pwallet, batch, DBKeys::CSCRIPT,
         [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& strErr) {
+        LOCK(pwallet->cs_wallet);
         uint160 hash;
         key >> hash;
         CScript script;
@@ -606,6 +607,7 @@ static DBErrors LoadLegacyWalletRecords(CWallet* pwallet, DatabaseBatch& batch, 
     std::map<uint160, CHDChain> hd_chains;
     LoadResult keymeta_res = LoadRecords(pwallet, batch, DBKeys::KEYMETA,
         [&hd_chains] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& strErr) {
+        LOCK(pwallet->cs_wallet);
         CPubKey vchPubKey;
         key >> vchPubKey;
         CKeyMetadata keyMeta;
@@ -693,6 +695,7 @@ static DBErrors LoadLegacyWalletRecords(CWallet* pwallet, DatabaseBatch& batch, 
     // Load watchonly scripts
     LoadResult watch_script_res = LoadRecords(pwallet, batch, DBKeys::WATCHS,
         [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) {
+        LOCK(pwallet->cs_wallet);
         CScript script;
         key >> script;
         uint8_t fYes;
@@ -707,6 +710,7 @@ static DBErrors LoadLegacyWalletRecords(CWallet* pwallet, DatabaseBatch& batch, 
     // Load watchonly meta
     LoadResult watch_meta_res = LoadRecords(pwallet, batch, DBKeys::WATCHMETA,
         [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) {
+        LOCK(pwallet->cs_wallet);
         CScript script;
         key >> script;
         CKeyMetadata keyMeta;
@@ -719,6 +723,7 @@ static DBErrors LoadLegacyWalletRecords(CWallet* pwallet, DatabaseBatch& batch, 
     // Load keypool
     LoadResult pool_res = LoadRecords(pwallet, batch, DBKeys::POOL,
         [] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& err) {
+        LOCK(pwallet->cs_wallet);
         int64_t nIndex;
         key >> nIndex;
         CKeyPool keypool;
@@ -794,6 +799,7 @@ static DBErrors LoadDescriptorWalletRecords(CWallet* pwallet, DatabaseBatch& bat
     int num_ckeys= 0;
     LoadResult desc_res = LoadRecords(pwallet, batch, DBKeys::WALLETDESCRIPTOR,
         [&batch, &num_keys, &num_ckeys, &last_client] (CWallet* pwallet, DataStream& key, DataStream& value, std::string& strErr) {
+        LOCK(pwallet->cs_wallet);
         DBErrors result = DBErrors::LOAD_OK;
 
         uint256 id;

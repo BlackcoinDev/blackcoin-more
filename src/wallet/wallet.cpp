@@ -4650,6 +4650,7 @@ bool CWallet::IsStakeClosing()
 
 void CWallet::CacheNewScriptPubKeys(const std::set<CScript>& spks, ScriptPubKeyMan* spkm)
 {
+    AssertLockHeld(cs_wallet);
     for (const auto& script : spks) {
         m_cached_spks[script].push_back(spkm);
     }
@@ -4657,6 +4658,7 @@ void CWallet::CacheNewScriptPubKeys(const std::set<CScript>& spks, ScriptPubKeyM
 
 void CWallet::TopUpCallback(const std::set<CScript>& spks, ScriptPubKeyMan* spkm)
 {
+    AssertLockHeld(cs_wallet);
     // Update scriptPubKey cache
     CacheNewScriptPubKeys(spks, spkm);
 }

@@ -204,7 +204,7 @@ BOOST_FIXTURE_TEST_CASE(importmulti_rescan, TestChain100Setup)
     // after.
     {
         const std::shared_ptr<CWallet> wallet = std::make_shared<CWallet>(m_node.chain.get(), "", CreateMockableWalletDatabase());
-        wallet->SetupLegacyScriptPubKeyMan();
+        WITH_LOCK(wallet->cs_wallet, wallet->SetupLegacyScriptPubKeyMan());
         WITH_LOCK(wallet->cs_wallet, wallet->SetLastBlockProcessed(newTip->nHeight, newTip->GetBlockHash()));
         WalletContext context;
         context.args = &m_args;
@@ -270,8 +270,9 @@ BOOST_FIXTURE_TEST_CASE(importwallet_rescan, TestChain100Setup)
         context.args = &m_args;
         const std::shared_ptr<CWallet> wallet = std::make_shared<CWallet>(m_node.chain.get(), "", CreateMockableWalletDatabase());
         {
+            LOCK(wallet->cs_wallet);
             auto spk_man = wallet->GetOrCreateLegacyScriptPubKeyMan();
-            LOCK2(wallet->cs_wallet, spk_man->cs_KeyStore);
+            LOCK(spk_man->cs_KeyStore);
             spk_man->mapKeyMetadata[coinbaseKey.GetPubKey().GetID()].nCreateTime = KEY_TIME;
             spk_man->AddKeyPubKey(coinbaseKey, coinbaseKey.GetPubKey());
 
@@ -499,6 +500,7 @@ BOOST_AUTO_TEST_CASE(WatchOnlyPubKeys)
 {
     CKey key;
     CPubKey pubkey;
+    LOCK(m_wallet.cs_wallet);
     LegacyScriptPubKeyMan* spk_man = m_wallet.GetOrCreateLegacyScriptPubKeyMan();
 
     BOOST_CHECK(!spk_man->HaveWatchOnly());
@@ -672,7 +674,7 @@ BOOST_FIXTURE_TEST_CASE(wallet_disableprivkeys, TestChain100Setup)
 {
     {
         const std::shared_ptr<CWallet> wallet = std::make_shared<CWallet>(m_node.chain.get(), "", CreateMockableWalletDatabase());
-        wallet->SetupLegacyScriptPubKeyMan();
+        WITH_LOCK(wallet->cs_wallet, wallet->SetupLegacyScriptPubKeyMan());
         wallet->SetMinVersion(FEATURE_LATEST);
         wallet->SetWalletFlag(WALLET_FLAG_DISABLE_PRIVATE_KEYS);
         BOOST_CHECK(!wallet->TopUpKeyPool(1000));

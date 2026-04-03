@@ -299,21 +299,23 @@ public:
 class CDataStream : public DataStream
 {
 private:
-    int nType;
     int nVersion;
 
 public:
     explicit CDataStream(int nTypeIn)
-        : nType{nTypeIn}, nVersion{INIT_PROTO_VERSION} {}
+        : nVersion{INIT_PROTO_VERSION}
+    {
+        nType = nTypeIn;
+    }
 
     explicit CDataStream(Span<const uint8_t> sp, int type) : CDataStream{AsBytes(sp), type} {}
     explicit CDataStream(Span<const value_type> sp, int nTypeIn)
         : DataStream{sp},
-          nType{nTypeIn},
-          nVersion{INIT_PROTO_VERSION} {}
+          nVersion{INIT_PROTO_VERSION}
+    {
+        nType = nTypeIn;
+    }
 
-    void SetType(int n)          { nType = n; }
-    int GetType() const          { return nType; }
     void SetVersion(int n)       { nVersion = n; }
     int GetVersion() const       { return nVersion; }
 

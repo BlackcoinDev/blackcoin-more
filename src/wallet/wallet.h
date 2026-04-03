@@ -423,7 +423,7 @@ private:
     // Maps ScriptPubKey to set of ScriptPubKeyMan pointers for O(1) lookup during stake attempts.
     // Layer 1 of the 3-layer staking cache architecture - eliminates linear descriptor scan.
     // See agent/STAKECACHE.md for full documentation.
-    std::unordered_map<CScript, std::vector<ScriptPubKeyMan*>, SaltedSipHasher> m_cached_spks;
+    std::unordered_map<CScript, std::vector<ScriptPubKeyMan*>, SaltedSipHasher> m_cached_spks GUARDED_BY(cs_wallet);
 
     /**
      * Catch wallet up to current chain, scanning new blocks, updating the best

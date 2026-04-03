@@ -85,8 +85,8 @@ public:
 class FeeFilterRounder
 {
 private:
-    CFeeRate m_incremental_fee;
-    FastRandomContext& m_rng;
+    [[maybe_unused]] CFeeRate m_incremental_fee;
+    [[maybe_unused]] FastRandomContext& m_rng;
 
 public:
     FeeFilterRounder(const CFeeRate& incremental_fee, FastRandomContext& rng)

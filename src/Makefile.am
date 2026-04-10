@@ -380,6 +380,7 @@ libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
 # node #
 libbitcoin_node_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(LEVELDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(MINIUPNPC_CPPFLAGS) $(NATPMP_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
 libbitcoin_node_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+libbitcoin_node_a_LIBADD = $(EVENT_LIBS) $(EVENT_PTHREADS_LIBS)
 libbitcoin_node_a_SOURCES = \
   addrdb.cpp \
   addrman.cpp \
@@ -670,6 +671,7 @@ libbitcoin_consensus_a_SOURCES = \
 # common #
 libbitcoin_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS)
 libbitcoin_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+libbitcoin_common_a_LIBADD = $(EVENT_LIBS)
 libbitcoin_common_a_SOURCES = \
   addresstype.cpp \
   base58.cpp \

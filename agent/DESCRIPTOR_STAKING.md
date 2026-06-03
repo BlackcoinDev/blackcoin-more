@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-Based on comprehensive code analysis and real transaction evidence, **descriptor wallets can successfully stake with bech32 addresses**. The "Staking Legacy Address" is not a technical limitation but serves a specific purpose in the kernel proof mechanism. This analysis examines the staking implementation, validates findings with code references, and provides evidence from a real staking transaction.
+Based on comprehensive code analysis and real transaction evidence, **descriptor wallets can successfully stake with bech32 addresses**. The "Staking Reward" is not a technical limitation but serves a specific purpose in the kernel proof mechanism. This analysis examines the staking implementation, validates findings with code references, and provides evidence from a real staking transaction.
 
 ## Technical Components of Staking
 
@@ -37,7 +37,7 @@ if (whichType != TxoutType::PUBKEY &&
 auto op_dest = pwallet->GetNewDestination(OutputType::LEGACY, label);
 ```
 
-This creates a LEGACY address with label "Staking Legacy Address" when no such labeled address exists.
+This creates a LEGACY address with label "Staking Reward" when no such labeled address exists.
 
 **Technical Reality:** The reward address type is independent of kernel UTXO types. `GetScriptForDestination()` handles all destination types.
 
@@ -62,7 +62,7 @@ if (whichType == TxoutType::PUBKEYHASH) // pay to address
 }
 ```
 
-The "Staking Legacy Address" is used to create a PUBKEY output in the coinstake transaction for kernel proof.
+The "Staking Reward" is used to create a PUBKEY output in the coinstake transaction for kernel proof.
 
 ## Real Transaction Evidence
 
@@ -81,7 +81,7 @@ Analysis of actual staking transaction `d51a7731fbbf56bdaa2346ff6a882facde0da864
 
 **Kernel Proof Output:**
 - Output 1: `myG16DiaBj4KPhDajiUYnUBo7kPz1YfxHS` - legacy PUBKEY type
-- This is the "Staking Legacy Address" used for kernel proof
+- This is the "Staking Reward" used for kernel proof
 
 ## Address Type Support Matrix
 
@@ -119,7 +119,7 @@ Blackcoin More supports the following address types with varying staking capabil
 
 **Code Support:** `GetScriptForDestination()` handles all `CTxDestination` types.
 
-### 3. "Staking Legacy Address" Purpose ✅
+### 3. "Staking Reward" Purpose ✅
 
 **Purpose:** Kernel proof mechanism, not reward address.
 
@@ -201,21 +201,21 @@ else {
 
 ### Implementation Notes
 
-1. **Staking Legacy Address** is a misnomer - should be called "Staking Kernel Proof Address"
+1. **Staking Reward** is a misnomer - should be called "Staking Kernel Proof Address"
 2. **Reward addresses** have no type restrictions
 3. **Kernel UTXOs** support modern types but exclude script-based addresses for security
 
 ## Technical Fixes and Implementation Plan
 
-### Issue 1: Misleading "Staking Legacy Address" Naming
+### Issue 1: Misleading "Staking Reward" Naming
 
-**Problem:** The label "Staking Legacy Address" suggests legacy-only staking but actually creates kernel proof addresses.
+**Problem:** The label "Staking Reward" suggests legacy-only staking but actually creates kernel proof addresses.
 
 **Technical Fix:**
 1. **Rename the label constant** in `src/node/miner.cpp:666`
    ```cpp
    // Change from:
-   const std::string label = "Staking Legacy Address";
+   const std::string label = "Staking Reward";
    // To:
    const std::string label = "Staking Kernel Proof Address";
    ```
@@ -226,7 +226,7 @@ else {
 
 **Implementation Steps:**
 1. Update string constant in `miner.cpp`
-2. Search and update all references to "Staking Legacy Address" in comments
+2. Search and update all references to "Staking Reward" in comments
 3. Update AGENTS.md and UPGRADE.md documentation
 4. Test backward compatibility (existing wallets with old label still work)
 
@@ -279,7 +279,7 @@ else {
 
 ### Issue 4: Kernel Proof Address Type Optimization (The OP_RETURN Path)
 
-**Problem:** Kernel proof currently forces a P2PK output ("Staking Legacy Address"), which creates "dust" UTXOs and requires confusing legacy formatting.
+**Problem:** Kernel proof currently forces a P2PK output ("Staking Reward"), which creates "dust" UTXOs and requires confusing legacy formatting.
 
 **Solution: OP_RETURN Implementation**
 Consensus explicitly supports `OP_RETURN <pubkey>` in `vout[1]` (see `src/validation.cpp`).
@@ -429,7 +429,7 @@ We analyzed the staking implementations of the top three Bitcoin Core-based PoS 
   ```
 
 **4. Rename Misleading Labels**
-- **Why:** "Staking Legacy Address" is confusing and technically inaccurate
+- **Why:** "Staking Reward" is confusing and technically inaccurate
 - **What:** Update to "Staking Kernel Proof Address" throughout codebase
 - **Code Changes:**
   ```cpp

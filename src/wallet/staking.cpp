@@ -6,7 +6,6 @@
 // Copyright (c) 2016-2023 The Qtum developers
 
 #include <common/args.h>
-#include <index/txindex.h>
 #include <node/miner.h>
 #include <wallet/coincontrol.h>
 #include <wallet/receive.h>
@@ -257,10 +256,6 @@ bool CreateCoinStake(CWallet& wallet, unsigned int nBits, int64_t nSearchInterva
     CBlockIndex* pindexPrev = wallet.chain().getTip();
     arith_uint256 bnTargetPerCoinDay;
     bnTargetPerCoinDay.SetCompact(nBits);
-
-    // Transaction index is required to get to block header
-    if (!g_txindex)
-        return error("CreateCoinStake : transaction index unavailable");
 
     LOCK2(cs_main, wallet.cs_wallet);
     txNew.vin.clear();

@@ -1581,7 +1581,13 @@ void CWallet::updatedBlockTip()
     }
 
     // BLACKCOIN-SPECIFIC: Wake-on-block-arrival - signal staker thread
-    m_new_block_arrived.store(true);
+    // Hold cv_block_mutex while setting the flag to prevent lost-wakeup race:
+    // without the mutex, notify_one() can arrive between the staker's
+    // flag check and wait_until(), causing the notification to be lost.
+    {
+        std::lock_guard<std::mutex> lock(cv_block_mutex);
+        m_new_block_arrived.store(true);
+    }
     cv_new_block.notify_one();
     LogPrint(BCLog::COINSTAKE, "WakeOnBlock: staker notified to wake, mtp=%d\n",
              chain().getTip() ? chain().getTip()->GetMedianTimePast() : 0);

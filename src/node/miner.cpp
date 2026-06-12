@@ -896,9 +896,8 @@ void PoSMiner(CWallet* pwallet)
             if (!pblocktemplate.get()) {
                 if (fPoSCancel == true) {
                     // Check if safety bump wants us to sleep until a specific time
-                    int64_t safetyBumpSleep = pwallet->m_safety_bump_sleep_ms.load();
+                    int64_t safetyBumpSleep = pwallet->m_safety_bump_sleep_ms.exchange(0);
                     int64_t sleepTime = safetyBumpSleep > 0 ? safetyBumpSleep : pos_timio;
-                    pwallet->m_safety_bump_sleep_ms = 0;  // Reset for next iteration
                     
                     if (!SleepStaker(pwallet, sleepTime))
                         return;

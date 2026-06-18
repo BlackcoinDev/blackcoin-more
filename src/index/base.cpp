@@ -447,7 +447,7 @@ IndexSummary BaseIndex::GetSummary() const
 void BaseIndex::SetBestBlockIndex(const CBlockIndex* block)
 {
     /*
-    // Blackcoin
+    // Blackcoin: pruning is not allowed
     assert(!m_chainstate->m_blockman.IsPruneMode() || AllowPrune());
 
     if (AllowPrune() && block) {

@@ -107,7 +107,7 @@ const std::vector<std::string> CHECKLEVEL_DOC {
  *  noticeably interfere with the pruning mechanism.
  * */
 /*
-// Blackcoin
+// Blackcoin: no Pruning
 static constexpr int PRUNE_LOCK_BUFFER{10};
 */
 
@@ -637,7 +637,7 @@ private:
     // of checking a given transaction.
     struct Workspace {
         explicit Workspace(const CTransactionRef& ptx) : m_ptx(ptx), m_hash(ptx->GetHash()) {}
-        // Blackcoin
+        // Blackcoin: no RBF
         /** Txids of mempool transactions that this transaction directly conflicts with or may
          * replace via sibling eviction. */
         // std::set<Txid> m_conflicts;
@@ -682,7 +682,7 @@ private:
     bool PreChecks(ATMPArgs& args, Workspace& ws) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_pool.cs);
 
     /*
-    // Blackcoin
+    // Blackcoin: no RBF
     // Run checks for mempool replace-by-fee, only used in AcceptSingleTransaction.
     bool ReplacementChecks(Workspace& ws) EXCLUSIVE_LOCKS_REQUIRED(cs_main, m_pool.cs);
     */
@@ -843,8 +843,8 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         return state.Invalid(TxValidationResult::TX_PREMATURE_SPEND, "time-too-new");
     }
 
-    // is it already in the memory pool?
     if (m_pool.exists(GenTxid::Wtxid(tx.GetWitnessHash()))) {
+        // Exact transaction already exists in the mempool.
         return state.Invalid(TxValidationResult::TX_CONFLICT, "txn-already-in-mempool");
     } else if (m_pool.exists(GenTxid::Txid(tx.GetHash()))) {
         // Transaction with the same non-witness data but different witness (same txid, different

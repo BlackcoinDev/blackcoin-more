@@ -116,6 +116,8 @@ endif
 # bitcoin core #
 BITCOIN_CORE_H = \
   addresstype.h \
+  timedata.h \
+  uint256.h \
   addrdb.h \
   addrman.h \
   addrman_impl.h \
@@ -344,7 +346,6 @@ BITCOIN_CORE_H = \
   util/vector.h \
   validation.h \
   validationinterface.h \
-  version.h \
   versionbits.h \
   wallet/bdb.h \
   wallet/coincontrol.h \
@@ -699,6 +700,7 @@ libbitcoin_common_a_SOURCES = \
   common/signmessage.cpp \
   common/system.cpp \
   common/url.cpp \
+  timedata.cpp \
   compressor.cpp \
   consensus/merkle.cpp \
   core_read.cpp \

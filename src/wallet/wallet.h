@@ -38,12 +38,14 @@
 
 #include <atomic>
 #include <cassert>
+#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <limits>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <set>
 #include <string>
@@ -324,8 +326,6 @@ private:
     // Local time that the tip block was received. Used to schedule wallet rebroadcasts.
     std::atomic<int64_t> m_best_block_time {0};
 
-    std::map<COutPoint, CStakeCache> stakeCache;
-
     // First created key time. Used to skip blocks prior to this time.
     // 'std::numeric_limits<int64_t>::max()' if wallet is blank.
     std::atomic<int64_t> m_birth_time{std::numeric_limits<int64_t>::max()};
@@ -444,6 +444,8 @@ public:
      * This lock protects all the fields added by CWallet.
      */
     mutable RecursiveMutex cs_wallet;
+
+    std::map<COutPoint, CStakeCache> stakeCache; // blackcoin: stakecache
 
     WalletDatabase& GetDatabase() const override
     {

@@ -5,7 +5,7 @@
 // Staking start/stop algos by Qtum
 // Copyright (c) 2016-2023 The Qtum developers
 
-#include <index/txindex.h>
+#include <common/args.h>
 #include <wallet/coincontrol.h>
 #include <wallet/receive.h>
 #include <wallet/staking.h>
@@ -339,12 +339,12 @@ bool CreateCoinStake(CWallet& wallet, unsigned int nBits, int64_t nSearchInterva
                     if (wallet.IsLegacy()) {
                         auto scriptPubKeyMan = wallet.GetLegacyScriptPubKeyMan();
                         if (!scriptPubKeyMan) {
-                            LogPrint(BCLog::COINSTAKE, "CreateCoinStake : failed to get scriptpubkeyman for kernel type=%s\n", GetTxnOutputType(whichType));
+                            LogPrint(BCLog::COINSTAKE, "[%s] CreateCoinStake: failed to get scriptpubkeyman for kernel type=%s\n", wallet.GetName(), GetTxnOutputType(whichType));
                             break;  // unable to find corresponding public key
                         }
                         if (!scriptPubKeyMan->GetKey(CKeyID(uint160(vSolutions[0])), key))
                         {
-                            LogPrint(BCLog::COINSTAKE, "CreateCoinStake : failed to get key for kernel type=%s\n", GetTxnOutputType(whichType));
+                            LogPrint(BCLog::COINSTAKE, "[%s] CreateCoinStake: failed to get key for kernel type=%s\n", wallet.GetName(), GetTxnOutputType(whichType));
                             break;  // unable to find corresponding public key
                         }
                         scriptPubKeyOut << ToByteVector(key.GetPubKey()) << OP_CHECKSIG;
@@ -352,13 +352,13 @@ bool CreateCoinStake(CWallet& wallet, unsigned int nBits, int64_t nSearchInterva
                     else {
                         std::unique_ptr<SigningProvider> provider = wallet.GetSolvingProvider(scriptPubKeyKernel);
                         if (!provider) {
-                            LogPrint(BCLog::COINSTAKE, "CreateCoinStake : failed to get signing provider for output %s\n", pcoin.first->tx->vout[pcoin.second].ToString());
+LogPrint(BCLog::COINSTAKE, "[%s] CreateCoinStake: failed to get signing provider for output %s\n", wallet.GetName(), pcoin.first->tx->vout[pcoin.second].ToString());
                             break;
                         }
                         CKeyID ckey = CKeyID(uint160(vSolutions[0]));
                         CPubKey pkey;
                         if (!provider.get()->GetPubKey(ckey, pkey)) {
-                            LogPrint(BCLog::COINSTAKE, "CreateCoinStake : failed to get key for output %s\n", pcoin.first->tx->vout[pcoin.second].ToString());
+LogPrint(BCLog::COINSTAKE, "[%s] CreateCoinStake: failed to get key for output %s\n", wallet.GetName(), pcoin.first->tx->vout[pcoin.second].ToString());
                             break;
                         }
                         scriptPubKeyOut << ToByteVector(pkey) << OP_CHECKSIG;
@@ -373,13 +373,13 @@ bool CreateCoinStake(CWallet& wallet, unsigned int nBits, int64_t nSearchInterva
                     Solver(scriptPubKeyTmp, vSolutionsTmp);
                     std::unique_ptr<SigningProvider> provider = wallet.GetSolvingProvider(scriptPubKeyTmp);
                     if (!provider) {
-                        LogPrint(BCLog::COINSTAKE, "CreateCoinStake : failed to get signing provider for output %s\n", pcoin.first->tx->vout[pcoin.second].ToString());
+                        LogPrint(BCLog::COINSTAKE, "[%s] CreateCoinStake: failed to get signing provider for output %s\n", wallet.GetName(), pcoin.first->tx->vout[pcoin.second].ToString());
                         break;
                     }
                     CKeyID ckey = CKeyID(uint160(vSolutionsTmp[0]));
                     CPubKey pkey;
                     if (!provider.get()->GetPubKey(ckey, pkey)) {
-                        LogPrint(BCLog::COINSTAKE, "CreateCoinStake : failed to get key for output %s\n", pcoin.first->tx->vout[pcoin.second].ToString());
+                        LogPrint(BCLog::COINSTAKE, "[%s] CreateCoinStake: failed to get key for output %s\n", wallet.GetName(), pcoin.first->tx->vout[pcoin.second].ToString());
                         break;
                     }
                     scriptPubKeyOut << ToByteVector(pkey) << OP_CHECKSIG;
@@ -399,7 +399,7 @@ bool CreateCoinStake(CWallet& wallet, unsigned int nBits, int64_t nSearchInterva
                 }
     
                 txNew.vout.push_back(CTxOut(0, scriptPubKeyOut));
-                LogPrint(BCLog::COINSTAKE, "CreateCoinStake : added kernel type=%d\n", (int)whichType);
+                LogPrint(BCLog::COINSTAKE, "[%s] CreateCoinStake: added kernel type=%d\n", wallet.GetName(), (int)whichType);
                 fKernelFound = true;
                 break;
             }

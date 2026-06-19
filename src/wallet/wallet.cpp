@@ -1105,6 +1105,12 @@ CWalletTx* CWallet::AddToWallet(CTransactionRef tx, const TxState& state, const 
         if (state.index() != wtx.m_state.index()) {
             wtx.m_state = state;
             fUpdated = true;
+            // Blackcoin: Recompute nTimeSmart for coinstakes when transitioning to Confirmed state.
+            // The initial insertion may have been an orphaned/invalid stake with wrong timestamps.
+            if (wtx.IsCoinStake() && wtx.state<TxStateConfirmed>()) {
+                wtx.nTimeSmart = ComputeTimeSmart(wtx, /*rescanning_old_block=*/false);
+                fUpdated = true;
+            }
         } else {
             assert(TxStateSerializedIndex(wtx.m_state) == TxStateSerializedIndex(state));
             assert(TxStateSerializedBlockHash(wtx.m_state) == TxStateSerializedBlockHash(state));
@@ -2908,14 +2914,19 @@ unsigned int CWallet::ComputeTimeSmart(const CWalletTx& wtx, bool rescanning_old
         int64_t blocktime;
         int64_t block_max_time;
         if (chain().findBlock(*block_hash, FoundBlock().time(blocktime).maxTime(block_max_time))) {
-            if (rescanning_old_block) {
+            // Blackcoin: Coinstake time must always equal blocktime. Unlike regular transactions,
+            // coinstake is never broadcasted and should not use smart timestamp heuristics.
+            if (wtx.IsCoinStake()) {
+                nTimeSmart = blocktime;
+            } else if (rescanning_old_block) {
                 nTimeSmart = block_max_time;
             } else {
                 int64_t latestNow = wtx.nTimeReceived;
                 int64_t latestEntry = 0;
 
-                // Tolerate times up to the last timestamp in the wallet not more than 5 minutes into the future
-                int64_t latestTolerated = latestNow + 300;
+                // Blackcoin: Tolerate times up to the last timestamp in the wallet not more 16 seconds into the future
+                // this is the Futuredrift for Blackcoin
+                int64_t latestTolerated = latestNow + 16;
                 const TxItems& txOrdered = wtxOrdered;
                 for (auto it = txOrdered.rbegin(); it != txOrdered.rend(); ++it) {
                     CWalletTx* const pwtx = it->second;

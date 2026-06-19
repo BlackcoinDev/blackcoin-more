@@ -2060,9 +2060,7 @@ ServiceFlags PeerManagerImpl::GetDesirableServiceFlags(ServiceFlags services) co
             return ServiceFlags(NODE_NETWORK_LIMITED | NODE_WITNESS);
         }
     }
-    // Blackcoin: Do not ask for NODE_WITNESS for now
-    // return ServiceFlags(NODE_NETWORK | NODE_WITNESS);
-    return ServiceFlags(NODE_NETWORK);
+    return ServiceFlags(NODE_NETWORK | NODE_WITNESS);
 }
 
 PeerRef PeerManagerImpl::GetPeerRef(NodeId id) const

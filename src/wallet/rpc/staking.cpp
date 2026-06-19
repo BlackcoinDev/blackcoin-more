@@ -372,7 +372,7 @@ static RPCHelpMan checkkernel()
     if (!provider.get()->GetPubKey(ckey, pkey)) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Error: failed to get key");
     }
-    result.pushKV("blocktemplatesignkey", HexStr(pkey));
+    result.pushKV("blocktemplatesignkey", HexStr(pkey)); // blackcoin: signkey
 
     return result;
 },

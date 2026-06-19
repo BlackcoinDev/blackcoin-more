@@ -172,11 +172,14 @@ BitcoinGUI::BitcoinGUI(interfaces::Node& node, const PlatformStyle *_platformSty
     if(enableWallet)
     {
         frameBlocksLayout->addStretch();
+        // BLACKCOIN-SPECIFIC: UnitDisplayStatusBarControl is currently disabled
+        // frameBlocksLayout->addWidget(unitDisplayControl);
+        frameBlocksLayout->addStretch();
         frameBlocksLayout->addWidget(labelWalletEncryptionIcon);
         labelWalletEncryptionIcon->hide();
         frameBlocksLayout->addWidget(labelWalletHDStatusIcon);
         labelWalletHDStatusIcon->hide();
-        frameBlocksLayout->addStretch();
+        // BLACKCOIN-SPECIFIC: Add staking icon to the status bar layout
         frameBlocksLayout->addWidget(labelStakingIcon);
     }
     frameBlocksLayout->addWidget(labelProxyIcon);
@@ -187,9 +190,10 @@ BitcoinGUI::BitcoinGUI(interfaces::Node& node, const PlatformStyle *_platformSty
     frameBlocksLayout->addStretch();
 	
 #ifdef ENABLE_WALLET
-	if (node::CanStake())
+    if (node::CanStake())
     {
-        QTimer *timerStakingIcon = new QTimer(labelStakingIcon);
+        // BLACKCOIN-SPECIFIC: Fix variable shadowing for timerStakingIcon
+        timerStakingIcon = new QTimer(labelStakingIcon);
         connect(timerStakingIcon, SIGNAL(timeout()), this, SLOT(updateStakingIcon()));
         timerStakingIcon->start(1000);
 

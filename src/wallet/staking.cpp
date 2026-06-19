@@ -253,12 +253,6 @@ bool CreateCoinStake(CWallet& wallet, unsigned int nBits, int64_t nSearchInterva
     arith_uint256 bnTargetPerCoinDay;
     bnTargetPerCoinDay.SetCompact(nBits);
 
-    // Transaction index is required to get to block header
-    if (!g_txindex) {
-        LogError("%s: transaction index unavailable", __func__);
-        return false;
-    }
-
     LOCK2(cs_main, wallet.cs_wallet);
     txNew.vin.clear();
     txNew.vout.clear();
@@ -415,13 +409,6 @@ LogPrint(BCLog::COINSTAKE, "[%s] CreateCoinStake: failed to get key for output %
 
     for (const std::pair<const CWalletTx*, unsigned int> &pcoin : setCoins)
     {
-        uint256 blockHash;
-        CTransactionRef tx;
-        if (!g_txindex->FindTx(pcoin.first->GetHash(), blockHash, tx)) {
-            LogPrintf("couldnt retrieve tx %s\n", *pcoin.first->GetHash().ToString().c_str());
-            continue;
-        }
-
         // Attempt to add more inputs
         // Only add coins of the same key/address as kernel
         if (txNew.vout.size() == 2 && ((pcoin.first->tx->vout[pcoin.second].scriptPubKey == scriptPubKeyKernel || pcoin.first->tx->vout[pcoin.second].scriptPubKey == txNew.vout[1].scriptPubKey))

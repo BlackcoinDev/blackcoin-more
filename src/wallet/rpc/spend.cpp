@@ -75,8 +75,7 @@ UniValue SendMoneyToScript(CWallet& wallet, const CScript scriptPubKey, CAmount 
     std::shuffle(recipients.begin(), recipients.end(), FastRandomContext());
 
     // Send
-    constexpr int RANDOM_CHANGE_POSITION = -1;
-    auto res = CreateTransaction(wallet, recipients, RANDOM_CHANGE_POSITION, coin_control, true);
+    auto res = CreateTransaction(wallet, recipients, std::nullopt, coin_control, true);
     if (!res) {
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, util::ErrorString(res).original);
     }
@@ -259,6 +258,7 @@ RPCHelpMan burn()
     EnsureWalletIsUnlocked(*pwallet);
 
     CCoinControl coin_control;
+    coin_control.m_change_type = pwallet->m_default_address_type;
     mapValue_t mapValue;
 
     return SendMoneyToScript(*pwallet, scriptPubKey, nAmount, coin_control, std::move(mapValue));
@@ -308,6 +308,7 @@ RPCHelpMan burnwallet()
     EnsureWalletIsUnlocked(*pwallet);
 
     CCoinControl coin_control;
+    coin_control.m_change_type = pwallet->m_default_address_type;
     mapValue_t mapValue;
 
     const auto bal = GetBalance(*pwallet);
@@ -334,8 +335,7 @@ RPCHelpMan burnwallet()
     std::shuffle(recipients.begin(), recipients.end(), FastRandomContext());
 
     // Send
-    constexpr int RANDOM_CHANGE_POSITION = -1;
-    auto res = CreateTransaction(*pwallet, recipients, RANDOM_CHANGE_POSITION, coin_control, true);
+    auto res = CreateTransaction(*pwallet, recipients, std::nullopt, coin_control, true);
     if (!res) {
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, util::ErrorString(res).original);
     }
@@ -445,14 +445,13 @@ RPCHelpMan optimizeutxoset()
     }
 
     // Calculate transaction input size
-    const CWallet& wallet{*pwallet};
-    TxSize tx_sizes = CalculateMaximumSignedTxSize(CTransaction(txTmp), &wallet, &coin_control);
+    TxSize tx_sizes = CalculateMaximumSignedTxSize(CTransaction(txTmp), pwallet.get(), &coin_control);
     int nBytes = tx_sizes.vsize;
 
     // calculate size of output
     CTxOut txout(amount, script_pub_key);
     txTmp.vout.push_back(txout);
-    tx_sizes = CalculateMaximumSignedTxSize(CTransaction(txTmp), &wallet, &coin_control);
+    tx_sizes = CalculateMaximumSignedTxSize(CTransaction(txTmp), pwallet.get(), &coin_control);
     int nBytesPerOut = tx_sizes.vsize - nBytes;
 
     CAmount fee = GetMinFee(nBytes + (unsigned int)(remaining / amount) * nBytesPerOut, GetAdjustedTimeSeconds());
@@ -462,8 +461,7 @@ RPCHelpMan optimizeutxoset()
     }
 
     // Send
-    constexpr int RANDOM_CHANGE_POSITION = -1;
-    auto res = CreateTransaction(*pwallet, recipients, RANDOM_CHANGE_POSITION, coin_control, true);
+    auto res = CreateTransaction(*pwallet, recipients, std::nullopt, coin_control, true);
     if (!res) {
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, util::ErrorString(res).original);
     }

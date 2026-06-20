@@ -449,6 +449,17 @@ public:
 
     std::map<COutPoint, CStakeCache> stakeCache; // blackcoin: stakecache
 
+    // Wake-on-block: condition variable for instant staker wake-up when new block arrives
+    std::condition_variable cv_new_block;
+    std::mutex cv_block_mutex;
+    std::atomic<bool> m_new_block_arrived{false};
+
+    // Safety bump: pre-calculated sleep time (ms) to next valid 16-second window after new block
+    std::atomic<int64_t> m_safety_bump_sleep_ms{0}; // blackcoin: safety bump
+
+    // Per-wallet staking timer for multi-wallet independence
+    int64_t m_last_coin_stake_search_time{0};
+
     WalletDatabase& GetDatabase() const override
     {
         assert(static_cast<bool>(m_database));

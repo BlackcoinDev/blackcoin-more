@@ -47,6 +47,7 @@ void StopStake(CWallet& wallet) {
     else {
         wallet.m_stop_staking_thread = true;
         wallet.m_enabled_staking = false;
+        wallet.cv_new_block.notify_one();
         StakeCoins(wallet, false);
         wallet.threadStakeMinerGroup = 0;
         wallet.m_stop_staking_thread = false;
@@ -55,6 +56,7 @@ void StopStake(CWallet& wallet) {
 
 uint64_t GetStakeWeight(const CWallet& wallet)
 {
+    LOCK(wallet.cs_wallet);
     // Choose coins to use
     const auto bal = GetBalance(wallet);
     CAmount nBalance = bal.m_mine_trusted;
@@ -205,6 +207,7 @@ void AvailableCoinsForStaking(const CWallet& wallet,
 // Select some coins without random shuffle or best subset approximation
 bool SelectCoinsForStaking(const CWallet& wallet, CAmount& nTargetValue, std::set<std::pair<const CWalletTx *, unsigned int> > &setCoinsRet, CAmount& nValueRet)
 {
+    AssertLockHeld(wallet.cs_wallet);
     std::vector<std::pair<const CWalletTx*, unsigned int> > vCoins;
     CCoinControl coincontrol;
     AvailableCoinsForStaking(wallet, vCoins, &coincontrol);
@@ -384,7 +387,7 @@ LogPrint(BCLog::COINSTAKE, "[%s] CreateCoinStake: failed to get key for output %
                 txNew.nTime -= n;
                 txNew.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
                 nCredit += pcoin.first->tx->vout[pcoin.second].nValue;
-                vwtxPrev.push_back(tx);
+                vwtxPrev.push_back(pcoin.first->tx);
 
                 if (bMinterKey) {
                     // extra output for minter key
@@ -396,6 +399,22 @@ LogPrint(BCLog::COINSTAKE, "[%s] CreateCoinStake: failed to get key for output %
                 txNew.vout.push_back(CTxOut(0, scriptPubKeyOut));
                 LogPrint(BCLog::COINSTAKE, "[%s] CreateCoinStake: added kernel type=%d\n", wallet.GetName(), (int)whichType);
                 fKernelFound = true;
+
+                if (txNew.nTime < pindexPrev->GetMedianTimePast() + 1) {
+                    LogPrint(BCLog::COINSTAKE, "[%s] Timestamp ASSERT: kernel timestamp (%d) <= MTP (%d)\n",
+                             wallet.GetName(), txNew.nTime, pindexPrev->GetMedianTimePast());
+                    LogPrint(BCLog::COINSTAKE, "[%s]   Kernel Hash: %s\n",
+                             wallet.GetName(), txNew.GetHash().GetHex().c_str());
+                    LogPrint(BCLog::COINSTAKE, "[%s]   Stake Modifier: %s\n",
+                             wallet.GetName(), pindexPrev->nStakeModifier.GetHex().c_str());
+
+                    uint32_t maskedTime = txNew.nTime & ~Params().GetConsensus().nStakeTimestampMask;
+                    if (maskedTime <= pindexPrev->GetMedianTimePast()) {
+                        LogPrint(BCLog::COINSTAKE, "[%s]   DIAGNOSTIC: 16-second mask collision detected (masked: %d <= MTP: %d)\n",
+                                 wallet.GetName(), maskedTime, pindexPrev->GetMedianTimePast());
+                    }
+                    return false;
+                }
                 break;
             }
         }
@@ -429,7 +448,7 @@ LogPrint(BCLog::COINSTAKE, "[%s] CreateCoinStake: failed to get key for output %
 
             txNew.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
             nCredit += pcoin.first->tx->vout[pcoin.second].nValue;
-            vwtxPrev.push_back(tx);
+            vwtxPrev.push_back(pcoin.first->tx);
         }
     }
 

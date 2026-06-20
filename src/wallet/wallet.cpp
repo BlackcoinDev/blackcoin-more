@@ -1585,6 +1585,40 @@ void CWallet::blockDisconnected(const interfaces::BlockInfo& block)
 void CWallet::updatedBlockTip()
 {
     m_best_block_time = GetTime();
+
+    if (chain().isInitialBlockDownload()) {
+        return;
+    }
+
+    if (chain().getTip()) {
+        int64_t nNewMTP = chain().getTip()->GetMedianTimePast();
+        int64_t nNextWindow = ((nNewMTP + 16 + 15) / 16) * 16;
+        int64_t nowAdjusted = GetAdjustedTimeSeconds();
+        int64_t sleepMs = (nNextWindow - nowAdjusted) * 1000;
+
+        if (sleepMs > 16000) {
+            sleepMs %= 16000;
+            if (sleepMs == 0) sleepMs = 16000;
+        }
+
+        if (sleepMs > 0) {
+            m_safety_bump_sleep_ms = sleepMs;
+            LogPrint(BCLog::COINSTAKE, "[%s] UpdatedBlockTip: Pre-calculated next window=%d (%s), sleep=%lld ms "
+                      "(MTP=%d, nowAdjusted=%d, diff=%d)\n",
+                      GetName(), nNextWindow, FormatISO8601DateTime(nNextWindow), sleepMs, nNewMTP, nowAdjusted, nNextWindow - nNewMTP);
+        } else {
+            m_safety_bump_sleep_ms = 0;
+        }
+    } // blackcoin: safety bump
+
+    {
+        std::lock_guard<std::mutex> lock(cv_block_mutex);
+        m_new_block_arrived.store(true);
+    }
+    cv_new_block.notify_one();
+    LogPrint(BCLog::COINSTAKE, "[%s] WakeOnBlock: staker notified to wake, mtp=%d\n",
+             GetName(),
+             chain().getTip() ? chain().getTip()->GetMedianTimePast() : 0);
 }
 
 void CWallet::BlockUntilSyncedToCurrentChain() const {

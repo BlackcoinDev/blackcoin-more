@@ -209,9 +209,6 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     // Proof-of-stake block
 #ifdef ENABLE_WALLET
-    // peercoin: if coinstake available add coinstake tx
-    static int64_t nLastCoinStakeSearchTime = GetAdjustedTimeSeconds();  // only initialized at startup
-
     if (pwallet) {
         // attempt to find a coinstake
         *pfPoSCancel = true;
@@ -219,9 +216,45 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         CMutableTransaction txCoinStake;
         txCoinStake.nTime &= ~chainparams.GetConsensus().nStakeTimestampMask;
 
-        int64_t nSearchTime = txCoinStake.nTime; // search to current time
+        // Safety Bump: if current timestamp slot is blocked by MTP, advance to next
+        // valid 16-second window and calculate sleep time. This avoids tight-loop
+        // fPoSCancel failures where nTime <= MTP.
+        int64_t nSafetyBumpSleepMs = 0;
+        if (txCoinStake.nTime <= pindexPrev->GetMedianTimePast()) {
+            uint32_t oldTime = txCoinStake.nTime;
+            while (txCoinStake.nTime <= pindexPrev->GetMedianTimePast()) {
+                txCoinStake.nTime += (chainparams.GetConsensus().nStakeTimestampMask + 1);
+            }
 
-        if (nSearchTime > nLastCoinStakeSearchTime) {
+            int64_t now = GetAdjustedTimeSeconds();
+            int64_t timeUntilWindow = (txCoinStake.nTime - now) * 1000;
+            if (timeUntilWindow > 0) {
+                nSafetyBumpSleepMs = timeUntilWindow;
+
+                // Strip artificial MTP inflation: if a remote node manipulates MTP
+                // into the future, sleepMs would be grossly inflated. Modulo 16000
+                // preserves the true offset to the next 16-second boundary.
+                if (nSafetyBumpSleepMs > 16000) {
+                    LogPrint(BCLog::COINSTAKE, "[%s] Minter: Stripping MTP inflation from sleep: %lld ms -> %lld ms\n",
+                             pwallet->GetName(), nSafetyBumpSleepMs, nSafetyBumpSleepMs % 16000);
+                    nSafetyBumpSleepMs %= 16000;
+                    if (nSafetyBumpSleepMs == 0) nSafetyBumpSleepMs = 16000;
+                }
+            }
+
+            LogPrint(BCLog::COINSTAKE, "[%s] Minter: Safety Bump fallback triggered! Skipped window %d, starting search at %d (Next Window), sleeping %lld ms\n",
+                     pwallet->GetName(), oldTime, txCoinStake.nTime, nSafetyBumpSleepMs);
+        } // blackcoin: safety bump
+
+        int64_t nSearchTime = txCoinStake.nTime;
+
+        if (nSearchTime > pwallet->m_last_coin_stake_search_time) {
+            if (nSearchTime - pindexPrev->GetMedianTimePast() < 2) {
+                LogPrint(BCLog::COINSTAKE, "[%s] WARNING: Close MTP collision detected (search: %d, MTP: %d, diff: %d)\n",
+                         pwallet->GetName(), nSearchTime, pindexPrev->GetMedianTimePast(),
+                         nSearchTime - pindexPrev->GetMedianTimePast());
+            }
+
             if (wallet::CreateCoinStake(*pwallet, pblock->nBits, 1, txCoinStake, nFees, destination)) {
                 if (txCoinStake.nTime >= pindexPrev->GetMedianTimePast()+1) {
                     // Make the coinbase tx empty in case of proof of stake
@@ -229,13 +262,26 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
                     pblock->nTime = coinbaseTx.nTime = txCoinStake.nTime;
                     pblock->vtx.insert(pblock->vtx.begin() + 1, MakeTransactionRef(CTransaction(txCoinStake)));
                     *pfPoSCancel = false;
+
+                    pwallet->WalletLogPrintf("COINSTAKE CREATED: found kernel at timestamp %d, hash %s, search time %dms\n",
+                              txCoinStake.nTime,
+                              txCoinStake.GetHash().GetHex().c_str(),
+                              pwallet->m_last_coin_stake_search_interval);
                 }
             }
-            pwallet->m_last_coin_stake_search_interval = nSearchTime - nLastCoinStakeSearchTime;
-            nLastCoinStakeSearchTime = nSearchTime;
+            pwallet->m_last_coin_stake_search_interval = nSearchTime - pwallet->m_last_coin_stake_search_time;
+            pwallet->m_last_coin_stake_search_time = nSearchTime;
+            LogPrint(BCLog::COINSTAKE, "[%s] Wallet timer updated: interval=%d, last_search_time=%d (%s)\n",
+                     pwallet->GetName(), pwallet->m_last_coin_stake_search_interval, pwallet->m_last_coin_stake_search_time,
+                     FormatISO8601DateTime(pwallet->m_last_coin_stake_search_time));
         }
-        if (*pfPoSCancel)
+        if (*pfPoSCancel) {
+            // Pass safety bump sleep to caller so PoSMiner can short-circuit
+            if (nSafetyBumpSleepMs > 0) {
+                pwallet->m_safety_bump_sleep_ms = nSafetyBumpSleepMs;
+            }
             return nullptr; // peercoin: there is no point to continue if we failed to create coinstake
+        } // blackcoin: safety bump
         pblock->nFlags = CBlockIndex::BLOCK_PROOF_OF_STAKE;
     }
 #endif
@@ -253,7 +299,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     // Fill in header
     pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
-    pblock->nTime = std::max(pindexPrev->GetMedianTimePast()+1, GetMaxTransactionTime(pblock));
+    if (!pblock->IsProofOfStake())
+        pblock->nTime = std::max(pindexPrev->GetMedianTimePast()+1, GetMaxTransactionTime(pblock));
     if (!pblock->IsProofOfStake())
         UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
     pblock->nNonce         = 0;
@@ -577,23 +624,31 @@ static bool ProcessBlockFound(const CBlock* pblock, ChainstateManager& chainman)
 }
 
 #ifdef ENABLE_WALLET
-// qtum
+// Wake-on-block: condition variable replaces naive UninterruptibleSleep polling.
+// New block arrivals (updatedBlockTip callback) signal cv_new_block to wake
+// the staker instantly, eliminating ~0.9s average wasted sleep per block.
 bool SleepStaker(CWallet *pwallet, uint64_t milliseconds) {
-    uint64_t seconds = milliseconds / 1000;
-    milliseconds %= 1000;
+    std::unique_lock<std::mutex> lock(pwallet->cv_block_mutex);
 
-    for (unsigned int i = 0; i < seconds; i++) {
-        if(!pwallet->IsStakeClosing())
-            UninterruptibleSleep(std::chrono::seconds{1});
-        else
-            return false;
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(milliseconds);
+
+    // Check flag BEFORE waiting to prevent race where notification arrives
+    // between checking IsStakeClosing() and calling wait_until()
+    if (pwallet->m_new_block_arrived.exchange(false)) {
+        return true;
     }
 
-    if (milliseconds) {
-        if(!pwallet->IsStakeClosing())
-            UninterruptibleSleep(std::chrono::milliseconds{milliseconds});
-        else
+    while (std::chrono::steady_clock::now() < deadline) {
+        if (pwallet->IsStakeClosing())
             return false;
+
+        auto result = pwallet->cv_new_block.wait_until(lock, deadline);
+
+        if (result == std::cv_status::no_timeout) {
+            if (pwallet->m_new_block_arrived.exchange(false)) {
+                return true;
+            }
+        }
     }
 
     return !pwallet->IsStakeClosing();
@@ -649,7 +704,6 @@ bool SignBlock(CBlock& block, const CWallet& keystore)
 void PoSMiner(CWallet *pwallet)
 {
     pwallet->WalletLogPrintf("PoSMiner started for proof-of-stake\n");
-    util::ThreadRename(strprintf("blackcoin-stake-miner-%s", pwallet->GetName()));
 
     unsigned int nExtraNonce = 0;
 
@@ -693,7 +747,7 @@ void PoSMiner(CWallet *pwallet)
     try {
         while (true)
         {
-            while (pwallet->IsLocked() || !pwallet->m_enabled_staking || pwallet->chain().chainman().m_blockman.m_blockfiles_indexed || pwallet->chain().chainman().m_blockman.m_importing) {
+            while (pwallet->IsLocked() || !pwallet->m_enabled_staking || !pwallet->chain().chainman().m_blockman.m_blockfiles_indexed || pwallet->chain().chainman().m_blockman.m_importing) {
                 pwallet->m_last_coin_stake_search_interval = 0;
                 if (!SleepStaker(pwallet, 5000))
                     return;
@@ -716,6 +770,24 @@ void PoSMiner(CWallet *pwallet)
                     return;
             }
 
+            // Safety bump short-circuit: if updatedBlockTip() pre-calculated a sleep,
+            // consume it directly without entering CreateNewBlock(). This avoids
+            // unnecessary LOCK2(cs_wallet, cs_main) and wasted block template
+            // construction when we know the current timestamp <= MTP.
+            {
+                int64_t safetyBump = pwallet->m_safety_bump_sleep_ms.exchange(0);
+                if (safetyBump > 0) {
+                    pwallet->m_new_block_arrived.store(false);
+                    LogPrint(BCLog::COINSTAKE, "[%s] Minter: Short-circuit safety bump sleep=%lld ms (skipping block assembly)\n",
+                             pwallet->GetName(), safetyBump);
+                    if (!SleepStaker(pwallet, safetyBump))
+                        return;
+                    LogPrint(BCLog::COINSTAKE, "[%s] Minter: Woke up from short-circuit safety bump, resuming staking search\n",
+                             pwallet->GetName());
+                    continue;
+                }
+            } // blackcoin: safety bump
+
             //
             // Create new block
             //
@@ -727,6 +799,15 @@ void PoSMiner(CWallet *pwallet)
 
             {
                 LOCK2(pwallet->cs_wallet, cs_main);
+
+                // Clear stale wake-up flag INSIDE the lock to prevent race:
+                // 1. Validation updates tip (holding cs_main), sets flag=true
+                // 2. We clear flag=false outside lock
+                // 3. Validation releases cs_main
+                // 4. We acquire cs_main, process the NEW tip
+                // 5. We sleep, but abort instantly because flag was true
+                pwallet->m_new_block_arrived.store(false);
+
                 try {
                     BlockAssembler::Options options;
                     pblocktemplate = BlockAssembler{pwallet->chain().chainman().ActiveChainstate(), &pwallet->chain().mempool(), options}.CreateNewBlock(GetScriptForDestination(dest), pwallet, &fPoSCancel, &pFees, dest);
@@ -742,10 +823,19 @@ void PoSMiner(CWallet *pwallet)
             {
                 if (fPoSCancel == true)
                 {
-                    if (!SleepStaker(pwallet, pos_timio))
+                    // Use safety bump sleep if available, otherwise fall back to pos_timio
+                    int64_t safetyBumpSleep = pwallet->m_safety_bump_sleep_ms.exchange(0);
+                    int64_t sleepTime = safetyBumpSleep > 0 ? safetyBumpSleep : pos_timio;
+
+                    if (!SleepStaker(pwallet, sleepTime))
                         return;
+
+                    if (safetyBumpSleep > 0) {
+                        LogPrint(BCLog::COINSTAKE, "[%s] Minter: Woke up from safety bump sleep, resuming staking search\n",
+                                 pwallet->GetName());
+                    }
                     continue;
-                }
+                } // blackcoin: safety bump
                 pwallet->WalletLogPrintf("Error in PoSMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
                 if (!SleepStaker(pwallet, 10000))
                    return;
@@ -772,11 +862,10 @@ void PoSMiner(CWallet *pwallet)
                 uint64_t stakerRestTime = (16 + FastRandomContext().randrange(4)) * 1000;
                 if (!SleepStaker(pwallet, stakerRestTime))
                     return;
+                continue;
             }
             if (!SleepStaker(pwallet, pos_timio))
                 return;
-
-            continue;
         }
     }
     catch (const std::runtime_error &e)
@@ -816,7 +905,10 @@ void StakeCoins(bool fStake, CWallet *pwallet, std::unique_ptr<std::vector<std::
 
     if (fStake) {
         threadStakeMinerGroup = std::make_unique<std::vector<std::thread>>();
-        threadStakeMinerGroup->emplace_back(std::thread(&ThreadStakeMiner, pwallet));
+        threadStakeMinerGroup->emplace_back(std::thread(
+            &util::TraceThread,
+            strprintf("stake-%s", pwallet->GetName()),
+            [pwallet] { ThreadStakeMiner(pwallet); }));
     }
 }
 #endif

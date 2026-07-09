@@ -19,8 +19,11 @@
 9. [Wallet `nTimeSmart` and the Invariant Chain](#9-wallet-ntimesmart-and-the-invariant-chain)
 10. [All Affected Code Locations](#10-all-affected-code-locations)
 11. [Possible Fixes and Their Trade-offs](#11-possible-fixes-and-their-trade-offs)
-12. [Test Coverage Status](#12-test-coverage-status)
-13. [Recommendations](#13-recommendations)
+12. [CoinStatsIndex Compatibility Analysis](#12-coinstatsindex-compatibility-analysis)
+13. [SegWit v>1 Compatibility Analysis](#13-segwit-v1-compatibility-analysis)
+14. [Witness Version Range Analysis (v2-v16)](#14-witness-version-range-analysis-v2-v16-including-v14-v15-v16)
+15. [Mempool AddCoins Fix - REVERTED](#15-mempool-addcoins-fix---reverted)
+16. [Recommendations](#16-recommendations)
 
 ---
 
@@ -1234,6 +1237,86 @@ These should be addressed before the v28-CORE release, but they are not critical
 7. **Consider moving `Coin.nTime` to a separate index** rather than storing it in the UTXO set. This would reduce the muhash complexity and avoid the coinstatsindex migration code.
 
 8. **Add fuzzing for v2 tx time handling** to catch edge cases like the one that caused this bug.
+
+---
+
+## 15. Mempool AddCoins Fix - REVERTED
+
+After implementing the block validation fix and verifying it works in production (1,124 confirmations on block 5,944,947), we identified a related issue in the mempool:
+
+### The Issue
+
+The mempool's `AddCoins` call in `src/txmempool.cpp:751` did not pass `nBlockTime`:
+
+```cpp
+AddCoins(mempoolDuplicate, tx, std::numeric_limits<int>::max());
+```
+
+This meant that for v2 transactions in the mempool, `coin.nTime` was set to `tx.nTime` (which is 0 for v2 txs), rather than the block time. This had two potential issues:
+
+1. **CSV (BIP 68) calculations** - `coin.nTime` is used in `CalculateSequenceLocks`, so it would be 0 for v2 mempool transactions
+2. **Time-warp protection** - the `coin.nTime > nTimeTx` check in `CheckTxInputs` would be bypassed for v2 mempool transactions
+
+### The Attempted Fix
+
+We initially implemented a fix to pass `nBlockTime` to the mempool's `AddCoins` call:
+
+1. Modified `CTxMemPool::check()` to accept a `nBlockTime` parameter
+2. Updated callers in `validation.cpp` to pass the chain tip time
+3. Updated the mempool's `AddCoins` call to pass `nBlockTime`
+4. Added a regression test
+
+### The Decision to Revert
+
+**We decided to REVERT the mempool fix** for the following critical reasons:
+
+1. **Network Stability Risk** - The whole network previously stopped, forcing everyone to downgrade and resync from scratch. We cannot risk another consensus issue.
+
+2. **Untested in Production** - The mempool fix was only unit-tested, not validated in production. The block validation fix is verified by 1,124 confirmations, but the mempool fix had no production validation.
+
+3. **v262 Had the Same "Issue"** - v262's mempool also didn't pass `nBlockTime` to `AddCoins`, but the time check was dead code anyway. This means the "issue" has existed since v2 transactions were introduced (April 2022) without causing any known problems.
+
+4. **Theoretical vs. Practical** - The CSV/time-warp concerns are theoretical security issues, not practical consensus failures. The original bug (block validation) was a practical consensus failure that stopped the network.
+
+5. **Principle of "Do No Harm"** - The block validation fix alone solves the original problem. Adding the mempool fix introduces new code paths that could have unforeseen issues.
+
+### Current State (After Reversion)
+
+**Kept (verified working):**
+- ✅ `CheckTxInputs` uses `nBlockTime` for v2 transactions (block validation)
+- ✅ All callers in `validation.cpp` (block path) pass `pindex->nTime`
+- ✅ Mempool `PreChecks` passes `chaintip_time` as `nBlockTime`
+- ✅ Regression test for chained v2 transactions in same block
+- ✅ CoinstatsIndex compatibility verified
+- ✅ SegWit v>1 compatibility verified
+
+**Reverted (too risky):**
+- ❌ Mempool's `AddCoins` call does NOT pass `nBlockTime` (back to original)
+- ❌ `CTxMemPool::check()` signature is back to original (2 parameters)
+- ❌ Validation.cpp callers back to original
+- ❌ Regression test for mempool CSV removed
+
+### Known Remaining Issue
+
+The mempool still has the theoretical issue where v2 transactions have `coin.nTime = 0`. This means:
+- CSV calculations for v2 mempool transactions are incorrect
+- Time-warp protection is bypassed for v2 mempool transactions
+
+**However, this issue:**
+- Has existed since v2 transactions were introduced (April 2022)
+- Did not cause any known problems in v262
+- Is consistent with v262's behavior
+- Can be fixed later after thorough testing
+
+### Future Work
+
+The mempool fix should be:
+1. Developed and tested on testnet4
+2. Reviewed by other Blackcoin developers
+3. Run for at least 2-4 weeks on testnet
+4. Only then considered for mainnet deployment
+
+**For now, the block validation fix is sufficient** to solve the original network-stopping problem.
 
 ---
 

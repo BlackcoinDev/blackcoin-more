@@ -112,7 +112,7 @@ Embed the block timestamp (the masked 16-second boundary) as a **3rd push** in `
 vout[1]: OP_RETURN <33-byte-pubkey> <4-byte-timestamp>
 ```
 
-`CheckBlockSignature` (validation.cpp:3876-3893) reads exactly **2** `GetOp` calls — `OP_RETURN` + `pubkey`. The 3rd push is **ignored by the verifier** but **included in the serialized transaction** and therefore in the txid.
+`CheckBlockSignature` (validation.cpp:3895-3912) reads exactly **2** `GetOp` calls — `OP_RETURN` + `pubkey`. The 3rd push is **ignored by the verifier** but **included in the serialized transaction** and therefore in the txid.
 
 Each retry after an orphan lands in a different 16-second window → different timestamp → different `vout[1]` → **different txid**. The signature is unchanged (sighash still excludes `nTime` for v2), but the txid varies because `vout[1]` varies.
 
@@ -176,7 +176,7 @@ All demonstrate: timestamp varies per 16-second window, changing vout[1] bytes �
 
 ## Key Files
 
-- `src/primitives/transaction.h:233-236, 277-278` — nTime stripped for v2
+- `src/primitives/transaction.h:232-236, 274-277` — nTime stripped for v2
 - `src/script/interpreter.cpp:1333-1335` — legacy sighash strips nTime for v2
 - `src/script/interpreter.cpp:1609-1612` — BIP143 sighash strips nTime for v2
 - `src/script/sign.cpp:823-824` — `SignTransaction` zeroes nTime (redundant for v2)

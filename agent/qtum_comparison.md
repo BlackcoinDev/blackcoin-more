@@ -20,7 +20,7 @@ hash = SHA256(SHA256(
 
 Requirement: `hash < bnTarget * nWeight`
 
-| Detail | Blackcoin (`pos.cpp:100-102`) | Qtum (`pos.cpp:93-95`) |
+| Detail | Blackcoin (`pos.cpp:101-103`) | Qtum (`pos.cpp:93-95`) |
 |--------|-------------------------------|------------------------|
 | Hash writer | `CHashWriter ss{}` | `HashWriter ss` |
 | Inputs | `nStakeModifier << blockFromTime << prevout.hash << prevout.n << nTimeTx` | Identical |
@@ -45,7 +45,7 @@ Blackcoin stores `nTime` in `Coin` (UTXO) and falls back to block time when it's
 | Field in `Coin` | `unsigned int nTime` (`coins.h:50`) | **Absent** |
 | Serialized in UTXO | `VARINT(nTime)` between height and output (`coins.h:80`) | Only height + output |
 | Constructor parameter | `Coin(..., int nTimeIn)` | `Coin(...)` — no nTime param |
-| Used for? | `blockFromTime` fallback; `nTimeTx` ordering check (`tx_verify.cpp:191`) | Not needed |
+| Used for? | `blockFromTime` fallback; `nTimeTx` ordering check (`tx_verify.cpp:196`) | Not needed |
 
 Qtum's removal eliminates 4 bytes + VARINT overhead per UTXO and simplifies the `blockFromTime` logic.
 
@@ -108,7 +108,7 @@ Qtum's version is simpler because there's no `tx.nTime` to compare against.
 
 ## 7. Staking Loop
 
-### Blackcoin (`miner.cpp:735-906`)
+### Blackcoin (`miner.cpp:709-905`)
 
 ```
 PoSMiner loop:
@@ -139,7 +139,7 @@ StakeMiner::Run loop:
     → UpdateMinerStakeCache — populate minerStakeCache for ALL UTXOs
     → beginningTime = now & ~mask
     → endingTime = beginningTime + MAX_STAKE_LOOKAHEAD (48s = 3 windows)
-  
+
   for blockTime = beginningTime; blockTime < endingTime; blockTime += 16:
     CanCreateBlock(blockTime):
       → SloveBlock(blockTime):
@@ -156,7 +156,7 @@ StakeMiner::Run loop:
             SignBlock (real)
             wait until blockTime arrives (spin-wait 100ms or 3s)
             CheckStake → submit
-  
+
   Sleep(nMinerSleep) = 5000ms (20000ms on min difficulty)
 ```
 
@@ -190,7 +190,7 @@ Stored in `std::map<COutPoint, CStakeCache>`.
 
 Both skip already-cached entries, fetch `Coin` via `GetCoin`, check maturity, find ancestor block, then insert `(blockFromTime, amount)`.
 
-| | Blackcoin (`pos.cpp:218-241`) | Qtum (`pos.cpp:484-507`) |
+| | Blackcoin (`pos.cpp:230-253`) | Qtum (`pos.cpp:484-507`) |
 |---|---|---|
 | blockFromTime stored | `coinPrev.nTime ? coinPrev.nTime : blockFrom->nTime` | `blockFrom->nTime` |
 | Maturity param | `nCoinbaseMaturity` (fixed) | `CoinbaseMaturity(nHeight)` (variable post-fork) |
@@ -262,7 +262,7 @@ uint256 ComputeStakeModifier(const CBlockIndex* pindexPrev, const uint256& kerne
 }
 ```
 
-Called at `validation.cpp:2708` (both):
+Called at `validation.cpp:2730` (both):
 - PoS block: `kernel = block.vtx[1]->vin[0].prevout.hash`
 - PoW block: `kernel = block.GetHash()`
 

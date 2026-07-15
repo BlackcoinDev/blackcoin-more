@@ -1,7 +1,7 @@
 # nTime / Block Time / nTimeSmart Investigation
 
-**Investigation Date:** 2026-07-08  
-**Triggered by:** Block rejection error `bad-txns-time-earlier-than-input` on mainnet at block height 5944947  
+**Investigation Date:** 2026-07-08
+**Triggered by:** Block rejection error `bad-txns-time-earlier-than-input` on mainnet at block height 5944947
 **Scope:** Comparison of `blackmore262` (v28 pre-CORE), `blackmore284` (v28-CORE), and `bitcoin` (upstream Bitcoin Core 28.x)
 
 ---
@@ -623,8 +623,8 @@ After the 3-way cross-check investigation, **Option A** was selected and impleme
 Added `nBlockTime` parameter to `CheckTxInputs` declaration:
 
 ```cpp
-[[nodiscard]] bool CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
-                                 const CCoinsViewCache& inputs, int nSpendHeight, 
+[[nodiscard]] bool CheckTxInputs(const CTransaction& tx, TxValidationState& state,
+                                 const CCoinsViewCache& inputs, int nSpendHeight,
                                  CAmount& txfee, int64_t nBlockTime);
 ```
 
@@ -633,18 +633,18 @@ Added `nBlockTime` parameter to `CheckTxInputs` declaration:
 Updated implementation to use `nBlockTime` for v2 txs:
 
 ```cpp
-bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
-                              const CCoinsViewCache& inputs, int nSpendHeight, 
+bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state,
+                              const CCoinsViewCache& inputs, int nSpendHeight,
                               CAmount& txfee, int64_t nBlockTime)
 {
     // ... existing code ...
-    
+
     // Blackcoin: in v2 transactions nTime is not serialized on the wire.
     // Use the block time (passed by caller) for deterministic validation.
     int64_t nTimeTx = tx.nTime;
     if (!nTimeTx && tx.version >= 2)
         nTimeTx = nBlockTime;  // Changed from GetAdjustedTimeSeconds()
-    
+
     // ... rest of function ...
 }
 ```
@@ -662,7 +662,7 @@ if (!Consensus::CheckTxInputs(tx, tx_state, view, pindex->nHeight, txfee, pindex
 Pass `GetAdjustedTimeSeconds()` (wall clock, since there's no block yet):
 
 ```cpp
-if (!Consensus::CheckTxInputs(tx, state, m_view, m_active_chainstate.m_chain.Height() + 1, 
+if (!Consensus::CheckTxInputs(tx, state, m_view, m_active_chainstate.m_chain.Height() + 1,
                               ws.m_base_fees, GetAdjustedTimeSeconds())) {
 ```
 
@@ -671,7 +671,7 @@ if (!Consensus::CheckTxInputs(tx, state, m_view, m_active_chainstate.m_chain.Hei
 Pass `GetAdjustedTimeSeconds()` to match mempool behavior:
 
 ```cpp
-assert(Consensus::CheckTxInputs(tx, dummy_state, mempoolDuplicate, spendheight, txfee, 
+assert(Consensus::CheckTxInputs(tx, dummy_state, mempoolDuplicate, spendheight, txfee,
                                 GetAdjustedTimeSeconds()));
 ```
 
@@ -680,7 +680,7 @@ assert(Consensus::CheckTxInputs(tx, dummy_state, mempoolDuplicate, spendheight, 
 Pass `GetAdjustedTimeSeconds()` and add `#include <util/time.h>`:
 
 ```cpp
-if (Consensus::CheckTxInputs(transaction, state, coins_view_cache, 
+if (Consensus::CheckTxInputs(transaction, state, coins_view_cache,
                              fuzzed_data_provider.ConsumeIntegralInRange<int>(0, std::numeric_limits<int>::max()),
                              tx_fee_out, GetAdjustedTimeSeconds())) {
 ```
@@ -787,7 +787,7 @@ Pre-fix, both sides used wall clock, so the comparison was self-consistent even 
 ```cpp
 const CBlockIndex* const pindex = m_active_chainstate.m_chain.Tip();
 const int64_t nBlockTime = pindex ? pindex->GetBlockTime() : GetAdjustedTimeSeconds();
-if (!Consensus::CheckTxInputs(tx, state, m_view, m_active_chainstate.m_chain.Height() + 1, 
+if (!Consensus::CheckTxInputs(tx, state, m_view, m_active_chainstate.m_chain.Height() + 1,
                               ws.m_base_fees, nBlockTime)) {
 ```
 
@@ -898,9 +898,9 @@ The codebase has **multiple layers of protection** against v2-v16 witness versio
 **Location:** `src/script/interpreter.cpp:1888-1971` (`VerifyWitnessProgram`)
 
 ```cpp
-static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, 
-                                  const std::vector<unsigned char>& program, 
-                                  unsigned int flags, const BaseSignatureChecker& checker, 
+static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion,
+                                  const std::vector<unsigned char>& program,
+                                  unsigned int flags, const BaseSignatureChecker& checker,
                                   ScriptError* serror, bool is_p2sh)
 {
     if (witversion == 0) {
@@ -965,8 +965,8 @@ if (scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram)) {
 **Location:** `src/policy/policy.cpp:71-96`
 
 ```cpp
-} else if (!witnessEnabled && (whichType == TxoutType::WITNESS_V0_SCRIPTHASH || 
-                                whichType == TxoutType::WITNESS_V0_KEYHASH || 
+} else if (!witnessEnabled && (whichType == TxoutType::WITNESS_V0_SCRIPTHASH ||
+                                whichType == TxoutType::WITNESS_V0_KEYHASH ||
                                 whichType == TxoutType::WITNESS_V1_TAPROOT)) {
     return false;
 } else if (whichType == TxoutType::WITNESS_UNKNOWN) {
@@ -989,11 +989,11 @@ if (block_unknown_witness) {
         for (const auto& txout : tx->vout) {
             int witness_version = 0;
             std::vector<unsigned char> witness_program;
-            if (txout.scriptPubKey.IsWitnessProgram(witness_version, witness_program) && 
+            if (txout.scriptPubKey.IsWitnessProgram(witness_version, witness_program) &&
                 witness_version > 1) {  // ← CATCHES v2-v16
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, 
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS,
                                     "bad-unknown-witness-version",
-                                    strprintf("%s : block contains output with unknown witness version %d", 
+                                    strprintf("%s : block contains output with unknown witness version %d",
                                              __func__, witness_version));
             }
         }
@@ -1203,12 +1203,7 @@ BOOST_CHECK(solutions[1] == ToByteVector(uint256::ONE));
 - Witness version check on legacy testnet
 
 These should be addressed before the v28-CORE release, but they are not critical for the current fix to be safe.
-
 ---
-
-
-
-
 
 ## 13. Recommendations
 

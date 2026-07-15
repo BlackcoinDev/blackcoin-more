@@ -1,7 +1,7 @@
 # Blackcoin More v28-CORE Release Notes
 
-**Release Date:** 2026-07-05  
-**Base Version:** Bitcoin Core 28.4.0 + Blackcoin extensions  
+**Release Date:** 2026-07-05
+**Base Version:** Bitcoin Core 28.4.0 + Blackcoin extensions
 **Previous Version:** Blackcoin More v262 (June 2026)
 
 ---

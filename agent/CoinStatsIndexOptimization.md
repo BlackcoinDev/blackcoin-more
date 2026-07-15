@@ -44,6 +44,4 @@ The CoinStatsIndex bug was a chain of interconnected issues stemming from one ro
 
 ## Current State
 
-The CoinStatsIndex assertion crash is fixed. The index is rebuilding. But it's **very slow** — same slowness as Bitcoin Core and Qtum. Here's why:
-
-
+The CoinStatsIndex assertion crash is fixed. The index is rebuilding. But it's **very slow** — same slowness as Bitcoin Core and Qtum.

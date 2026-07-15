@@ -35,7 +35,7 @@ void CWallet::updatedBlockTip()
 
 - Updates `m_best_block_time` for wallet rebroadcast scheduling.
 - Ignores notifications during IBD.
-- Wakes the staker thread via condition variable `cv_new_block`. 
+- Wakes the staker thread via condition variable `cv_new_block`.
 - **No timing math**: The wallet does not attempt to calculate sleep durations or boundaries. It only wakes the staker.
 
 ---
@@ -137,7 +137,7 @@ if (fPoSCancel == true)
 }
 ```
 
-When no kernel is found for the current window, the thread sleeps until the next valid boundary (via `MsUntilNextWindow`). 
+When no kernel is found for the current window, the thread sleeps until the next valid boundary (via `MsUntilNextWindow`).
 `pos_timio` acts as a minimum sleep floor. This is critical for preventing **spin-loops and lock contention**: if the thread wakes up spuriously or early, the timer guard prevents it from executing the expensive cryptography, but without a sleep floor, the thread would instantly loop and re-acquire global locks (`cs_main`, `cs_wallet`), maxing out a CPU core. `pos_timio` forces it to yield the CPU for at least a few seconds (scaling with wallet size).
 
 ### 5b. After successful block

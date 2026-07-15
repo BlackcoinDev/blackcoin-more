@@ -10,16 +10,16 @@ Context-free checks applied to every transaction.
 
 | # | Check | Reject reason | Line |
 |---|-------|---------------|------|
-| 1 | `vin` is not empty | `bad-txns-vin-empty` | 14 |
-| 2 | `vout` is not empty | `bad-txns-vout-empty` | 16 |
-| 3 | Non-witness serialized size × `WITNESS_SCALE_FACTOR` ≤ `MAX_BLOCK_WEIGHT` | `bad-txns-oversize` | 19 |
-| 4 | Empty outputs (`txout.IsEmpty()`) forbidden unless tx is coinbase or coinstake | `bad-txns-vout-empty` | 27 |
-| 5 | Each `txout.nValue` ≥ 0 | `bad-txns-vout-negative` | 29 |
-| 6 | Each `txout.nValue` ≤ `MAX_MONEY` (`int64_t::max()` in Blackcoin) | `bad-txns-vout-toolarge` | 31 |
-| 7 | Cumulative sum of all output values ≤ `MAX_MONEY` | `bad-txns-txouttotal-toolarge` | 34 |
-| 8 | No duplicate inputs (same `COutPoint`) | `bad-txns-inputs-duplicate` | 45 |
-| 9 | If coinbase: `scriptSig` size must be 2–100 bytes | `bad-cb-length` | 51 |
-| 10 | If non-coinbase: no input may have a null `prevout` | `bad-txns-prevout-null` | 57 |
+| 1 | `vin` is not empty | `bad-txns-vin-empty` | 15 |
+| 2 | `vout` is not empty | `bad-txns-vout-empty` | 17 |
+| 3 | Non-witness serialized size × `WITNESS_SCALE_FACTOR` ≤ `MAX_BLOCK_WEIGHT` | `bad-txns-oversize` | 20 |
+| 4 | Empty outputs (`txout.IsEmpty()`) forbidden unless tx is coinbase or coinstake | `bad-txns-vout-empty` | 28 |
+| 5 | Each `txout.nValue` ≥ 0 | `bad-txns-vout-negative` | 30 |
+| 6 | Each `txout.nValue` ≤ `MAX_MONEY` (`int64_t::max()` in Blackcoin) | `bad-txns-vout-toolarge` | 32 |
+| 7 | Cumulative sum of all output values ≤ `MAX_MONEY` | `bad-txns-txouttotal-toolarge` | 35 |
+| 8 | No duplicate inputs (same `COutPoint`) | `bad-txns-inputs-duplicate` | 46 |
+| 9 | If coinbase: `scriptSig` size must be 2–100 bytes | `bad-cb-length` | 52 |
+| 10 | If non-coinbase: no input may have a null `prevout` | `bad-txns-prevout-null` | 58 |
 
 ---
 
@@ -134,12 +134,12 @@ Called from `ConnectBlock` for every non-coinbase transaction.
 | # | Check | Reject reason | Line |
 |---|-------|---------------|------|
 | 1 | All inputs exist and are unspent in the UTXO set | `bad-txns-inputs-missingorspent` | 168 |
-| 2 | If prev output is coinbase or coinstake: must be matured (`nSpendHeight - coin.nHeight ≥ nCoinbaseMaturity`). Maturity is 500 blocks on mainnet, 10 on testnet | `bad-txns-premature-spend-of-coinbase` | 185 |
-| 3 | Each input's coin timestamp ≤ transaction timestamp (`coin.nTime ≤ nTimeTx`) | `bad-txns-time-earlier-than-input` | 191 |
-| 4 | All input values are in valid `MoneyRange` | `bad-txns-inputvalues-outofrange` | 196 |
-| 5 | For non-coinstake: sum of inputs ≥ sum of outputs | `bad-txns-in-belowout` | 204 |
-| 6 | Fee is in valid `MoneyRange` | `bad-txns-fee-outofrange` | 211 |
-| 7 | **Blackcoin (ProtocolV3.1):** Fee ≥ `GetMinFee(tx)` (minimum relay fee enforced at consensus) | `bad-txns-fee-not-enough` | 216 |
+| 2 | If prev output is coinbase or coinstake: must be matured (`nSpendHeight - coin.nHeight ≥ nCoinbaseMaturity`). Maturity is 500 blocks on mainnet, 10 on testnet | `bad-txns-premature-spend-of-coinbase` | 191 |
+| 3 | Each input's coin timestamp ≤ transaction timestamp (`coin.nTime ≤ nTimeTx`) | `bad-txns-time-earlier-than-input` | 196 |
+| 4 | All input values are in valid `MoneyRange` | `bad-txns-inputvalues-outofrange` | 201 |
+| 5 | For non-coinstake: sum of inputs ≥ sum of outputs | `bad-txns-in-belowout` | 210 |
+| 6 | Fee is in valid `MoneyRange` | `bad-txns-fee-outofrange` | 217 |
+| 7 | **Blackcoin (ProtocolV3.1):** Fee ≥ `GetMinFee(tx)` (minimum relay fee enforced at consensus) | `bad-txns-fee-not-enough` | 222 |
 
 **Blackcoin note:** For coinstake transactions, the sum of outputs is allowed to exceed inputs (the difference is the block reward). Fee accounting is skipped for coinstakes.
 

@@ -551,7 +551,7 @@ This section compares the Blackcoin More v28.4.0 codebase against its three refe
 
 | Feature | Bitcoin Core 28.4 | Peercoin | Qtum | Blackcoin More v28.4 |
 |---|---|---|---|---|
-| `CheckBlockSignature` | None | P2PK only (`validation.cpp:4994`) | P2PK only | P2PK + OP_RETURN carrier (`validation.cpp:3860`) |
+| `CheckBlockSignature` | None | P2PK only (`validation.cpp:4994`) | P2PK only | P2PK + OP_RETURN carrier (`validation.cpp:3879`) |
 | PoS timestamp mask | N/A | `0xf` (16s) | `0xf` (adjustable via fork) | `0xf` (16s, fixed) |
 | Coinstake timestamp | N/A | `nTimeBlock == nTimeTx` | `nTimeBlock & mask == 0` only | `nTimeBlock == nTimeTx && (nTimeTx & 0xf) == 0` |
 | Difficulty adjustment | Every 2016 blocks | Per-block EMA | Per-block EMA (adjustable) | Per-block EMA (`nInterval=15`, `nTargetTimespan=960s`) |
@@ -711,7 +711,7 @@ Verified all agent/ markdown files against the actual Blackcoin More source code
 |---|---|---|
 | `CheckProofOfStake` at `pos.cpp:130` | `src/pos.cpp` line 130 | ✅ Match |
 | `VerifySignature` with `SCRIPT_VERIFY_NONE` at `pos.cpp:157` | `src/pos.cpp` line 157 | ✅ Match |
-| `CheckBlockSignature` at `validation.cpp:3860` | `src/validation.cpp` line 3860 | ✅ Match |
+| `CheckBlockSignature` at `validation.cpp:3879` | `src/validation.cpp` line 3879 | ✅ Match |
 | `nStakeTimestampMask = 0xf` in chainparams | `src/kernel/chainparams.cpp` lines 140, 257, 501, 579 | ✅ All set to `0xf` |
 | v2 `nTime` stripping at `transaction.h:233-236, 277-278` | `src/primitives/transaction.h` lines 233-236, 277-278 | ✅ Match |
 | `SCRIPT_VERIFY_DERKEY` bit 31 in `interpreter.h:105` | `src/script/interpreter.h` line 105 | ✅ Match |

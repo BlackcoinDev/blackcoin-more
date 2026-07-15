@@ -228,7 +228,7 @@ None of these are on the staking hot path.
 
 ### 11.1 Design
 
-Staking timing now uses a single-responsibility design entirely contained in `miner.cpp`. 
+Staking timing now uses a single-responsibility design entirely contained in `miner.cpp`.
 
 1. **Wake signal** from `CWallet::updatedBlockTip()` (`wallet/wallet.cpp`):
    ```cpp

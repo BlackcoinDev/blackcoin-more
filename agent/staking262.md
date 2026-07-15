@@ -181,7 +181,7 @@ Protocol V2+ (active since 2014): block nTime must equal coinstake nTime, both w
 
 ## 12. ProcessBlockFound (`miner.cpp:786-803`)
 
-Checks `CheckProofOfStake`, then submits via `chainman.ProcessNewBlock`. 
+Checks `CheckProofOfStake`, then submits via `chainman.ProcessNewBlock`.
 *(Note: In v26.x there was a stale check `hashPrevBlock != activeTip` here which caused the counterattack-window problem, where honest nodes self-rejected valid blocks if a competitor arrived first. This was removed in v28-CORE to allow the node to properly submit competing forks).*
 
 ---

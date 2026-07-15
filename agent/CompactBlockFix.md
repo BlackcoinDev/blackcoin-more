@@ -57,15 +57,15 @@ Log evidence:
 Successfully reconstructed block ... with 2 txn prefilled, 0 txn from mempool, 0 txn requested
 ```
 
-Zero round-trips. The `cmpctblock` (599 bytes) arrives, reconstructs immediately, block connects in <1ms. No `getblocktxn`/`blocktxn` exchange needed.
+Zero round-trips. The `cmpctblock` (599 bytes) arrives, reconstructs immediately, block connects in <1ms.
 
 ## Network Impact
 
 ### Orphan reduction
 
-Before the fix, every PoS compact block needed a round-trip (50-500ms per hop) during which the receiving node was still on the old tip and could find a competing block. Eliminating the round-trip on every hop reduces total propagation latency, directly shrinking the window where competing blocks emerge.
+Before the fix, every PoS compact block needed a round-trip (50-500ms per hop) during which the receiving node was still on the old tip and could find a competing block. Eliminating the round-trip on every hop shrinks total propagation latency, narrowing the window where competing blocks emerge.
 
-For minimal PoS blocks (the majority — most blocks have 0 regular txs), compact blocks previously gave **zero benefit** over regular `inv → getdata → block` relay (same round-trip count). Now they are single-message, same as PoW coinbase blocks.
+For minimal PoS blocks (most blocks have 0 regular txs), compact blocks previously gave **zero benefit** over regular `inv → getdata → block` relay (same round-trip count). Now they are single-message, same as PoW coinbase blocks.
 
 ### BIP152 peer limits (context)
 
@@ -89,7 +89,7 @@ On testnet (which has both PoW and PoS blocks), it fires for both. The fast-anno
 
 ### Wire compatibility
 
-`prefilledtxn` is a generic vector on the wire. `BlockTxCount()` is unchanged (`shorttxids.size() + prefilledtxn.size()`). Old nodes receiving a compact block with 2 prefilled entries reconstruct correctly — they just weren't sending them this way. No fork risk.
+`prefilledtxn` is a generic vector on the wire. `BlockTxCount()` is unchanged (`shorttxids.size() + prefilledtxn.size()`). Old nodes receiving a compact block with 2 prefilled entries reconstruct correctly. No fork risk.
 
 ### Construction paths covered
 

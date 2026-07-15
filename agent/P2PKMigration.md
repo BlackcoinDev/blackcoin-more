@@ -2,7 +2,7 @@
 
 **Branch:** v28-SEGWIT
 **Date:** 2026-06-26
-**Status:** COMPLETED. **Implemented and verified on regtest.** The OP_RETURN carrier fix is deployed: `vout[1]` is always `OP_RETURN <pubkey> <timestamp>`, reward is in `vout[2]` and preserves the kernel's native script type. `bMinterKey` flag and P2PK intermediate output were removed in a dead-code cleanup (June 26). The combining scope was corrected: all kernel types combine same-type UTXOs matching `scriptPubKeyKernel`; P2PKH kernels additionally sweep legacy P2PK rewards via `combineP2PK`. The combining guard was also fixed (June 29): `pcoin.first->GetHash() != txNew.vin[0].prevout.hash` was comparing only the tx hash, rejecting all other outputs from the kernel's parent transaction; fixed to compare the full `COutPoint` so same-tx sibling UTXOs are not incorrectly filtered out.
+**Status:** COMPLETED. Implemented and verified on regtest. `vout[1]` is always `OP_RETURN <pubkey> <timestamp>`, reward in `vout[2]` preserves the kernel's native script type. `bMinterKey` flag and P2PK intermediate output removed in dead-code cleanup (June 26). Combining scope corrected: all kernel types combine same-type UTXOs matching `scriptPubKeyKernel`; P2PKH kernels additionally sweep legacy P2PK rewards via `combineP2PK`. Combining guard also fixed (June 29): `pcoin.first->GetHash() != txNew.vin[0].prevout.hash` compared only the tx hash, rejecting all other outputs from the kernel's parent transaction; fixed to compare the full `COutPoint` so same-tx sibling UTXOs are not incorrectly filtered out.
 
 ---
 
@@ -11,7 +11,7 @@
 There are **two mechanisms** for block signing:
 
 1. **P2PK in `vout[1]`** — the original mechanism. `SignBlock` reads the pubkey from the P2PK script, `CheckBlockSignature` verifies against it. Reward is in `vout[1]` (or `vout[1+bMinterKey]` for witness kernels).
-2. **OP_RETURN carrier in `vout[1]`** (current, after fix) — `vout[1]` = `OP_RETURN <pubkey> [message]` (non-spendable), reward in `vout[2]`. `CheckBlockSignature` extracts the pubkey from the OP_RETURN and verifies the block signature against it (`validation.cpp:3871-3890`). This is **consensus-valid today** — no fork needed.
+2. **OP_RETURN carrier in `vout[1]`** (current) — `vout[1]` = `OP_RETURN <pubkey> [message]` (non-spendable), reward in `vout[2]`. `CheckBlockSignature` extracts the pubkey from the OP_RETURN and verifies the block signature against it (`validation.cpp:3895-3912`). This is **consensus-valid today** — no fork needed.
 
 ### 0.1 TxoutType Mapping (v28 Codebase)
 
@@ -38,9 +38,9 @@ In the v28 codebase, script types are mapped to integer values via the `TxoutTyp
 | **WITNESS_V0_KEYHASH** | `OP_RETURN <pubkey> <timestamp>` | **P2WPKH** |
 | **WITNESS_V1_TAPROOT** | `OP_RETURN <pubkey> <timestamp>` | **P2TR** |
 
-Historically, the Blackcoin codebase *forced* all rewards to be converted into P2PK outputs regardless of what type of coin you staked. This was because the consensus code (`CheckBlockSignature`) required a raw public key in the output to verify the block signature. 
+Historically, the Blackcoin codebase *forced* all rewards to be converted into P2PK outputs regardless of what type of coin you staked. This was because the consensus code (`CheckBlockSignature`) required a raw public key in the output to verify the block signature.
 
-As detailed in `P2PKMigration.md`, we solved this by pushing the block-signing public key into a non-spendable `OP_RETURN` carrier in `vout[1]` (which you can see in your JSON!). This completely decoupled the block signature from the reward output, freeing up `vout[2]` to simply inherit whatever script type your staked coin originally was.
+We solved this by pushing the block-signing public key into a non-spendable `OP_RETURN` carrier in `vout[1]` (visible in JSON). This decoupled the block signature from the reward output, freeing `vout[2]` to inherit whatever script type the staked coin originally was.
 
 ### Current state — OP_RETURN carrier implemented (reward preserves kernel type, except P2PK which upgrades to P2PKH)
 
@@ -77,7 +77,7 @@ Would require `CheckBlockSignature` to accept PUBKEYHASH/WITNESS_V1_TAPROOT dire
 - **Legacy wallet** (`BerkeleyDatabase`, BDB): supports P2PK, P2PKH, P2SH, P2SH-P2WPKH, P2WPKH (bech32). Does **not** support P2TR — `GetReservedDestination` rejects `BECH32M` (scriptpubkeyman.cpp:309), `IsMineInner` returns NO for `WITNESS_V1_TAPROOT` (scriptpubkeyman.cpp:117).
 - **Descriptor wallet** (`SQLite`): supports all output types including P2TR.
 - **Kernel sig verified?**: whether `CheckProofOfStake` → `VerifySignature` actually checks the coinstake input signature. Only P2PK and P2PKH kernels get a real CHECKSIG. P2WPKH/P2TR kernels pass trivially because `SCRIPT_VERIFY_NONE` + `nullptr` witness (see `agent/staking.md` §9).
-- **OP_RETURN carrier**: `vout[1]` = `OP_RETURN <33-byte-pubkey> [optional message]`. `CheckBlockSignature` reads 2 `GetOp`s (OP_RETURN + pubkey), ignores trailing bytes. Block signature is ECDSA verified against the recovered pubkey. **This is consensus-valid today** (`validation.cpp:3871-3890`) — no fork needed.
+- **OP_RETURN carrier**: `vout[1]` = `OP_RETURN <33-byte-pubkey> [optional message]`. `CheckBlockSignature` reads 2 `GetOp`s (OP_RETURN + pubkey), ignores trailing bytes. Block signature is ECDSA verified against the recovered pubkey. **This is consensus-valid today** (`validation.cpp:3895-3912`) — no fork needed.
 - **P2SH / P2WSH**: never accepted as kernels (staking.cpp:328-332).
 - **Taproot activation status** (as of June 2026):
 
@@ -104,12 +104,12 @@ The OP_RETURN carrier fix is **implemented and verified on regtest**. The stakin
 | WITNESS_V0_KEYHASH | `OP_RETURN <pubkey> <timestamp>` | P2WPKH (kernel script) |
 | WITNESS_V1_TAPROOT | `OP_RETURN <pubkey> <timestamp>` | P2TR (kernel script) |
 
-`SignBlock` (`miner.cpp:651-681`) extracts the pubkey from either P2PK or OP_RETURN carrier. `CheckBlockSignature` (`validation.cpp:3855-3893`) already accepted the OP_RETURN carrier path — no consensus change was needed.
+`SignBlock` (`miner.cpp:650-692`) extracts the pubkey from either P2PK or OP_RETURN carrier. `CheckBlockSignature` (`validation.cpp:3879-3924`) already accepted the OP_RETURN carrier path — no consensus change was needed.
 
 ### Why P2PK was the bottleneck
 
-1. **`SignBlock`** (`miner.cpp:651-681`) reads `block.vtx[1]->vout[1]` and requires `Solver(...) == TxoutType::PUBKEY`. It extracts the pubkey directly from the script and signs the block hash with the corresponding private key.
-2. **`CheckBlockSignature`** (`validation.cpp:3855-3893`) does the same for verification. The only non-PUBKEY path is the `OP_RETURN` fallback (lines 3871-3890), which extracts a pubkey from an `OP_RETURN <pubkey>` carrier.
+1. **`SignBlock`** (`miner.cpp:650-692`) reads `block.vtx[1]->vout[1]` and requires `Solver(...) == TxoutType::PUBKEY`. It extracts the pubkey directly from the script and signs the block hash with the corresponding private key.
+2. **`CheckBlockSignature`** (`validation.cpp:3879-3924`) does the same for verification. The only non-PUBKEY path is the `OP_RETURN` fallback (lines 3895-3912), which extracts a pubkey from an `OP_RETURN <pubkey>` carrier.
 
 So the block-signing key is **carried in plaintext** in `vout[1]` — either as a bare P2PK script or as an OP_RETURN payload. The signature scheme is ECDSA over `block.GetHash()`.
 
@@ -178,11 +178,11 @@ Taproot uses **BIP340 Schnorr**, not ECDSA. This breaks the P2PKH recovery appro
 
 ### 4.1 The problem
 
-v2 coinstakes strip `nTime` from serialization and sighash (`transaction.h:235-236`, `interpreter.cpp:1333-1335, 1609-1612`). RFC6979 deterministic signatures produce identical `scriptSig` across retries with the same UTXO → same non-witness bytes → **same txid** on orphan+retry. See `agent/SegWitTxv2Coinstake.md`.
+v2 coinstakes strip `nTime` from serialization and sighash (`transaction.h:232-236`, `interpreter.cpp:1333-1335, 1609-1612`). RFC6979 deterministic signatures produce identical `scriptSig` across retries with the same UTXO → same non-witness bytes → **same txid** on orphan+retry. See `agent/SegWitTxv2Coinstake.md`.
 
 ### 4.2 The fix: embed the in-memory timestamp as a 3rd OP_RETURN push
 
-The OP_RETURN carrier in `vout[1]` is part of the serialized transaction and therefore part of the txid. `CheckBlockSignature` (validation.cpp:3871-3890) reads exactly **2** `GetOp` calls — `OP_RETURN` + `pubkey` — and ignores everything after. So a 3rd push is:
+The OP_RETURN carrier in `vout[1]` is part of the serialized transaction and therefore part of the txid. `CheckBlockSignature` (validation.cpp:3895-3912) reads exactly **2** `GetOp` calls — `OP_RETURN` + `pubkey` — and ignores everything after. So a 3rd push is:
 - ✅ **Included in the txid** (serialized in `vout[1]`)
 - ✅ **Ignored by consensus** (verifier only reads 2 GetOps)
 - ✅ **Free to vary** per 16-second window
@@ -246,7 +246,7 @@ for (const std::pair<const CWalletTx*, unsigned int> &pcoin : setCoins)
 Key design points:
 1. **No `whichType` guard** — all four supported kernel types get same-type input combining via `scriptPubKeyKernel` match.
 2. **`combineP2PK` gates the P2PK sweep** — only P2PKH kernels (the type that historically produced P2PK rewards) additionally match `scriptPubKeyP2PK`. P2WPKH/P2TR kernels skip the P2PK sweep.
-3. **`nTimeSmart` replaces `tx->nTime`** — `pcoin.first->tx->nTime` is always 0 for v2 txs (nTime not serialized for version >= 2, transaction.h:233-236). The guard was a no-op. Fixed by using `pcoin.first->nTimeSmart` (block time for confirmed txs, matching `coin.nTime` for v2 from coins.cpp:129).
+3. **`nTimeSmart` replaces `tx->nTime`** — `pcoin.first->tx->nTime` is always 0 for v2 txs (nTime not serialized for version >= 2, transaction.h:232-236). The guard was a no-op. Fixed by using `pcoin.first->nTimeSmart` (block time for confirmed txs, matching `coin.nTime` for v2 from coins.cpp:129).
 4. **`COutPoint` comparison fix (June 29)** — `pcoin.first->GetHash() != txNew.vin[0].prevout.hash` compared only the tx hash, rejecting all other outputs from the kernel's parent transaction. For example, an `optimizeutxoset` creating 42 identical P2WPKH outputs would only combine one of them with the kernel (and only if it was from a different tx). Fixed to compare the full `COutPoint(pcoin.first->GetHash(), pcoin.second) != txNew.vin[0].prevout`, allowing same-tx sibling UTXOs to be correctly combined.
 
 ### Amount-setting indices (post-fix)
@@ -319,8 +319,8 @@ This is a **soft fork** — new nodes tighten the rules (reject blocks with inva
 ## Files Referenced
 
 ### Block signing / verification
-- `src/node/miner.cpp:651-681` — `SignBlock()` (reads `vout[1]`, requires PUBKEY or NULL_DATA)
-- `src/validation.cpp:3855-3893` — `CheckBlockSignature()` (reads `vout[1]`, verifies PUBKEY or OP_RETURN carrier)
+- `src/node/miner.cpp:650-692` — `SignBlock()` (reads `vout[1]`, requires PUBKEY or NULL_DATA)
+- `src/validation.cpp:3879-3924` — `CheckBlockSignature()` (reads `vout[1]`, verifies PUBKEY or OP_RETURN carrier)
 
 ### Coinstake construction
 - `src/wallet/staking.cpp:252-524` — `CreateCoinStake()` (builds outputs)
@@ -337,7 +337,7 @@ This is a **soft fork** — new nodes tighten the rules (reject blocks with inva
 - `src/script/sign.cpp:718-735` — `VerifySignature()` (passes `nullptr` witness)
 
 ### v2 txid collision fix
-- `src/primitives/transaction.h:235-236, 277-278` — nTime stripped for v2
+- `src/primitives/transaction.h:232-236, 274-277` — nTime stripped for v2
 - `src/script/interpreter.cpp:1333-1335, 1609-1612` — both sighash paths strip nTime for v2
 - `src/wallet/staking.cpp` — carrier mechanism in `CreateCoinStake` (formerly `bMinterKey` block, now unified)
 - `agent/SegWitTxv2Coinstake.md` — full collision analysis

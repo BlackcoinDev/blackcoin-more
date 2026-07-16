@@ -1,4 +1,4 @@
-# Blackcoin More v28-CORE Release Notes
+# Blackcoin More v28.4.0 Release Notes
 
 **Release Date:** 2026-07-05
 **Base Version:** Bitcoin Core 28.4.0 + Blackcoin extensions
@@ -140,7 +140,7 @@ This release represents a major architectural upgrade from v262, building on Bit
 - **Old coinstakes:** Proper validation of historical coinstakes
 
 #### Migration Path
-- **Wallet upgrades:** Smooth upgrade path from v262 to v28-CORE
+- **Wallet upgrades:** Smooth upgrade path from v262 to v28.4.0
 - **Node upgrades:** Non-disruptive node upgrade process
 - **Protocol migration:** Gradual protocol migration with proper warnings
 
@@ -211,7 +211,7 @@ This release represents a major architectural upgrade from v262, building on Bit
 ### For Users
 1. **Backup wallet:** Always backup wallet before upgrading
 2. **Shutdown node:** Stop the Blackcoin node
-3. **Replace binaries:** Replace old binaries with new v28-CORE binaries
+3. **Replace binaries:** Replace old binaries with new v28.4.0 binaries
 4. **Start node:** Start the upgraded node
 5. **Verify sync:** Allow node to sync and verify staking functionality
 

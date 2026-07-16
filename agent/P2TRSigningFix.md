@@ -174,7 +174,7 @@ Full block JSON:
 Key differences:
 - `DERKEY`: Blackcoin-specific flag (bit 31), doesn't exist in Bitcoin Core
 - `LOW_S`: Blackcoin enforces as mandatory (bannable), Bitcoin Core as standard-only (non-bannable)
-- `CHECKSEQUENCEVERIFY` / `WITNESS`: Blackmore matches Bitcoin Core — both in MANDATORY. v28-CORE pre-SegWit base was missing them; the SegWit merge should have added them but didn't, caught and fixed during the P2TR signing fix audit.
+- `CHECKSEQUENCEVERIFY` / `WITNESS`: Blackmore matches Bitcoin Core — both in MANDATORY. v28.4.0 pre-SegWit base was missing them; the SegWit merge should have added them but didn't, caught and fixed during the P2TR signing fix audit.
 - `TAPROOT`: Blackmore puts in STANDARD-only (not bannable until mainnet activates via BIP9), Bitcoin Core puts in MANDATORY (always bannable, since Taproot is always active on Bitcoin)
 
 ## 7. Debug Findings (Summary)

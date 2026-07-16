@@ -22,7 +22,7 @@ The CoinStatsIndex bug was a chain of interconnected issues stemming from one ro
 
 ### Applied to working tree: `AddCoins` root-cause fix + CoinStatsIndex fallback
 
-**What**: Three changes applied to the v28-CORE working tree:
+**What**: Three changes applied to the v28.4.0 working tree:
 
 1. **`AddCoins` fix** (coins.cpp, coins.h): Added `nBlockTime` parameter. For v2 txs, stores `nTime = block.nTime` instead of `tx.nTime = 0` in the `Coin`. This fixes: UTXO cache, undo data, `tx_verify.cpp:191` temporal check — everything downstream.
 

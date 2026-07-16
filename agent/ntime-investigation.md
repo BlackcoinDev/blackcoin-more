@@ -2,7 +2,7 @@
 
 **Investigation Date:** 2026-07-08
 **Triggered by:** Block rejection error `bad-txns-time-earlier-than-input` on mainnet at block height 5944947
-**Scope:** Comparison of `blackmore262` (v28 pre-CORE), `blackmore284` (v28-CORE), and `bitcoin` (upstream Bitcoin Core 28.x)
+**Scope:** Comparison of `blackmore262` (v28 pre-CORE), `blackmore284` (v28.4.0), and `bitcoin` (upstream Bitcoin Core 28.x)
 
 ---
 
@@ -71,7 +71,7 @@ The block time is **7 seconds ahead** of the node's local clock. This is normal 
 
 ## 3. Codebase Comparison Overview
 
-| Aspect | `bitcoin` (upstream Core 28.x) | `blackmore262` (v28 pre-CORE) | `blackmore284` (v28-CORE) |
+| Aspect | `bitcoin` (upstream Core 28.x) | `blackmore262` (v28 pre-CORE) | `blackmore284` (v28.4.0) |
 |---|---|---|---|
 | **v2 transactions** | No | Yes | Yes |
 | **`Coin.nTime` field** | No | Yes | Yes |
@@ -1202,7 +1202,7 @@ BOOST_CHECK(solutions[1] == ToByteVector(uint256::ONE));
 - Coinstatsindex with P2TR outputs
 - Witness version check on legacy testnet
 
-These should be addressed before the v28-CORE release, but they are not critical for the current fix to be safe.
+These should be addressed before the v28.4.0 release, but they are not critical for the current fix to be safe.
 ---
 
 ## 13. Recommendations

@@ -1,6 +1,6 @@
 # Staker Timing Refactor
 
-**Branch:** v28-CORE
+**Branch:** v28.4.0
 **Date:** 2026-06-16
 **Status:** COMPLETED. Applied to the codebase, unifying sleep boundary calculations in miner.cpp and removing tight-loops.
 

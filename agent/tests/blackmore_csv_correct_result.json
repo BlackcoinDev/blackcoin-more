@@ -1,0 +1,10 @@
+{
+  "funding_txid": "<REDACTED>",
+  "funding_vout": 1,
+  "spending_txid": "<REDACTED>",
+  "spending_hex": "<REDACTED_SIGNED_TX_HEX>",
+  "redeem_script": "<REDACTED_REDEEM_SCRIPT>",
+  "nSequence": 1,
+  "fee": 0.001,
+  "return_address": "<RETURN_ADDRESS>"
+}

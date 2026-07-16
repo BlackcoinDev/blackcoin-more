@@ -1,0 +1,13 @@
+{
+  "txid": "<REDACTED_TXID>",
+  "vout": 1,
+  "address": "<REDACTED_ADDRESS>",
+  "label": "csv_correct",
+  "scriptPubKey": "<REDACTED_SCRIPTPUBKEY>",
+  "amount": 1.0,
+  "confirmations": 2,
+  "spendable": false,
+  "solvable": false,
+  "parent_descs": [],
+  "safe": true
+}

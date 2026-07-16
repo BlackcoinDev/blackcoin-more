@@ -1,0 +1,34 @@
+{
+  "wallet": "<WALLET_NAME>",
+  "node": "http://<NODE>:<PORT>/",
+  "cltv": {
+    "lock_height": 5900000,
+    "pubkey": "<CLTV_PUBKEY>",
+    "pubkey_address": "<CLTV_PUBKEY_ADDRESS>",
+    "redeem_script_hex": "<CLTV_REDEEM_SCRIPT>",
+    "p2sh_address": "<CLTV_P2SH_ADDRESS>"
+  },
+  "csv": {
+    "delay": 0,
+    "pubkey": "<CSV_PUBKEY>",
+    "pubkey_address": "<CSV_PUBKEY_ADDRESS>",
+    "redeem_script_hex": "<CSV_REDEEM_SCRIPT>",
+    "p2sh_address": "<CSV_P2SH_ADDRESS>"
+  },
+  "multisig": {
+    "required": 2,
+    "total": 3,
+    "pubkeys": [
+      "<MULTISIG_PUBKEY_1>",
+      "<MULTISIG_PUBKEY_2>",
+      "<MULTISIG_PUBKEY_3>"
+    ],
+    "pubkey_addresses": [
+      "<MULTISIG_ADDRESS_1>",
+      "<MULTISIG_ADDRESS_2>",
+      "<MULTISIG_ADDRESS_3>"
+    ],
+    "redeem_script_hex": "<MULTISIG_REDEEM_SCRIPT>",
+    "p2sh_address": "<MULTISIG_P2SH_ADDRESS>"
+  }
+}

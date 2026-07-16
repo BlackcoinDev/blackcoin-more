@@ -1,0 +1,12 @@
+{
+  "wallet": "<WALLET_NAME>",
+  "node": "http://<NODE>:<PORT>/",
+  "csv_correct": {
+    "delay": 1,
+    "pubkey": "<CSV_CORRECT_PUBKEY>",
+    "pubkey_address": "<CSV_CORRECT_PUBKEY_ADDRESS>",
+    "redeem_script_hex": "<CSV_CORRECT_REDEEM_SCRIPT>",
+    "p2sh_address": "<CSV_CORRECT_P2SH_ADDRESS>",
+    "note": "Uses minimal OP_1 encoding for delay=1. Spend with nSequence=1 after 1 confirmation."
+  }
+}

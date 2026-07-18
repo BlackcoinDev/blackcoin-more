@@ -84,7 +84,7 @@ argsman.AddArg("-blockunknownservices",
 
 ### 2. Define the forbidden bit mask
 
-Add a `constexpr` in `src/protocol.h` next to the `ServiceFlags` enum, or as a local helper in `net_processing.cpp`:
+Add a `constexpr` as a local helper in `src/net_processing.cpp`:
 
 ```cpp
 // Bits 24-31 are reserved in Bitcoin for temporary experiments.
@@ -97,26 +97,44 @@ static constexpr ServiceFlags FORBIDDEN_SERVICE_BITS = ServiceFlags(
 
 ### 3. Add the disconnect check for inbound and outbound peers
 
-In `src/net_processing.cpp`, inside the version-message handler (around line 3980), after the existing desirable-services check:
+In `src/net_processing.cpp`, inside the version-message handler (around line 3980). The check must be placed **before** `m_addrman.SetServices()` to prevent forbidden service bits from being recorded in addrman:
 
 ```cpp
-if (pfrom.ExpectServicesFromConn() && !HasAllDesirableServiceFlags(nServices))
-{
-    LogPrint(BCLog::NET, "peer=%d does not offer the expected services (%08x offered, %08x expected); disconnecting\n", pfrom.GetId(), nServices, GetDesirableServiceFlags(nServices));
-    pfrom.fDisconnect = true;
-    return;
-}
+        vRecv >> nVersion >> Using<CustomUintFormatter<8>>(nServices) >> nTime;
+        if (nTime < 0) {
+            nTime = 0;
+        }
 
-// Optional: reject peers advertising forbidden experimental service bits (bits 24-31).
-if (m_options.block_unknown_services && pfrom.ExpectServicesFromConn() && (nServices & FORBIDDEN_SERVICE_BITS))
-{
-    LogPrintf("peer=%d advertised forbidden service bits (%08x); disconnecting\n", pfrom.GetId(), nServices);
-    pfrom.fDisconnect = true;
-    return;
-}
+        // Must check before SetServices below to avoid recording forbidden service bits in addrman.
+        if (m_opts.block_unknown_services && !pfrom.HasPermission(NetPermissionFlags::NoBan) && HasForbiddenServiceBits(nServices))
+        {
+            LogPrint(BCLog::NET, "peer=%d advertised forbidden service bits (%08x); disconnecting\n", pfrom.GetId(), nServices);
+            pfrom.fDisconnect = true;
+            return;
+        }
+
+        vRecv.ignore(8); // Ignore the addrMe service bits sent by the peer
+        vRecv >> CNetAddr::V1(addrMe);
+        if (!pfrom.IsInboundConn())
+        {
+            // Overwrites potentially existing services. In contrast to this,
+            // unvalidated services received via gossip relay in ADDR/ADDRV2
+            // messages are only ever added but cannot replace existing ones.
+            m_addrman.SetServices(pfrom.addr, nServices);
+        }
+        if (pfrom.ExpectServicesFromConn() && !HasAllDesirableServiceFlags(nServices))
+        {
+            LogPrint(BCLog::NET, "peer=%d does not offer the expected services (%08x offered, %08x expected); disconnecting\n", pfrom.GetId(), nServices, GetDesirableServiceFlags(nServices));
+            pfrom.fDisconnect = true;
+            return;
+        }
 ```
 
-The check uses `ExpectServicesFromConn()` because both inbound and outbound full-relay connections exchange service bits in the version message. The existing `HasAllDesirableServiceFlags` check is also gated by this predicate, so the placement keeps the two checks consistent.
+**Ordering is critical here.** If the forbidden-bit check runs after `SetServices`, the address is already recorded in addrman with the bad services before the peer is disconnected. On shutdown, it gets written to peers.dat.
+
+The check does **not** use `ExpectServicesFromConn()` because that predicate returns `false` for inbound connections, and we want to prevent inbound fork connections. It explicitly checks `!pfrom.HasPermission(NetPermissionFlags::NoBan)` to ensure whitelisted peers are exempt.
+
+> **Note on Existing Connections:** Since `-blockunknownservices` is a startup-only configuration flag, enabling or disabling it requires a node restart. This restart naturally terminates all existing peer connections, ensuring that every peer is checked against the version-handshake filter upon reconnecting. No runtime rechecking is needed.
 
 ### 4. Plumb the option through to PeerManager
 
@@ -141,7 +159,7 @@ In the `addr`/`addrv2` processing path, for each `CAddress` received:
 
 ```cpp
 if (m_options.block_unknown_services && HasForbiddenServiceBits(addr.nServices)) {
-    LogPrint(BCLog::NET, "addr from peer=%d contains forbidden service bits (%08x); ignoring\n", pfrom.GetId(), addr.nServices);
+    LogPrint(BCLog::NET, "ignoring address %s from peer=%d: contains forbidden service bits (%08x)\n", addr.ToStringAddrPort(), pfrom.GetId(), addr.nServices);
     continue;
 }
 ```
@@ -159,15 +177,16 @@ Add functional or unit tests that:
 1. Start a node with `-blockunknownservices`.
 2. Connect a mininode that advertises bit 24 (or any bit 24-31).
 3. Assert that the connection is dropped immediately after the version handshake.
-4. Send an `addr`/`addrv2` message containing an address with bit 24 set.
-5. Assert that the address is not added to `addrman` and is not relayed to other peers.
+4. Connect a second, honest mininode. Send an `addr`/`addrv2` message from the second mininode containing a third-party address with bit 24 set.
+5. Assert that this third-party address does **not** appear in `getnodeaddresses` RPC results (confirming `addrman` exclusion) and is **not** relayed to the second mininode (confirming gossip suppression).
+6. Connect a whitelisted/noban peer advertising bit 24 and assert that the connection is **not** dropped (whitelist bypass confirmation).
 
 Also add a test that:
-- Starts a node **without** the option.
+- Starts a node **without** the option (default behavior).
 - Connects a mininode advertising bit 24.
 - Asserts that the connection is **not** dropped, to ensure the default behavior is unchanged.
 
-This ensures the option works and does not regress.
+This ensures the option works as intended, respects whitelists, and does not regress.
 
 ## Files Likely to Change
 
@@ -175,7 +194,6 @@ This ensures the option works and does not regress.
 |---|---|
 | `src/init.cpp` | Register `-blockunknownservices` argument; pass value into `PeerManager` options |
 | `src/net_processing.h` / `src/net_processing.cpp` | Add option field, disconnect logic, and addr-relay filtering |
-| `src/protocol.h` (optional) | Define `FORBIDDEN_SERVICE_BITS` |
 | `src/test/...` or `test/functional/...` | Add test coverage for connection drop and addr filtering |
 
 ## Risks and Mitigations
@@ -210,11 +228,13 @@ This plan complements, but does not replace, the existing 28.4.0 defenses:
 - Because service bits are unauthenticated advertisements, any peer can set or clear them. Therefore, P2P-level filtering cannot provide strong security guarantees.
 - Inbound and outbound filtering are both required: a fork node can initiate a connection to us, or we can discover and initiate a connection to a fork node via addr relay.
 
-## Open Questions
+## Design Decisions
 
-1. Should `FORBIDDEN_SERVICE_BITS` be defined in `protocol.h` for reuse, or kept local to `net_processing.cpp`?
-2. Should the option apply to all connection types, or only full-relay connections (the ones covered by `ExpectServicesFromConn()`)?
-3. Should `getpeerinfo` include a reason when a peer was disconnected for forbidden service bits?
-4. Should the option also evict existing `addrman` entries that carry forbidden bits on startup, or only filter new addr messages?
-5. Should the option log at `LogPrintf` level or `LogPrint(BCLog::NET)` level to avoid noisy logs on mainnet?
-6. Should the forbidden bit range be hardcoded to 24-31, or configurable via another startup argument?
+| Decision | Resolution |
+|---|---|
+| Where to define `FORBIDDEN_SERVICE_BITS` | Local to `net_processing.cpp` (not `protocol.h`) |
+| Connection types to filter | All types — inbound, outbound, full-relay, and block-relay |
+| `getpeerinfo` disconnect reason | Not needed; log is sufficient |
+| Evict existing `addrman` entries on startup | No — only filter new `addr`/`addrv2` messages |
+| Log level | `LogPrint(BCLog::NET, ...)` — gated behind `-debug=net` |
+| Forbidden bit range | Hardcoded to bits 24-31 |

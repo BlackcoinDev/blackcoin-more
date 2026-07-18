@@ -172,43 +172,33 @@ Commit();              // then writes locator
 **The bug:** v2 transactions don't serialize `nTime` on the wire (always 0 after deserialization). When `AddCoins` stored `tx.nTime` in the `Coin`, v2 transactions always got `nTime=0`. But the coinstatsindex muhash includes `nTime` (via `TxOutSer`). So:
 - Same block, different runs → different muhash → non-deterministic index
 
-**The fix:**
-```cpp
-// Old (v26.2.0):
-Coin coin{out, nHeight, fCoinBase, fCoinStake, tx.nTime};  // tx.nTime = 0 for v2
+**Initial fix (July 8, reverted July 17):** Passed `nBlockTime` into `AddCoins` to store `block.nTime` for v2 coins. This activated a latent time check in `CheckTxInputs` and caused block 5,944,947 to be rejected (node clock 7s behind block time). A second attempt passed `nBlockTime` into `CheckTxInputs` but the entire approach was abandoned and reverted.
 
-// New (v28.4.0):
-int nTimeCoin = tx.version >= 2 ? nBlockTime : (int)tx.nTime;
-Coin coin{out, nHeight, fCoinBase, fCoinStake, nTimeCoin};  // block.nTime for v2
-```
-
-**The fallout discovered in production:** The `CheckTxInputs` time check (`coin.nTime > nTimeTx`) was dead code in v26.2.0 (0 > wallclock = always false). Making `coin.nTime` non-zero for v2 made it fire — block 5,944,947 was rejected because the node clock was 7 seconds behind the block time. Fixed by passing `nBlockTime` into `CheckTxInputs` too.
+**Final resolution:** The `nBlockTime` parameter threading was fully reverted. `AddCoins` and `CheckTxInputs` restored to v26.2.0 behavior (coin.nTime=0 for v2 txs; time check dead code). CoinStatsIndex determinism fixed instead by including `fCoinStake` in the muhash encoding — this is a structural property (same value whether read from disk or memory) so the muhash is deterministic across nodes. A `total_coinstake_amount` field was added to the DBVal for accuracy.
 
 **Evidence of the crash:** Block 5,944,947, July 8, 2026. Mainnet. The node had to skip the block.
 
-**Severity:** Medium. The time check regression was caught and fixed within hours. The underlying non-determinism bug was silently producing wrong muhashes in v26.2.0.
+**Severity:** Medium. The time check regression was caught within hours. The underlying non-determinism bug was silently producing wrong muhashes in v26.2.0.
 
-### E2. TxOutSer — muhash now matches Coin::Serialize (`kernel/coinstats.cpp`)
+**See also:** `agent/ntime-investigation.md` and `agent/CoinStatsIndexOptimization.md` for the full history.
+
+### E2. TxOutSer — muhash now includes `fCoinStake` (`kernel/coinstats.cpp`)
 
 **v26.2.0 latent inconsistency:**
 - `Coin::Serialize` (on-disk format): includes `VARINT(nTime)` + coinstake flag
 - `TxOutSer` (muhash format): did NOT include `nTime` or coinstake flag
 
-The muhash was computed over DIFFERENT bytes than what Coin::Serialize stores on disk. This meant:
-- UTXO set hash didn't match what was actually stored
-- `gettxoutsetinfo` hash was wrong (though no one noticed because the index was optional)
+The muhash was computed over DIFFERENT bytes than what Coin::Serialize stores on disk.
 
-**v28.4.0 fix:** `TxOutSer` now matches `Coin::Serialize` exactly. Required a rebuild of the coinstatsindex (muhash values change).
+**v28.4.0 fix:** `TxOutSer` now encodes `fCoinStake` in bit 1 (alongside `fCoinBase` in bit 0), with height in the upper bits: `(height << 2) | fCoinBase | (fCoinStake << 1)`. `nTime` is deliberately **NOT** included in the muhash — this avoids the v1/v2 `nTime` asymmetry that caused the block 5944947 rejection (see E1). The muhash is deterministic because `fCoinStake` is a structural property (`tx.IsCoinStake()`), not time-dependent. Requires a rebuild of the coinstatsindex (muhash values change).
 
 **Severity:** Low (optional index), but it was a real inconsistency.
 
-### E3. nTime=0 reconstruction in undo path (`coinstatsindex.cpp`)
+### E3. nTime=0 in undo path — no longer an issue (`coinstatsindex.cpp`)
 
-**What:** When reading undo data written by v26.2.0 (which has nTime=0 for v2 prevouts), reconstruct nTime from the block index.
+**What:** The intermediate v284 approach (reverted July 17) included undo data reconstruction code that attempted to recover `nTime` from the block index when undo data had `nTime=0`. This was necessary because the intermediate muhash included `nTime`.
 
-**Why:** Without this, reorg over old undo data causes a muhash assertion crash in `ReverseBlock`.
-
-**This is a migration safety net** — allows upgrading without forcing a full reindex.
+**Current state:** Since the muhash no longer includes `nTime` (see E2), there is no mismatch between add and remove operations in the muhash. Old undo data with `nTime=0` works correctly because `nTime` is not part of the hash. The reconstruction code was removed as part of the revert.
 
 ### E4. Issue #22 — Locator walk in BaseIndex::Init() (`index/base.cpp`)
 
@@ -380,7 +370,7 @@ The breakdown of **1463 differing files**:
 - `src/validation.h` — GetBlockSubsidy, CHECKBLOCKS, TX_FEE
 - `src/pos.cpp` — CheckProofOfStake signature verification
 - `src/coins.h` — Coin nTime, fCoinStake
-- `src/coins.cpp` — AddCoins nBlockTime parameter
+- `src/coins.cpp` — AddCoins (reverted to v262 behavior, no nBlockTime)
 - `src/consensus/tx_verify.cpp` — CheckTxInputs time check
 - `src/policy/policy.h` — MANDATORY_SCRIPT_VERIFY_FLAGS
 - `src/chain.h` — MAX_FUTURE_BLOCK_TIME, MAX_BLOCK_TIME_GAP
@@ -391,8 +381,8 @@ The breakdown of **1463 differing files**:
 - `src/index/base.cpp` — Sync() ordering, locator walk (#22 fix)
 - `src/index/base.h` — AllowPrune commented
 - `src/index/txindex.h` — DEFAULT_TXINDEX=true, AllowPrune
-- `src/index/coinstatsindex.cpp` — nTimeOut fix, nTime=0 recovery
-- `src/kernel/coinstats.cpp` — TxOutSer alignment
+- `src/index/coinstatsindex.cpp` — fCoinStake tracking, total_coinstake_amount
+- `src/kernel/coinstats.cpp` — TxOutSer fCoinStake encoding (bit 1)
 
 **Staking/RPC (15 files):**
 - `src/wallet/staking.cpp` — OP_RETURN carrier, combine thresholds

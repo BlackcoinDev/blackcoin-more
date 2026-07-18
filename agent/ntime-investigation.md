@@ -71,19 +71,20 @@ The block time is **7 seconds ahead** of the node's local clock. This is normal 
 
 ## 3. Codebase Comparison Overview
 
-| Aspect | `bitcoin` (upstream Core 28.x) | `blackmore262` (v28 pre-CORE) | `blackmore284` (v28.4.0) |
+| Aspect | `bitcoin` (upstream Core 28.x) | `blackmore262` (v28 pre-CORE) | `blackmore284` (v28.4.0, current) |
 |---|---|---|---|
 | **v2 transactions** | No | Yes | Yes |
 | **`Coin.nTime` field** | No | Yes | Yes |
-| **`AddCoins` sets `nTime`** | N/A (no `nTime` field) | `tx.nTime` (which is 0 for v2) | `nBlockTime` for v2, `tx.nTime` for v1 |
+| **`AddCoins` sets `nTime`** | N/A (no `nTime` field) | `tx.nTime` (which is 0 for v2) | `tx.nTime` (same as v262) |
 | **`CheckTxInputs` has time check** | No | Yes (with `GetAdjustedTimeSeconds()`) | Yes (with `GetAdjustedTimeSeconds()`) |
-| **`bad-txns-time-earlier-than-input` reachable** | No | No (dead code for v2) | **YES (bug)** |
-| **`coinstatsindex` nTime handling** | N/A (no `nTime`) | Uses `tx.nTime` directly | Uses `block.nTime` for v2, with old-undo recovery |
+| **`bad-txns-time-earlier-than-input` reachable** | No | No (dead code for v2) | No (dead code for v2, same as v262) |
+| **`coinstatsindex` nTime handling** | N/A (no `nTime`) | Uses `tx.nTime` directly | Uses `tx.nTime` directly (same as v262) |
+| **`coinstatsindex` coinstake aware** | N/A | No | **Yes** (`fCoinStake` in muhash, `total_coinstake_amount` tracked) |
 | **`GetAdjustedTimeSeconds()`** | No | Yes (Blackcoin addition) | Yes |
 
 ### Summary
 
-The bug exists **only in `blackmore284`**. It was introduced by commit `002b58d84f` ("index: make coinstatsindex coinstake compatible") on July 1, 2026.
+The bug existed **only in the intermediate v284 state** (commits `002b58d84f`, `a52b290c1d`, `c2455cdd6f`). These were all reverted on July 17, 2026. The current v284 is functionally equivalent to v262 for consensus behavior, with the addition of coinstake awareness in the coinstatsindex (which does not affect consensus).
 
 ---
 
@@ -122,29 +123,25 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, bool 
 
 **Key point:** For v2 transactions, `tx.nTime` is **0** (not serialized on wire), so `coin.nTime` is **0**.
 
-### `blackmore284` (the broken one)
+### `blackmore284` (current, after revert)
 
-`blackmore284/src/coins.cpp:122-136`:
+`blackmore284/src/coins.cpp:122-132` — **identical to `blackmore262`** after the revert:
 
 ```cpp
-void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, bool check_for_overwrite, int nBlockTime) {
+void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, bool check_for_overwrite) {
     bool fCoinbase = tx.IsCoinBase();
     bool fCoinstake = tx.IsCoinStake();
     const Txid& txid = tx.GetHash();
-    // For v2 transactions, nTime is not serialized on the wire.
-    // Always use block header time to ensure deterministic Coin nTime
-    // regardless of whether tx came from memory or disk.
-    int nTimeCoin = tx.version >= 2 ? nBlockTime : (int)tx.nTime;
     for (size_t i = 0; i < tx.vout.size(); ++i) {
         bool overwrite = check_for_overwrite ? cache.HaveCoin(COutPoint(txid, i)) : fCoinbase;
-        cache.AddCoin(COutPoint(txid, i), Coin(tx.vout[i], nHeight, fCoinbase, fCoinstake, nTimeCoin), overwrite);
+        cache.AddCoin(COutPoint(txid, i), Coin(tx.vout[i], nHeight, fCoinbase, fCoinstake, tx.nTime), overwrite);
     }
 }
 ```
 
-**Key point:** For v2 transactions, `coin.nTime` is now set to **`nBlockTime`** (the block header time), not 0.
+**Key point:** For v2 transactions, `tx.nTime` is **0** (not serialized on wire), so `coin.nTime` is **0**. Same as v262.
 
-This change was introduced in commit `002b58d84f` (July 1, 2026) for the coinstatsindex.
+> **Historical note:** The intermediate v284 state (commits `002b58d84f`, `a52b290c1d`, `c2455cdd6f`) had a `nBlockTime` parameter that set `coin.nTime = nBlockTime` for v2. This was reverted on July 17, 2026 because it caused the block 5944947 rejection and introduced v1/v2 asymmetries.
 
 ---
 
@@ -221,55 +218,34 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
 
 **Time check is present but effectively dead code for v2:** `coin.nTime` is 0 for v2, `nTimeTx` is wall-clock (always > 0), so `0 > wallclock` is always false.
 
-### `blackmore284` (the broken one)
+### `blackmore284` (current, after revert)
 
-`blackmore284/src/consensus/tx_verify.cpp:165-197` — **identical to `blackmore262`**, but now the time check **actually fires** because `coin.nTime` is `nBlockTime` for v2 (not 0).
+`blackmore284/src/consensus/tx_verify.cpp:165-197` — **identical to `blackmore262`** after the revert. The time check is dead code for v2 (`coin.nTime = 0` for v2, `nTimeTx = wall_clock`, so `0 > wall_clock` is always false).
 
-```cpp
-bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, CAmount& txfee)
-{
-    if (!inputs.HaveInputs(tx)) {
-        return state.Invalid(TxValidationResult::TX_MISSING_INPUTS, "bad-txns-inputs-missingorspent", ...);
-    }
-
-    // Blackcoin: in v2 transactions use GetAdjustedTimeSeconds() as nTimeTx
-    int64_t nTimeTx = tx.nTime;
-    if (!nTimeTx && tx.version >= 2)
-        nTimeTx = GetAdjustedTimeSeconds();
-
-    // ... loop ...
-    if (coin.nTime > nTimeTx)
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-time-earlier-than-input");
-    // ...
-}
-```
+> **Historical note:** The intermediate v284 state had `coin.nTime = nBlockTime` for v2 (from the `AddCoins` change), which activated this check and caused the block 5944947 rejection. The fix attempts (`a52b290c1d`, `c2455cdd6f`) added a `nBlockTime` parameter to `CheckTxInputs` to make the check symmetric. All of this was reverted on July 17, 2026.
 
 ---
 
 ## 6. The Root Cause: Mismatched Time References
 
-The bug is a **mismatch** between two pieces of code that should use the same time reference:
+The bug was a **mismatch** between two pieces of code that should use the same time reference:
 
-| Side | What it uses | Source |
+| Side | What it used (intermediate v284) | Source |
 |---|---|---|
-| `Coin.nTime` (left side of check) | `nBlockTime` for v2 | `coins.cpp:129` (v284) |
+| `Coin.nTime` (left side of check) | `nBlockTime` for v2 | `coins.cpp:129` (intermediate v284) |
 | `nTimeTx` (right side of check) | `GetAdjustedTimeSeconds()` (wall clock) | `tx_verify.cpp:176` |
 
-In `blackmore262`, both sides were effectively 0 for v2 txs (because `tx.nTime` is 0 for v2), so the check was dead code. In `blackmore284`, the `AddCoins` change made `coin.nTime` = `nBlockTime` (non-zero), but `CheckTxInputs` was not updated to match.
+In `blackmore262`, both sides were effectively 0 for v2 txs (because `tx.nTime` is 0 for v2), so the check was dead code. In the intermediate v284, the `AddCoins` change made `coin.nTime` = `nBlockTime` (non-zero), but `CheckTxInputs` was not updated to match.
 
 ### Why does the v262 code "work"?
 
 The v262 code has a **latent bug**: the time check is supposed to prevent time-warp attacks, but for v2 transactions, it's completely bypassed (always passes). This was an accident of the design: v2 txs have no `nTime` on wire, so `coin.nTime` is 0, and the check `0 > wallclock` is always false.
 
-The v284 code was trying to **fix the coinstatsindex** (which needs deterministic nTime for hashing), but in doing so, it **exposed the latent bug** in `CheckTxInputs`.
+The intermediate v284 code was trying to **fix the coinstatsindex** (which needed deterministic nTime for hashing), but in doing so, it **exposed the latent bug** in `CheckTxInputs`.
 
-### The correct design
+### The resolution
 
-Both sides of the comparison should use the **block time** for v2 transactions:
-- `Coin.nTime` = `nBlockTime` (already correct in v284)
-- `nTimeTx` = `nBlockTime` (needs to be fixed)
-
-This ensures the check is comparing apples to apples for chained v2 transactions within the same block.
+The final v284 (after revert) restores v262 behavior: `coin.nTime = 0` for v2, `nTimeTx = wall_clock` for v2. The check is dead code for v2, same as v262. The coinstake awareness is achieved without including `nTime` in the muhash — only the structural `fCoinStake` flag is used.
 
 ---
 
@@ -319,7 +295,7 @@ This is the **v1 vs v2 fallback pattern**: for v1, use the per-tx time; for v2 (
 
 | File:Line | Code | Context |
 |---|---|---|
-| `coins.cpp:129` | `tx.version >= 2 ? nBlockTime : (int)tx.nTime` | `AddCoins` |
+| `coins.cpp:129` | `tx.version >= 2 ? nBlockTime : (int)tx.nTime` | `AddCoins` (intermediate v284 only, reverted) |
 | `pos.cpp:180` | `(coinPrev.nTime ? coinPrev.nTime : blockFrom->nTime)` | `CheckProofOfStake` |
 | `pos.cpp:218` | `(coinPrev.nTime ? coinPrev.nTime : blockFrom->nTime)` | `CheckKernel` (cached) |
 | `pos.cpp:251` | `(coinPrev.nTime ? coinPrev.nTime : blockFrom->nTime)` | `CacheKernel` |
@@ -329,18 +305,17 @@ This is the **v1 vs v2 fallback pattern**: for v1, use the per-tx time; for v2 (
 | `miner.cpp:587` | `pblock->vtx[1]->nTime ? pblock->vtx[1]->nTime : pblock->nTime` | `ProcessBlockFound` |
 | `wallet.cpp:2243` | `wtx.nTimeSmart` (not `tx.nTime`) | `SignTransaction` |
 | `wallet/staking.cpp:429-433` | Uses `nTimeSmart` (== blocktime) | Input combining |
-| `tx_verify.cpp:174-176` | `!nTimeTx && tx.version >= 2 ? GetAdjustedTimeSeconds() : tx.nTime` | `CheckTxInputs` **← THE BUG** |
+| `tx_verify.cpp:174-176` | `!nTimeTx && tx.version >= 2 ? GetAdjustedTimeSeconds() : tx.nTime` | `CheckTxInputs` (v262 behavior, restored) |
 | `validation.cpp:801-804` | Same as above | Mempool `PreChecks` |
-| `coinstatsindex.cpp:155,449` | `tx->version >= 2 ? block.nTime : tx->nTime` | `coinstatsindex` |
-| `coinstatsindex.cpp:190-193, 483-486` | `if (coin.nTime == 0 && coin.nHeight > 0) coin.nTime = pindexPrev->nTime;` | Old undo data recovery |
+| `coinstatsindex.cpp:155,449` | `tx->nTime` (v262 behavior, restored) | `coinstatsindex` (nTime not used in muhash) |
 
 ### Summary table
 
 | Context | v1 txs (`tx.version < 2`) | v2 txs (`tx.version >= 2`) |
 |---|---|---|
 | Wire format | `nTime` serialized | `nTime` NOT serialized (= 0 on deserialize) |
-| `Coin::nTime` (UTXO entry) | `tx.nTime` | `nBlockTime` (v284) or `0` (v262) |
-| `CheckTxInputs` `nTimeTx` | `tx.nTime` | `GetAdjustedTimeSeconds()` **(BUG: should be nBlockTime)** |
+| `Coin::nTime` (UTXO entry) | `tx.nTime` | `0` (v262 and current v284) |
+| `CheckTxInputs` `nTimeTx` | `tx.nTime` | `GetAdjustedTimeSeconds()` (wall clock) |
 | Mempool `PreChecks` `nTimeTx` | `tx.nTime` | `GetAdjustedTimeSeconds()` |
 | `CheckProofOfStake` `blockFromTime` | `coinPrev.nTime` | `coinPrev.nTime ? coinPrev.nTime : blockFrom->nTime` |
 | `CacheKernel` `blockFromTime` | `coinPrev.nTime` | `coinPrev.nTime ? coinPrev.nTime : blockFrom->nTime` |
@@ -349,68 +324,38 @@ This is the **v1 vs v2 fallback pattern**: for v1, use the per-tx time; for v2 (
 | Wallet input `nTimeSmart > txNew.nTime` | compares per-tx time | compares smart time (== blocktime) |
 | `Coin` in wallet `SignTransaction` | `wtx.nTimeSmart` | `wtx.nTimeSmart` (== blocktime) |
 | Tx weight (`spend.cpp:149-151`) | `+4 * WITNESS_SCALE_FACTOR` | no adjustment |
-| `coinstatsindex` `nTime` | `tx->nTime` | `block.nTime` (with old-undo recovery) |
+| `coinstatsindex` `nTime` | `tx->nTime` | `tx->nTime` (not used in muhash) |
 
 ---
 
 ## 8. `coinstatsindex` and the Deterministic nTime Requirement
 
-### Why the v284 change was made
+### Why the intermediate v284 change was made
 
-The commit `002b58d84f` (July 1, 2026) was titled **"index: make coinstatsindex coinstake compatible"**. The full diff shows:
+The commit `002b58d84f` (July 1, 2026) was titled **"index: make coinstatsindex coinstake compatible"**. It attempted to include `nTime` in the muhash to make it deterministic across nodes. This required:
 
-```cpp
-// coinstatsindex.cpp:152-156
-int nTimeOut = tx->version >= 2 ? (int)block.data->nTime : (int)tx->nTime;
-Coin coin{out, block.height, tx->IsCoinBase(), tx->IsCoinStake(), nTimeOut};
-```
+1. `AddCoins` to store `nBlockTime` in `Coin.nTime` for v2
+2. Undo data recovery code for old undo data with `nTime = 0`
+3. `CheckTxInputs` to use `nBlockTime` for v2 (added in later fix attempts)
 
-```cpp
-// coinstatsindex.cpp:188-193 (for old undo data)
-if (coin.nTime == 0 && coin.nHeight > 0) {
-    const CBlockIndex* pindexPrev = pindex->GetAncestor(coin.nHeight);
-    if (pindexPrev) coin.nTime = pindexPrev->nTime;
-}
-```
+### Why this approach failed
 
-And the same patterns in `ReverseBlock`.
+Including `nTime` in the muhash created a cascade of problems:
+- The `AddCoins` change activated the latent `coin.nTime > nTimeTx` check → block 5944947 rejected
+- The undo data recovery used `GetAncestor(coin.nHeight)` in the inner loop → O(n²) performance
+- The `nBlockTime` parameter had to be threaded through `AddCoins`, `UpdateCoins`, `ConnectBlock`, `RollforwardBlock`, `CheckTxInputs`, and all their callers
 
-The **purpose** was to ensure that the `Coin.nTime` used in the muhash UTXO-set hash is **deterministic** — the same for any node processing the same chain, regardless of whether the tx came from memory or disk. Without this, two nodes could compute different muhash values for the same UTXO set, breaking `assumeutxo` snapshots.
+### The resolution (July 17, 2026)
 
-### The muhash serialization
+The muhash does NOT need to include `nTime` to be coinstake-aware. The `fCoinStake` flag is a structural property of the transaction (determined by `tx.IsCoinStake()`), not time-dependent. The current implementation:
 
-From `src/kernel/coinstats.cpp:40-57`:
+- `TxOutSer` encodes `fCoinStake` in bit 1 (alongside `fCoinBase` in bit 0), with height in upper bits
+- `nTime` is NOT included in the muhash at all
+- The muhash is deterministic because `fCoinStake` is structural (same value whether tx is read from disk or memory)
+- No `nBlockTime` parameter threading needed
+- No consensus changes
 
-```cpp
-uint64_t GetBogoSize(const CScript& script_pub_key)
-{
-    return 32 /* txid */ +
-           4 /* vout index */ +
-           4 /* height + coinbase + coinstake */ +
-           4 /* nTime */ +                    // <-- Coin.nTime is part of the hash
-           8 /* amount */ +
-           2 /* scriptPubKey len */ +
-           script_pub_key.size();
-}
-
-static void TxOutSer(T& ss, const COutPoint& outpoint, const Coin& coin)
-{
-    ss << outpoint;
-    ss << static_cast<uint32_t>((coin.nHeight << 2) + (coin.fCoinBase ? 1u : 0u) + (coin.fCoinStake ? 2u : 0u));
-    ss << VARINT(coin.nTime);                // <-- Serialized into muhash
-    ss << coin.out;
-}
-```
-
-**`Coin.nTime` is part of the UTXO-set hash. If it's 0 for v2 txs, the hash will differ from what it would be with the correct block time.**
-
-### Comparison with `bitcoin` (upstream)
-
-`bitcoin/src/index/coinstatsindex.cpp` does not have any v2-related nTime handling because upstream Bitcoin Core does not have v2 transactions. The upstream `Coin` class doesn't have an `nTime` field at all.
-
-### Comparison with `blackmore262`
-
-`blackmore262` had v2 transactions and the coinstatsindex, but it used `tx->nTime` directly (which is 0 for v2). This means the muhash was computed with `nTime = 0` for all v2 outputs. This was a pre-existing inconsistency that the v284 commit tried to fix.
+See `agent/CoinStatsIndexOptimization.md` for the full implementation details.
 
 ---
 
@@ -470,34 +415,31 @@ The same code appears in `LoadToWallet` (line 1223-1230).
 
 ### `src/consensus/tx_verify.cpp`
 
-- **Line 174-176:** The bug — `nTimeTx = GetAdjustedTimeSeconds()` for v2 txs in block context should be `nBlockTime`.
+- **Line 174-176:** `nTimeTx = GetAdjustedTimeSeconds()` for v2 txs. Dead code for v2 (`0 > wall_clock = false`). Same as v262.
 
 ### `src/coins.cpp`
 
-- **Line 122-136:** `AddCoins` uses `nBlockTime` for v2 txs. This is the change from commit `002b58d84f`.
+- **Line 122-132:** `AddCoins` uses `tx.nTime` directly. Same as v262.
 
 ### `src/validation.cpp`
 
-- **Line 2123-2136:** `UpdateCoins` passes `nBlockTime` to `AddCoins`.
-- **Line 2665:** `ConnectBlock` passes `block.nTime` to `UpdateCoins`.
-- **Line 4998:** `ReplayBlocks` passes `pindex->nTime` to `AddCoins`.
-- **Line 801-804:** Mempool `PreChecks` uses `GetAdjustedTimeSeconds()` for v2 `nTimeTx` (not consensus-critical, just mempool policy).
-- **Line 724:** Package mempool acceptance uses `GetAdjustedTimeSeconds()` for `GetMinFee`.
+- **Line 2130-2143:** `UpdateCoins` passes `nHeight` only (no `nBlockTime`). Same as v262.
+- **Line 2691:** `ConnectBlock` passes `pindex->nHeight` only. Same as v262.
+- **Line 5005:** `RollforwardBlock` passes `pindex->nHeight` only. Same as v262.
+- **Line 801-804:** Mempool `PreChecks` uses `GetAdjustedTimeSeconds()` for v2 `nTimeTx`. Same as v262.
 - **Line 2517:** `CheckProofOfStake` call uses v1/v2 fallback pattern.
 - **Line 4050, 4054:** `CheckBlock` uses v1/v2 fallback for coinbase/coinstake timestamps.
-- **Line 4093:** Per-tx "block timestamp not earlier than tx timestamp" check.
-- **Line 4234, 4258, 4267, 4274:** Header validation uses `block.GetBlockTime()` and `pindexPrev->GetMedianTimePast()`.
-- **Line 4298-4304:** `IsFinalTx` uses `block.GetBlockTime()` (or MTP if `enforce_locktime_median_time_past`).
+- **Line 4100:** Per-tx "block timestamp not earlier than tx timestamp" check.
 
 ### `src/index/coinstatsindex.cpp`
 
-- **Line 121-156:** `CustomAppend` uses `block.nTime` for v2 txs.
-- **Line 188-193:** Old undo data recovery for v2 txs.
-- **Line 408-497:** `ReverseBlock` — same patterns.
+- **Line 152, 449:** `Coin` construction uses `tx->nTime` directly. `nTime` is not used in the muhash (only `fCoinStake` is).
+- **Line 166-172, 459-465:** Coinstake tracking added (new in current v284).
 
 ### `src/kernel/coinstats.cpp`
 
-- **Line 40-57:** `GetBogoSize` and `TxOutSer` include `coin.nTime` in the muhash.
+- **Line 51-60:** `TxOutSer` encodes `fCoinStake` in bit 1 (new in current v284). `nTime` is NOT included in the muhash.
+- **Line 40-48:** `GetBogoSize` updated for coinstake bit (new in current v284).
 
 ### `src/pos.cpp`
 
@@ -508,14 +450,13 @@ The same code appears in `LoadToWallet` (line 1223-1230).
 
 - **Line 316, 360, 366-373:** Coinstake timestamp search and OP_RETURN carrier.
 - **Line 407-440:** Input combining — uses `nTimeSmart` to mirror consensus check.
-- **Line 506, 513:** Cache and restore `nTime` around signing (because `SignTransaction` zeros v2 `nTime`).
+- **Line 506, 513:** Cache and restore `nTime` around signing.
 
 ### `src/wallet/wallet.cpp`
 
 - **Line 2243:** `SignTransaction` uses `wtx.nTimeSmart` when building `Coin` objects.
 - **Line 1099-1104, 1223-1230:** Coinstake nTime recovery.
 - **Line 2948-2952:** `ComputeTimeSmart` forces `nTimeSmart = blocktime` for coinstakes.
-- **Line 1117-1122:** Recompute `nTimeSmart` when coinstake transitions to confirmed.
 
 ### `src/primitives/transaction.h`
 
@@ -550,16 +491,15 @@ The same code appears in `LoadToWallet` (line 1223-1230).
 **Pros:**
 - Makes the check symmetric with `AddCoins` (both use block time)
 - Restores v262 behavior for chained v2 txs in the same block
-- The check `coin.nTime > nTimeTx` becomes `nBlockTime > nBlockTime` = false, which is correct (chained txs in the same block have the same effective time)
 
 **Cons:**
 - Changes consensus rules (but only fixes a regression)
 - Requires updating all callers (validation.cpp, txmempool.cpp, test/fuzz/coins_view.cpp)
 - Need to ensure mempool path still works (use `GetAdjustedTimeSeconds()` for mempool)
 
-**Status:** Implemented and reverted by user. Needs more investigation into why it was reverted.
+**Status:** Implemented in `a52b290c1d` and `c2455cdd6f`, then **reverted** on July 17, 2026.
 
-### Option B: Revert `AddCoins` to use `tx.nTime` (v262 behavior)
+### Option B: Revert `AddCoins` to use `tx.nTime` (v262 behavior) — SELECTED
 
 **Change:** Remove the `nBlockTime` parameter from `AddCoins` and go back to `coin.nTime = tx.nTime`.
 
@@ -567,11 +507,13 @@ The same code appears in `LoadToWallet` (line 1223-1230).
 - Restores v262 behavior exactly
 - No need to change `CheckTxInputs`
 - The latent bug in `CheckTxInputs` (dead code for v2) remains, but it's pre-existing
+- No v1/v2 asymmetries
+- No `nBlockTime` parameter threading
 
 **Cons:**
-- Breaks the coinstatsindex fix from commit `002b58d84f`
-- The muhash UTXO-set hash will be computed with `nTime = 0` for v2 outputs, which is incorrect
-- The `coinstatsindex` old-undo recovery code (`if (coin.nTime == 0...)`) becomes the only way to fix the nTime, which is fragile
+- The muhash cannot include `nTime` for v2 (but this is solved by not including `nTime` in the muhash at all — see `agent/CoinStatsIndexOptimization.md`)
+
+**Status:** Implemented on July 17, 2026. This is the current v284 behavior.
 
 ### Option C: Keep the `AddCoins` change but fix the `CheckTxInputs` check differently
 
@@ -583,7 +525,9 @@ The same code appears in `LoadToWallet` (line 1223-1230).
 
 **Cons:**
 - The time check is bypassed for all v2 txs, which is a security regression
-- Doesn't fix the underlying issue (the check is supposed to prevent time-warp)
+- Doesn't fix the underlying issue
+
+**Status:** Not selected.
 
 ### Option D: Make `GetAdjustedTimeSeconds()` return the block time in block context
 
@@ -591,239 +535,80 @@ The same code appears in `LoadToWallet` (line 1223-1230).
 
 **Pros:**
 - Minimal code change in callers
-- Makes `GetAdjustedTimeSeconds()` context-aware
 
 **Cons:**
 - Hidden state, hard to reason about
 - Changes the meaning of `GetAdjustedTimeSeconds()` globally
-- Could break other code that relies on it being wall-clock
+
+**Status:** Not selected.
 
 ### Option E: Compute `nTimeTx` from `coin.nTime` itself
 
-**Change:** Instead of using a separate `nTimeTx` variable, use `coin.nTime` (which is now deterministic for v2 txs) as the time reference for the check.
+**Change:** Instead of using a separate `nTimeTx` variable, use `coin.nTime` as the time reference.
 
 **Pros:**
 - Self-consistent — no time reference mismatch
-- The check `coin.nTime > coin.nTime` would always be false, which is correct for chained txs
 
 **Cons:**
 - Changes the semantics of the check
-- For v1 txs, this would mean `nTimeTx` is the max of all input `nTime` values, not the spending tx's `nTime`
+- For v1 txs, this would mean `nTimeTx` is the max of all input `nTime` values
+
+**Status:** Not selected.
 
 ---
 
-## 11.1. Selected Fix: Option A (Implemented)
+## 11.1. Selected Fix: Option B (Implemented July 17, 2026)
 
-After the 3-way cross-check investigation, **Option A** was selected and implemented. The fix makes the time check in `CheckTxInputs` symmetric with `AddCoins` by using `nBlockTime` for v2 transactions.
+After the 3-way cross-check investigation and two failed fix attempts, **Option B** was selected. The fix reverts all three failed commits (`002b58d84f`, `a52b290c1d`, `c2455cdd6f`) and restores v262 consensus behavior.
 
-### Files Modified
+### Files Modified (revert)
 
-#### 1. `src/consensus/tx_verify.h`
+| File | Change |
+|---|---|
+| `coins.cpp` | `AddCoins` uses `tx.nTime` directly (no `nBlockTime` parameter) |
+| `coins.h` | `AddCoins` signature: 4 args, no `nBlockTime` default |
+| `consensus/tx_verify.cpp` | `CheckTxInputs` uses `GetAdjustedTimeSeconds()` for v2 (v262 behavior) |
+| `consensus/tx_verify.h` | `CheckTxInputs` signature: 5 args, no `nBlockTime` |
+| `validation.cpp` | `UpdateCoins` no `nBlockTime` param; `ConnectBlock`/`RollforwardBlock`/`PreChecks` callers reverted |
+| `txmempool.cpp` | `CheckTxInputs` and `AddCoins` callers reverted |
+| `test/coins_tests.cpp` | Regression tests for v284 `nBlockTime` behavior removed |
+| `test/fuzz/coins_view.cpp` | `CheckTxInputs` caller reverted; `util/time.h` include removed |
 
-Added `nBlockTime` parameter to `CheckTxInputs` declaration:
+### Files Modified (coinstake awareness addition)
 
-```cpp
-[[nodiscard]] bool CheckTxInputs(const CTransaction& tx, TxValidationState& state,
-                                 const CCoinsViewCache& inputs, int nSpendHeight,
-                                 CAmount& txfee, int64_t nBlockTime);
-```
-
-#### 2. `src/consensus/tx_verify.cpp`
-
-Updated implementation to use `nBlockTime` for v2 txs:
-
-```cpp
-bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state,
-                              const CCoinsViewCache& inputs, int nSpendHeight,
-                              CAmount& txfee, int64_t nBlockTime)
-{
-    // ... existing code ...
-
-    // Blackcoin: in v2 transactions nTime is not serialized on the wire.
-    // Use the block time (passed by caller) for deterministic validation.
-    int64_t nTimeTx = tx.nTime;
-    if (!nTimeTx && tx.version >= 2)
-        nTimeTx = nBlockTime;  // Changed from GetAdjustedTimeSeconds()
-
-    // ... rest of function ...
-}
-```
-
-#### 3. `src/validation.cpp` (block validation, line 2622)
-
-Pass `pindex->nTime` (block header time):
-
-```cpp
-if (!Consensus::CheckTxInputs(tx, tx_state, view, pindex->nHeight, txfee, pindex->nTime)) {
-```
-
-#### 4. `src/validation.cpp` (mempool validation, line 911)
-
-Pass `GetAdjustedTimeSeconds()` (wall clock, since there's no block yet):
-
-```cpp
-if (!Consensus::CheckTxInputs(tx, state, m_view, m_active_chainstate.m_chain.Height() + 1,
-                              ws.m_base_fees, GetAdjustedTimeSeconds())) {
-```
-
-#### 5. `src/txmempool.cpp` (mempool sanity check, line 745)
-
-Pass `GetAdjustedTimeSeconds()` to match mempool behavior:
-
-```cpp
-assert(Consensus::CheckTxInputs(tx, dummy_state, mempoolDuplicate, spendheight, txfee,
-                                GetAdjustedTimeSeconds()));
-```
-
-#### 6. `src/test/fuzz/coins_view.cpp` (fuzz test, line 258)
-
-Pass `GetAdjustedTimeSeconds()` and add `#include <util/time.h>`:
-
-```cpp
-if (Consensus::CheckTxInputs(transaction, state, coins_view_cache,
-                             fuzzed_data_provider.ConsumeIntegralInRange<int>(0, std::numeric_limits<int>::max()),
-                             tx_fee_out, GetAdjustedTimeSeconds())) {
-```
-
-#### 7. `src/test/coins_tests.cpp` (regression test)
-
-Added new test `checktxinputs_v2_chained_in_same_block` that verifies:
-- A v2 transaction spending a v2 output in the same block passes validation
-- The time check uses `nBlockTime` (not wall clock) for v2 txs
-- Both sides of the comparison use the same time reference
-
-```cpp
-BOOST_AUTO_TEST_CASE(checktxinputs_v2_chained_in_same_block)
-{
-    CCoinsViewTest backend;
-    CCoinsViewCache cache(&backend);
-
-    // Create a v2 parent tx and add to coins cache
-    CMutableTransaction mtx_parent;
-    mtx_parent.version = 2;
-    mtx_parent.nTime = 0;
-    mtx_parent.vout.emplace_back(100 * COIN, CScript() << OP_TRUE);
-    const int nBlockTime = 1700000000;
-    const int nHeight = 100;
-    AddCoins(cache, CTransaction(mtx_parent), nHeight, false, nBlockTime);
-
-    // Create a v2 child tx that spends the parent's output
-    CMutableTransaction mtx_child;
-    mtx_child.version = 2;
-    mtx_child.nTime = 0;
-    mtx_child.vin.emplace_back(COutPoint(mtx_parent.GetHash(), 0));
-    mtx_child.vout.emplace_back(100 * COIN, CScript() << OP_TRUE);
-    CTransaction tx_child(mtx_child);
-
-    // CheckTxInputs must use nBlockTime (not wall clock) for v2 txs
-    TxValidationState state;
-    CAmount txfee = 0;
-    BOOST_CHECK(Consensus::CheckTxInputs(
-        tx_child, state, cache, nHeight, txfee, nBlockTime));
-}
-```
+| File | Change |
+|---|---|
+| `kernel/coinstats.cpp` | `TxOutSer` encodes `fCoinStake` in bit 1; `nTime` NOT in muhash; `ApplyStats` tracks `total_coinstake_amount` |
+| `kernel/coinstats.h` | `CCoinsStats` gets `total_coinstake_amount` field |
+| `index/coinstatsindex.cpp` | `DBVal` gets `total_coinstake_amount`; coinstake tracking in `CustomAppend`/`ReverseBlock`; `unclaimed_rewards` formula updated |
+| `index/coinstatsindex.h` | `m_total_coinstake_amount` member |
+| `rpc/blockchain.cpp` | `gettxoutsetinfo` `block_info` gets `coinstake` field |
+| `test/coinstatsindex_tests.cpp` | New `coinstatsindex_coinstake_awareness` test |
 
 ### Why This Fix is Correct
 
-1. **Symmetry:** Both sides of the comparison use the same time reference (block time for v2 txs)
-2. **Determinism:** Block time is deterministic; wall clock is not
-3. **Restores v262 behavior:** Chained v2 txs in the same block pass validation
-4. **Consensus-safe:** Only changes behavior for v2 transactions in a way that makes the time check work as intended
+1. **No consensus changes:** `AddCoins`, `CheckTxInputs`, `pos.cpp` are all at v262 behavior
+2. **No assertion crash on reorg:** Muhash doesn't include `nTime`, so no add/remove mismatch
+3. **Deterministic muhash:** `fCoinStake` is structural (not time-dependent), `nTime` not in muhash
+4. **No `nBlockTime` threading:** The complexity that caused the original bug is gone
+5. **Coinstake awareness:** The coinstatsindex now tracks coinstake rewards separately, mirroring coinbase
 
 ### What This Fix Does NOT Change
 
-- **`AddCoins` behavior** - Still uses `nBlockTime` for v2 txs (needed for coinstatsindex)
-- **Coinstatsindex** - Still uses `block.nTime` for v2 txs (deterministic muhash)
+- **`AddCoins` behavior** - Uses `tx.nTime` (v262 behavior)
+- **`CheckTxInputs` behavior** - Uses `GetAdjustedTimeSeconds()` for v2 (v262 behavior)
 - **Wallet `nTimeSmart`** - Still equals block time for confirmed v2 txs
-- **Mempool validation** - Still uses wall clock (appropriate since there's no block yet)
+- **Mempool validation** - Still uses wall clock (v262 behavior)
 - **v1 transaction behavior** - Completely unchanged
 
-### Why the Previous Attempt Was Reverted
+### Why the Previous Attempts Were Reverted
 
-The user mentioned the previous fix was reverted. Without knowing the specific reason, possible issues could be:
-- Concern about consensus rule changes
-- Missing test coverage
-- Concern about edge cases
+The previous fix attempts (`a52b290c1d`, `c2455cdd6f`) were reverted because:
+1. They required `nBlockTime` parameter threading through `AddCoins`, `UpdateCoins`, `ConnectBlock`, `RollforwardBlock`, `CheckTxInputs`, and all their callers
+2. They introduced v1/v2 asymmetries in the mempool path
+3. The underlying issue (muhash including `nTime`) was unnecessary — the muhash doesn't need `nTime` to be coinstake-aware
 
-This implementation includes:
-- A regression test that would have caught the original bug
-- Clear documentation of the fix
-- Symmetric time references throughout
-
----
-
-## 11.2. Code Review and Refinements
-
-After implementing the fix, a code review identified four issues that required additional work:
-
-### Issue 1: Test redundancy
-
-**Problem:** The original regression test had two identical `BOOST_CHECK` calls, with a misleading comment about simulating the "old `GetAdjustedTimeSeconds()` behavior" that wasn't actually being tested.
-
-**Fix:** Rewrote the test to actually exercise the bug scenario (see Issue 2 below).
-
-### Issue 2: Test did not exercise the regression
-
-**Problem:** The original test passed under both the old and new code, so it didn't prove the fix worked. It only verified that `coin.nTime == nBlockTime == nTimeTx`, which would also pass under the old `GetAdjustedTimeSeconds()` code on any node whose wall clock happened to match.
-
-**Fix:** The regression test now has two parts:
-1. **Demonstrates the bug:** Pass a `nBlockTime` that is 7 seconds *behind* `coin.nTime` (simulating wall clock skew). Assert that `CheckTxInputs` returns `false` with reject reason `bad-txns-time-earlier-than-input`.
-2. **Demonstrates the fix:** Pass the same `nBlockTime` as `coin.nTime` (both reference the block header). Assert that `CheckTxInputs` returns `true`.
-
-This ensures the test would fail under the old code and pass under the new code.
-
-### Issue 3: Possible behavior change in mempool path (CRITICAL)
-
-**Problem:** The mempool caller (`validation.cpp:911`) was passing `GetAdjustedTimeSeconds()` as `nBlockTime`. For v2 txs spending already-mined v2 UTXOs:
-- `coin.nTime` was set to the block header time at mining (`coins.cpp:129`)
-- `nTimeTx` would be the wall clock
-
-If a user's wall clock is behind real time (common), `GetAdjustedTimeSeconds()` could be less than `coin.nTime`, causing `coin.nTime > nTimeTx` → `bad-txns-time-earlier-than-input` and mempool rejection.
-
-Pre-fix, both sides used wall clock, so the comparison was self-consistent even if non-deterministic. Post-fix (with the original change), the two sides used different time sources for already-mined v2 UTXOs, introducing a new regression.
-
-**Fix:** Use the chain tip's block time as `nBlockTime` for the mempool path:
-
-```cpp
-const CBlockIndex* const pindex = m_active_chainstate.m_chain.Tip();
-const int64_t nBlockTime = pindex ? pindex->GetBlockTime() : GetAdjustedTimeSeconds();
-if (!Consensus::CheckTxInputs(tx, state, m_view, m_active_chainstate.m_chain.Height() + 1,
-                              ws.m_base_fees, nBlockTime)) {
-```
-
-This is deterministic and consistent with how `coin.nTime` was set at mining. The chain tip's time is the most recent block header time, which is the best estimate of "now" for mempool purposes without relying on the local clock.
-
-### Issue 4: Minor doc comment placement
-
-**Problem:** The new `@param[in] nBlockTime` block was inserted in the middle of existing documentation, making it read awkwardly.
-
-**Fix:** Moved the `@param[in] nBlockTime` documentation to appear *after* the existing `@param[out] txfee` line, so the doc comment reads naturally from top to bottom.
-
-### Updated Files (Final)
-
-After the review fixes, the following files were modified:
-
-1. **`src/consensus/tx_verify.h`** - Added `nBlockTime` parameter, reordered doc comment
-2. **`src/consensus/tx_verify.cpp`** - Updated implementation to use `nBlockTime`
-3. **`src/validation.cpp:2622`** (block validation) - Passes `pindex->nTime`
-4. **`src/validation.cpp:911`** (mempool) - Passes chain tip's `GetBlockTime()` (not wall clock)
-5. **`src/txmempool.cpp:745`** (mempool sanity check) - Passes `GetAdjustedTimeSeconds()` (debug-only, with comment)
-6. **`src/test/fuzz/coins_view.cpp:258`** (fuzz test) - Passes `GetAdjustedTimeSeconds()`, added `#include <util/time.h>`
-7. **`src/test/coins_tests.cpp`** - Rewrote regression test to actually exercise the bug, added `#include <consensus/tx_verify.h>`
-8. **`agent/ntime-investigation.md`** - This file (updated with review findings)
-
-### Final Fix Summary
-
-The fix now addresses all time references consistently:
-
-| Context | Time source for `nBlockTime` | Rationale |
-|---|---|---|
-| Block validation (`ConnectBlock`) | `pindex->nTime` (block header time) | Matches `coin.nTime` set by `AddCoins` |
-| Mempool validation (`PreChecks`) | `m_active_chainstate.m_chain.Tip()->GetBlockTime()` | Deterministic, not subject to local clock skew |
-| Mempool sanity check | `GetAdjustedTimeSeconds()` | Debug-only assertion on already-validated txs |
-| Fuzz test | `GetAdjustedTimeSeconds()` | Random input testing, wall clock is fine |
-
-This ensures that for v2 transactions, both sides of the `coin.nTime > nTimeTx` check reference the same time source (chain time, not wall clock), eliminating the original bug without introducing a new regression in the mempool path.
+The clean solution was to not include `nTime` in the muhash at all. The coinstake awareness comes entirely from the `fCoinStake` bit, which is structural and deterministic.
 
 ---
 
@@ -1405,4 +1190,116 @@ The mempool fix should be:
 | `CheckStakeKernelHash()` | `pos.cpp:78-128` | Validates kernel hash | `CheckProofOfStake`, `CheckKernel` |
 | `CacheKernel()` | `pos.cpp:230-253` | Caches kernel hash for performance | Staking |
 | `FutureDrift()` | `validation.cpp:145-152` | Max allowed future timestamp | `CheckBlockHeader`, `PreChecks` |
+
+---
+
+## 17. Final Resolution: Full Revert + Clean Coinstake Awareness
+
+**Date:** July 17, 2026
+
+### Decision
+
+After extensive investigation and two failed fix attempts, the decision was made to:
+
+1. **Revert all three failed commits** (`002b58d84f`, `a52b290c1d`, `c2455cdd6f`) — restoring v262 consensus behavior
+2. **Add coinstake awareness to the coinstatsindex** without touching consensus code
+
+### Key insight
+
+The muhash does NOT need to include `nTime` to be coinstake-aware. The `fCoinStake` flag is a **structural property** of the transaction (determined by `tx.IsCoinStake()`, which checks `vin.size() > 0 && !vin[0].prevout.IsNull() && vout.size() >= 2 && vout[0].IsEmpty()`). It's the same value whether the tx is read from disk or memory, so the muhash is deterministic without any `nBlockTime` threading.
+
+### What was reverted
+
+| File | Change |
+|---|---|
+| `coins.cpp` | `AddCoins` uses `tx.nTime` directly (no `nBlockTime` parameter) |
+| `coins.h` | `AddCoins` signature: 4 args, no `nBlockTime` default |
+| `consensus/tx_verify.cpp` | `CheckTxInputs` uses `GetAdjustedTimeSeconds()` for v2 (v262 behavior) |
+| `consensus/tx_verify.h` | `CheckTxInputs` signature: 5 args, no `nBlockTime` |
+| `validation.cpp` | `UpdateCoins` no `nBlockTime` param; `ConnectBlock`/`RollforwardBlock`/`PreChecks` callers reverted |
+| `txmempool.cpp` | `CheckTxInputs` and `AddCoins` callers reverted |
+| `test/coins_tests.cpp` | Regression tests for v284 `nBlockTime` behavior removed |
+| `test/fuzz/coins_view.cpp` | `CheckTxInputs` caller reverted; `util/time.h` include removed |
+
+### What was added (coinstake awareness)
+
+| File | Change |
+|---|---|
+| `kernel/coinstats.cpp` | `TxOutSer` encodes `fCoinStake` in bit 1 (alongside `fCoinBase` in bit 0); `nTime` NOT included in muhash; `ApplyStats` tracks `total_coinstake_amount` |
+| `kernel/coinstats.h` | `CCoinsStats` gets `total_coinstake_amount` field (`std::optional<CAmount>`) |
+| `index/coinstatsindex.cpp` | `DBVal` gets `total_coinstake_amount`; `CustomAppend`/`ReverseBlock` track coinstake separately; `unclaimed_rewards` formula updated; `LookUpStats`/`CustomInit` populate new field |
+| `index/coinstatsindex.h` | `m_total_coinstake_amount` member |
+| `rpc/blockchain.cpp` | `gettxoutsetinfo` `block_info` gets `coinstake` field |
+| `test/coinstatsindex_tests.cpp` | New `coinstatsindex_coinstake_awareness` test (11 assertions) |
+
+### Design properties
+
+- **No consensus changes**: `AddCoins`, `CheckTxInputs`, `pos.cpp` are all at v262 behavior
+- **No assertion crash on reorg**: Muhash doesn't include `nTime`, so no add/remove mismatch
+- **Deterministic muhash**: `fCoinStake` is structural (not time-dependent), `nTime` not in muhash
+- **No `nBlockTime` threading**: The complexity that caused the original bug is gone
+- **DB format break**: Adding `total_coinstake_amount` to `DBVal` shifts byte offsets; requires reindex (acceptable since all nodes upgrade together)
+
+### Why the original fix failed
+
+The original v284 fix (`002b58d84f`) tried to include `nTime` in the muhash. This required:
+1. `AddCoins` to store `nBlockTime` in `Coin.nTime` for v2 (so the muhash had a meaningful value)
+2. Undo data recovery code to handle old undo data with `nTime = 0`
+3. `CheckTxInputs` to use `nBlockTime` for v2 (so the time check was symmetric)
+
+This created a cascade of problems:
+- The `AddCoins` change activated the latent `coin.nTime > nTimeTx` check → block 5944947 rejected
+- The undo data recovery used `GetAncestor(coin.nHeight)` in the inner loop → O(n²) performance
+- The `nBlockTime` parameter had to be threaded through `AddCoins`, `UpdateCoins`, `ConnectBlock`, `RollforwardBlock`, `CheckTxInputs`, and all their callers
+
+The clean solution was to **not include `nTime` in the muhash at all**. The coinstake awareness comes entirely from the `fCoinStake` bit, which is structural and deterministic.
+
+### Comparison: v262 vs Final v284
+
+| Aspect | v262 | Final v284 |
+|---|---|---|
+| Muhash includes `fCoinStake`? | No | **Yes** (bit 1) |
+| Muhash includes `nTime`? | No | No |
+| Stats track coinstake? | No | **Yes** |
+| RPC exposes coinstake? | No | **Yes** |
+| `AddCoins` has `nBlockTime`? | No | No |
+| `CheckTxInputs` has `nBlockTime`? | No | No |
+| Consensus changes? | N/A | **None** |
+| Requires reindex? | N/A | **Yes** (DB format change) |
+
+### Comparison: Bitcoin upstream vs Final v284
+
+| Aspect | Bitcoin | Final v284 |
+|---|---|---|
+| `Coin` has `nTime`? | No | Yes (Blackcoin PoS) |
+| `Coin` has `fCoinStake`? | No | Yes (Blackcoin PoS) |
+| Muhash includes `fCoinStake`? | N/A | Yes |
+| Muhash includes `nTime`? | N/A | No |
+| Time check in `CheckTxInputs`? | No | Yes (Blackcoin PoS, dead code for v2) |
+
+### Files changed (full diff)
+
+```
+ src/coins.cpp                     |  8 +---
+ src/coins.h                       |  2 +-
+ src/consensus/tx_verify.cpp       | 11 ++---
+ src/consensus/tx_verify.h         |  9 +---
+ src/index/coinstatsindex.cpp      | 64 +++++++++++++-------------
+ src/index/coinstatsindex.h        |  3 ++
+ src/kernel/coinstats.cpp          | 14 ++++--
+ src/kernel/coinstats.h            |  5 +++
+ src/rpc/blockchain.cpp            |  2 +
+ src/test/coins_tests.cpp          | 95 +--------------------------------------
+ src/test/coinstatsindex_tests.cpp | 38 ++++++++++++++++
+ src/test/fuzz/coins_view.cpp      |  3 +-
+ src/txmempool.cpp                 |  6 +--
+ src/validation.cpp                | 19 +++-----
+ 14 files changed, 107 insertions(+), 172 deletions(-)
+```
+
+### Related documents
+
+- `agent/CoinStatsIndexOptimization.md` — Detailed history and implementation of coinstake awareness
+- `agent/SegWitTxv2Coinstake.md` — SegWit v2 coinstake txid collision analysis
+- `agent/P2PKMigration.md` — P2PK migration plan
 | `GetMinFee()` | `consensus/tx_verify.cpp:225-248` | Minimum fee for given time | `CheckTxInputs`, `PreChecks`, wallet fee estimation |

@@ -277,7 +277,7 @@ s >> tx.version;
 if (tx.version < 2)
     s >> tx.nTime;
 else
-    tx.nTime = 0;  // reconstructed from block header at coins.cpp:129
+    tx.nTime = 0;  // stored as-is in Coin.nTime (always 0 for v2)
 ```
 
 For v1 transactions, the `nTime` field was part of the serialization and
@@ -314,8 +314,8 @@ two `GetOp` calls from the OP_RETURN (pubkey + lookahead for verification).
 The timestamp bytes are not validated against the block's `nTime` or
 `txNew.nTime` — they only serve to disambiguate the txid.
 
-The 4-byte timestamp matches the coinstake's actual `nTime` (which is
-reconstructed from the block header at validation). If they didn't match, the
+The 4-byte timestamp matches the coinstake's in-memory `nTime` (set during
+`CreateCoinStake`, aligned to 16-second boundary). If they didn't match, the
 mempool would still accept the transaction (since the consensus check is on
 the block-level `nTime`, not the carrier bytes).
 
@@ -349,8 +349,8 @@ if (pcoin.first->nTimeSmart > txNew.nTime)
 
 `nTimeSmart` is the block time for confirmed transactions (or `nTimeReceived`
 for unconfirmed). The check uses `nTimeSmart` instead of `tx->nTime` because
-v2 transactions don't serialize `nTime` (it's reconstructed from the block
-header via `coins.cpp:129`).
+v2 transactions don't serialize `nTime` (always 0 after deserialization;
+`Coin.nTime` is also 0 for v2 since `AddCoins` stores `tx.nTime` directly).
 
 This prevents the wallet from combining an input whose block time is later than
 the coinstake's timestamp, which would fail consensus validation.

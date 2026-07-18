@@ -246,7 +246,7 @@ for (const std::pair<const CWalletTx*, unsigned int> &pcoin : setCoins)
 Key design points:
 1. **No `whichType` guard** — all four supported kernel types get same-type input combining via `scriptPubKeyKernel` match.
 2. **`combineP2PK` gates the P2PK sweep** — only P2PKH kernels (the type that historically produced P2PK rewards) additionally match `scriptPubKeyP2PK`. P2WPKH/P2TR kernels skip the P2PK sweep.
-3. **`nTimeSmart` replaces `tx->nTime`** — `pcoin.first->tx->nTime` is always 0 for v2 txs (nTime not serialized for version >= 2, transaction.h:232-236). The guard was a no-op. Fixed by using `pcoin.first->nTimeSmart` (block time for confirmed txs, matching `coin.nTime` for v2 from coins.cpp:129).
+3. **`nTimeSmart` replaces `tx->nTime`** — `pcoin.first->tx->nTime` is always 0 for v2 txs (nTime not serialized for version >= 2, transaction.h:232-236). The guard was a no-op. Fixed by using `pcoin.first->nTimeSmart` (block time for confirmed txs). Note: `Coin.nTime` is also 0 for v2 (since `AddCoins` stores `tx.nTime` directly), but `nTimeSmart` is always the real block time regardless of tx version.
 4. **`COutPoint` comparison fix (June 29)** — `pcoin.first->GetHash() != txNew.vin[0].prevout.hash` compared only the tx hash, rejecting all other outputs from the kernel's parent transaction. For example, an `optimizeutxoset` creating 42 identical P2WPKH outputs would only combine one of them with the kernel (and only if it was from a different tx). Fixed to compare the full `COutPoint(pcoin.first->GetHash(), pcoin.second) != txNew.vin[0].prevout`, allowing same-tx sibling UTXOs to be correctly combined.
 
 ### Amount-setting indices (post-fix)

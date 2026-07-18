@@ -67,9 +67,9 @@ Replaces the naive `UninterruptibleSleep` polling loop with a `condition_variabl
 Blackcoin v2 transactions don't serialize `nTime` (it's always 0 after deserialization). Recovery logic added:
 
 - `AddToWallet` and `LoadToWallet`: reconstruct `nTime` from `nTimeSmart` / block header.
-- `AddCoins`: new `nBlockTime` parameter. For v2 txs, stores `block.nTime` instead of `tx.nTime = 0` in the `Coin`.
-- `UpdateCoins` and `RollforwardBlock`: pass `nBlockTime` through to `AddCoins`.
-- `CoinStatsIndex`: fallback reconstructs `nTime` from block index for old undo data (avoids mandatory reindex for the nTime fix alone).
+- `CoinStatsIndex`: made coinstake-aware by including `fCoinStake` in the muhash encoding (bit 1). `nTime` is NOT included in the muhash — this avoids the v1/v2 asymmetry entirely.
+
+**Note:** An earlier approach (July 8) passed `nBlockTime` into `AddCoins` to store `block.nTime` for v2 coins. This activated a latent time check in `CheckTxInputs` and caused block 5,944,947 to be rejected. Approach was fully reverted July 17, 2026. See `agent/ntime-investigation.md` and `agent/CoinStatsIndexOptimization.md` for the full history.
 
 ### 1.6 Default Address Type
 
@@ -159,11 +159,10 @@ ss << static_cast<uint32_t>((coin.nHeight << 1) + coin.fCoinBase);
 ```
 to:
 ```cpp
-ss << static_cast<uint32_t>((coin.nHeight << 2) + (coin.fCoinBase ? 1u : 0u) + (coin.fCoinStake ? 2u : 0u));
-ss << VARINT(coin.nTime);
+ss << static_cast<uint32_t>((coin.nHeight << 2) | (coin.fCoinBase ? 1u : 0u) | (coin.fCoinStake ? 2u : 0u));
 ```
 
-Existing CoinStats indexes are unreadable after this change — a reindex is required. However, no applications currently use the CoinStatsIndex feature, so the impact is negligible. The `CustomAppend` fallback for `nTime == 0` old undo data handles the undo path for those who do have an existing index.
+`nTime` is deliberately **NOT** included in the muhash — this avoids the v1/v2 `nTime` asymmetry that caused the block 5944947 rejection. Existing CoinStats indexes are unreadable after this change — a reindex is required. However, no applications currently use the CoinStatsIndex feature, so the impact is negligible.
 
 ### 2.5 LOW: Fuzz test has commented-out variable with potential dangling references
 

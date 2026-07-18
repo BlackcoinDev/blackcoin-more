@@ -22,7 +22,7 @@ This release represents a major architectural upgrade from v262, building on Bit
 - **Blackcoin extensions:** Additional 255+ commits of Blackcoin-specific features
 
 ### 2. Network Security Enhancements
-- **Anti-sybil protection:** `g_relax_network_mask` now defaults to `false` (was `true` during testing)
+- **Anti-sybil protection:** `g_relax_network_mask` defaults to `true` (intentional testing choice; should be `false` in production builds)
 - **Header spam protection:** Added Qtum-style header spam filter (avg > 2 blocks/sec triggers disconnect)
 - **Peer management:** Increased protected outbound peers from 4 to 8
 - **Rolling checkpoints:** Added rolling checkpoint validation for enhanced security

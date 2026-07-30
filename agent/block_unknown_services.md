@@ -20,6 +20,8 @@ During live network monitoring of the Blackcoin mainnet, a peer was observed adv
 
 This peer is running the **QuantumQuasar/QQfork v30.x** client. That project has publicly stated its intent to remove the `bad-unknown-witness-version` defense introduced in Blackcoin More 28.4.0, in order to allow witness-version scripts (> 1) on the network.
 
+The official Blackcoin More 28.4.0 node already has a **consensus-level** defense: `ContextualCheckBlock` rejects any block containing an unknown witness program version. This is the primary protection.
+
 This document proposes an **optional P2P hygiene layer** that lets node operators reject peers advertising unknown service bits. It is a secondary, opt-in measure.
 
 ## Goals
@@ -65,7 +67,7 @@ static constexpr ServiceFlags FORBIDDEN_SERVICE_BITS = ServiceFlags(
 
 These bits are reserved in Bitcoin for temporary experiments and are the most likely range a fork project would use to avoid colliding with assigned BIP service bits. Filtering this entire range catches the current QQfork signal and any nearby variants.
 
-## Proposed Change
+## Implementation Details
 
 ### 1. Add command-line option
 
@@ -169,9 +171,9 @@ This prevents:
 
 If `addrman` already contains addresses with forbidden bits from before the option was enabled, the existing outbound connection logic will disconnect them during the version handshake when their service bits are discovered.
 
-### 6. Add a test
+### 6. Tests
 
-Add functional or unit tests that:
+Functional and unit tests verify that:
 1. Start a node with `-blockunknownservices`.
 2. Connect a mininode that advertises bit 24 (or any bit 24-31).
 3. Assert that the connection is dropped immediately after the version handshake.
@@ -179,7 +181,7 @@ Add functional or unit tests that:
 5. Assert that this third-party address does **not** appear in `getnodeaddresses` RPC results (confirming `addrman` exclusion) and is **not** relayed to the second mininode (confirming gossip suppression).
 6. Connect a whitelisted/noban peer advertising bit 24 and assert that the connection is **not** dropped (whitelist bypass confirmation).
 
-Also add a test that:
+Tests also verify that:
 - Starts a node **without** the option (default behavior).
 - Connects a mininode advertising bit 24.
 - Asserts that the connection is **not** dropped, to ensure the default behavior is unchanged.
@@ -203,21 +205,13 @@ This ensures the option works as intended, respects whitelists, and does not reg
 | Unknown service bits are allowed by Bitcoin Core design | We are not changing the protocol. We are offering an opt-in local policy that targets a specific reserved bit range. |
 | Test failures on unusual service-bit combinations | The mask must exactly cover bits 24-31. Tests should cover bits 0-23 allowed, bits 24-31 rejected. |
 
-## Suggested Rollout
-
-1. Implement the feature as a single focused PR.
-2. Run existing P2P functional tests.
-3. Add functional tests for: connection drop, addr relay filtering, and default behavior unchanged.
-4. Document the flag in release notes.
-5. Do **not** change defaults; keep it opt-in.
-
 ## Relationship to Existing Defenses
 
 This document complements, but does not replace, the existing 28.4.0 defenses:
 
 - **`bad-unknown-witness-version`** in `ContextualCheckBlock`: the primary consensus-level defense.
 - **Mandatory script flags** in mempool policy: prevents relay of non-standard scripts.
-- **`-blockunknownservices` (proposed)**: an optional P2P hygiene filter.
+- **`-blockunknownservices`**: an optional P2P hygiene filter.
 
 ## Notes
 

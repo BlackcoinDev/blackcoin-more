@@ -25,7 +25,7 @@ to:
 vout[0]: empty (marker)
 vout[1]: OP_RETURN <pubkey> <timestamp>  (non-spendable carrier)
 vout[2]: reward (native kernel type: P2PK, P2PKH, P2WPKH, P2TR)
-vout[3]: split reward (if nCredit ≥ 1000 BLK)
+vout[3]: split reward (if nCredit ≥ 500 BLK)
 vout[4]: devfund (if enabled)
 ```
 
@@ -105,7 +105,7 @@ Changed from `LEGACY` (P2PKH) to `BECH32` (P2WPKH) for new addresses.
 - **`GetStakeWeight`**: Now acquires `cs_wallet` lock.
 - **`DelAddressBook`**: Gains `force` parameter to protect SIGNKEY addresses from deletion.
 - **`g_txindex->FindTx` calls**: Replaced with cached `CWalletTx` data in staking path.
-- **CoinStats serialization**: Format change — `(nHeight << 1) + fCoinBase` → `(nHeight << 2) + fCoinBase + fCoinStake` + `VARINT(nTime)`.
+- **CoinStats serialization**: Format change — `(nHeight << 1) + fCoinBase` → `(nHeight << 2) + fCoinBase + fCoinStake`. `nTime` is deliberately **NOT** included in the muhash (see §2.4).
 
 ---
 
@@ -210,226 +210,66 @@ The `latestTolerated` window reduced from `latestNow + 300` (Bitcoin) to `latest
 
 ---
 
-## 3. P2WPKH/P2TR Kernel Signature Verification Gap — Deep Dive
+## 3. P2WPKH/P2TR Kernel Signature Verification (The "Peercoin Fix")
 
-### 3.1 The Problem: What Happens Today
+### 3.1 What Happened Before the Fix
 
-`CheckProofOfStake` (`pos.cpp:157`) verifies coinstake input signatures by calling:
+`CheckProofOfStake` (`pos.cpp:157` in older versions) verified coinstake input signatures by calling `VerifySignature(coinPrev, txin.prevout.hash, tx, 0, SCRIPT_VERIFY_NONE)`. This was a wrapper that passed `nullptr` for the witness and used `SCRIPT_VERIFY_NONE`.
 
-```cpp
-// pos.cpp:157
-if (!VerifySignature(coinPrev, txin.prevout.hash, tx, 0, SCRIPT_VERIFY_NONE))
-```
+This meant that while P2PK and P2PKH were verified (because `OP_CHECKSIG` executes regardless of flags), **P2WPKH and P2TR kernels were not cryptographically verified**. They bypassed verification because the `SCRIPT_VERIFY_WITNESS` and `SCRIPT_VERIFY_TAPROOT` flags were missing.
 
-`VerifySignature` (`sign.cpp:718-735`) is a wrapper that does:
+### 3.2 The Fix Implemented in Blackcoin More
 
-```cpp
-// sign.cpp:720 — amount is 0!
-TransactionSignatureChecker checker(&txTo, nIn, 0, MissingDataBehavior::FAIL);
-// sign.cpp:734 — witness is nullptr!
-return VerifyScript(txin.scriptSig, txout.scriptPubKey, nullptr, flags, checker);
-```
-
-**Three problems in one call:**
-1. **`SCRIPT_VERIFY_NONE` (flags = 0)**: No witness program detection, no P2SH, no Taproot
-2. **`nullptr` witness**: Real witness data is never passed to `VerifyScript`
-3. **`amount = 0`**: BIP143 (SegWit v0) sighash includes the input amount — passing 0 produces wrong sighashes
-
-### 3.2 What Each Kernel Type Does Today
-
-Inside `VerifyScript` (`interpreter.cpp:1973+`), the scriptPubKey is executed as a plain script when `SCRIPT_VERIFY_WITNESS` is not set:
-
-| Kernel | scriptPubKey | What happens with SCRIPT_VERIFY_NONE + nullptr witness | Signature checked? |
-|---|---|---|---|
-| **P2PK** | `<pubkey> OP_CHECKSIG` | Script executes normally, `OP_CHECKSIG` verifies the ECDSA signature | ✅ **Yes** |
-| **P2PKH** | `OP_DUP OP_HASH160 <hash> OP_EQUALVERIFY OP_CHECKSIG` | Script executes normally, `OP_CHECKSIG` verifies the ECDSA signature | ✅ **Yes** |
-| **P2WPKH** | `OP_0 <20-byte-hash>` | Executes as plain pushes: push empty vector, push 20-byte hash. Stack top is truthy (non-empty) → passes | ❌ **No — bypassed** |
-| **P2TR** | `OP_1 <32-byte-key>` | Executes as plain pushes: push 1, push 32-byte key. Stack top is truthy → passes | ❌ **No — bypassed** |
-
-**Security implication:** An attacker who knows a valid kernel UTXO (prevout, amount, creation time) can create a coinstake with an **empty or garbage witness** and it will pass `CheckProofOfStake`. The kernel hash still must be valid (requires the stake modifier + prevout + timestamp), so this isn't a "free block" — but the signature on the coinstake input is never verified, meaning someone could potentially spend a UTXO they don't own in a coinstake if they can compute the kernel hash.
-
-### 3.3 Why P2PK/P2PKH Are Unaffected
-
-P2PK and P2PKH scripts contain `OP_CHECKSIG` as part of the script itself. When the interpreter executes the scriptPubKey, it encounters `OP_CHECKSIG`, which forces it to cryptographically verify the signature against the pubkey. This happens regardless of flags — even `SCRIPT_VERIFY_NONE` executes `OP_CHECKSIG`.
-
-Witness programs (P2WPKH, P2TR) do **not** contain `OP_CHECKSIG` in the scriptPubKey. They are just data pushes (`OP_0 <hash>` or `OP_1 <key>`). The actual signature verification happens in `VerifyWitnessProgram`, which is only called when `SCRIPT_VERIFY_WITNESS` is set. Without that flag, the data pushes execute, the stack top is truthy, and `VerifyScript` returns true without any cryptographic check.
-
-### 3.4 What the Fix Does — Kernel by Kernel
-
-The fix replaces the `VerifySignature` wrapper call with a direct `VerifyScript` call that passes:
-- The **actual witness data** (`&txin.scriptWitness`)
-- The **actual UTXO amount** (`coinPrev.out.nValue`) — needed for BIP143 sighash
-- The **PrecomputedTransactionData** — needed for Taproot Schnorr signatures
-- The correct **flags**: `SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_TAPROOT`
-
-| Kernel | What happens with the fix | Will existing coinstakes pass? |
-|---|---|---|
-| **P2PK** | No change — scriptPubKey is not a witness program, `OP_CHECKSIG` still verifies. Witness is ignored (empty). | ✅ **Yes — identical behavior** |
-| **P2PKH** | No change — scriptPubKey is not a witness program, `OP_CHECKSIG` still verifies. Witness is ignored (empty). | ✅ **Yes — identical behavior** |
-| **P2WPKH** | `VerifyScript` detects witness program (`OP_0` + 20 bytes), calls `VerifyWitnessProgram`. Constructs implied P2PKH script, verifies witness `[DER-sig, pubkey]` against it using BIP143 sighash (with correct amount). | ✅ **Yes — all 61,196 testnet + 3 mainnet P2WPKH coinstakes have well-formed witnesses** |
-| **P2TR** | `VerifyScript` detects witness program (`OP_1` + 32 bytes), calls `VerifyWitnessProgram`. With `SCRIPT_VERIFY_TAPROOT`, proceeds to Schnorr signature verification using `PrecomputedTransactionData`. | ✅ **Yes — regtest P2TR coinstakes have valid Schnorr witnesses** |
-
-### 3.5 Why the Amount Matters (Critical Detail)
-
-The current `VerifySignature` passes `amount = 0` to the checker (`sign.cpp:720`). For P2PK/P2PKH this is fine — legacy sighash (BIP143 pre-SegWit) does **not** include the input amount.
-
-For P2WPKH (BIP143 SegWit v0), the amount **is** part of the sighash (`interpreter.cpp:1676-1679`):
-```cpp
-// Witness sighashes need the amount.
-if (sigversion == SigVersion::WITNESS_V0 && amount < 0) return HandleMissingData(m_mdb);
-uint256 sighash = SignatureHash(scriptCode, *txTo, nIn, nHashType, amount, sigversion, this->txdata);
-```
-
-If `amount = 0` but the actual UTXO value is e.g. 500 BLK, the sighash would be computed with `amount = 0` instead of `amount = 500 BLK`. The signature in the witness was created with the **correct** amount (by the staking wallet's `SignTransaction`). So the verification would compute a **different** sighash and the signature would **fail**.
-
-**This means:** Simply changing the flags without also fixing the amount would **break P2WPKH staking**. The fix must pass `coinPrev.out.nValue` (the actual UTXO amount) to the checker.
-
-### 3.6 Why PrecomputedTransactionData Matters (for P2TR)
-
-For P2TR (Taproot), Schnorr signature verification (`interpreter.cpp:1707`) requires `PrecomputedTransactionData`:
-```cpp
-if (!this->txdata) return HandleMissingData(m_mdb);  // txdata is nullptr → returns false
-```
-
-The current `VerifySignature` creates the checker **without** `txdata` (the pointer is `nullptr`). For P2TR, this would cause `HandleMissingData(FAIL)` to return `false`, failing verification.
-
-**This means:** The fix must also construct `PrecomputedTransactionData` and pass it to the checker. Without it, P2TR staking would **break**.
-
-### 3.7 The Peercoin Reference — Partially Correct
-
-Peercoin's `CheckProofOfStake` (`peercoin/src/kernel.cpp:686-692`):
+Blackmore284 completely fixed this vulnerability by calling `VerifyScript` directly with the correct parameters (in `pos.cpp:174-175`):
 
 ```cpp
-// peercoin/src/kernel.cpp:689
-TransactionSignatureChecker checker(&(*tx), nIn, prevOut.nValue, PrecomputedTransactionData(*tx), MissingDataBehavior(1));
+std::vector<CTxOut> spent_outputs;
+spent_outputs.reserve(tx.vin.size());
+for (const auto& in : tx.vin) {
+    Coin coin;
+    if (!view.GetCoin(in.prevout, coin)) {
+        return state.Invalid(...);
+    }
+    spent_outputs.emplace_back(coin.out);
+}
 
-// peercoin/src/kernel.cpp:691
-if (!VerifyScript(tx->vin[nIn].scriptSig, prevOut.scriptPubKey,
-    &(tx->vin[nIn].scriptWitness), SCRIPT_VERIFY_P2SH, checker, nullptr))
-```
+PrecomputedTransactionData txdata;
+txdata.Init(tx, std::move(spent_outputs));
+TransactionSignatureChecker checker(&tx, 0, coinPrev.out.nValue, txdata, MissingDataBehavior::ASSERT_FAIL);
 
-Peercoin gets these right:
-- `prevOut.nValue` — actual UTXO amount ✅
-- `PrecomputedTransactionData(*tx)` — precomputed tx data ✅
-- `&(tx->vin[nIn].scriptWitness)` — actual witness data ✅
-
-But Peercoin uses **only `SCRIPT_VERIFY_P2SH`** — missing `SCRIPT_VERIFY_WITNESS`. This means:
-- P2PK kernels: ✅ Verified (OP_CHECKSIG in script, flags don't matter)
-- P2PKH kernels: ✅ Verified (OP_CHECKSIG in script, flags don't matter)
-- P2WPKH kernels: ❌ **NOT verified** — without `SCRIPT_VERIFY_WITNESS`, `VerifyScript` never enters the witness program detection path (`interpreter.cpp:2035: if (flags & SCRIPT_VERIFY_WITNESS)`). The P2WPKH scriptPubKey `OP_0 <hash>` executes as plain pushes and passes without checking the signature.
-
-**Peercoin's approach is structurally better than Blackcoin's** (passes real witness data, amount, and PrecomputedTransactionData), but it still doesn't verify P2WPKH kernel signatures because the `WITNESS` flag is missing. Peercoin does support P2WPKH kernels in `CreateCoinStake` (`wallet.cpp:3693`), so this is a latent bug in Peercoin too.
-
-**Blackcoin's fix must go further than Peercoin's** by adding `SCRIPT_VERIFY_WITNESS` (and `SCRIPT_VERIFY_TAPROOT` for P2TR).
-
-### 3.8 How Bitcoin Core Does It (for reference)
-
-Bitcoin Core's `CScriptCheck::operator()` (`validation.cpp:2140`):
-```cpp
-return VerifyScript(scriptSig, m_tx_out.scriptPubKey, witness, nFlags,
-    CachingTransactionSignatureChecker(ptxTo, nIn, m_tx_out.nValue, cacheStore,
-        *m_signature_cache, *txdata), &error);
-```
-
-Bitcoin Core passes:
-- `witness` — actual witness data ✅
-- `m_tx_out.nValue` — actual UTXO amount ✅
-- `*txdata` — PrecomputedTransactionData ✅
-- `nFlags` — full consensus flags from `GetBlockScriptFlags()` ✅
-
-### 3.9 The Correct Fix for Blackcoin More
-
-Replace `pos.cpp:157`:
-
-```cpp
-// OLD (BUGGY — 3 problems: SCRIPT_VERIFY_NONE, nullptr witness, amount=0):
-if (!VerifySignature(coinPrev, txin.prevout.hash, tx, 0, SCRIPT_VERIFY_NONE))
-    return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "stake-verify-signature-failed", ...);
-```
-
-With:
-
-```cpp
-// NEW (FIXED):
-{
-    PrecomputedTransactionData txdata(tx);
-    TransactionSignatureChecker checker(&tx, 0, coinPrev.out.nValue, txdata, MissingDataBehavior::ASSERT_FAIL);
-    if (!VerifyScript(txin.scriptSig, coinPrev.out.scriptPubKey, &txin.scriptWitness,
-        SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_TAPROOT, checker))
-        return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "stake-verify-signature-failed",
-            strprintf("CheckProofOfStake(): VerifyScript failed on coinstake %s", tx.GetHash().ToString()));
+if (!VerifyScript(txin.scriptSig, coinPrev.out.scriptPubKey, &txin.scriptWitness,
+    SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_TAPROOT, checker)) {
+    return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "stake-verify-signature-failed" ...);
 }
 ```
 
-**Three things fixed simultaneously:**
-1. **Flags**: `SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_TAPROOT` — enables witness program detection and Taproot verification
-2. **Witness**: `&txin.scriptWitness` — passes actual witness data instead of `nullptr`
-3. **Amount**: `coinPrev.out.nValue` — passes actual UTXO amount for correct BIP143 sighash
+**Four things were fixed simultaneously:**
+1. **Flags**: `SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_TAPROOT` — enables witness program detection and Taproot Schnorr verification.
+2. **Witness**: `&txin.scriptWitness` — passes actual witness data instead of `nullptr`.
+3. **Amount**: `coinPrev.out.nValue` — passes actual UTXO amount for correct BIP143 sighash.
+4. **Spent outputs**: Collects all spent outputs for proper `PrecomputedTransactionData` initialization — required for Taproot `SIGHASH_ALL` which hashes all inputs.
 
-**Why `MissingDataBehavior::ASSERT_FAIL` (not `FAIL`)?**
-Bitcoin Core's consensus path (`CScriptCheck` → `CachingTransactionSignatureChecker` at `sigcache.h:70`) uses `ASSERT_FAIL`. Missing data in consensus code indicates a programming error, not a recoverable failure. `ASSERT_FAIL` aborts via assertion (catching bugs immediately in debug builds). `FAIL` silently treats the signature as invalid — acceptable for signing (recoverable) but dangerous for consensus (could mask a bug that rejects valid blocks). The current `VerifySignature` uses `FAIL` — the fix corrects this to `ASSERT_FAIL` matching Bitcoin Core's consensus path.
+### 3.3 On-Chain Audit & Soft Fork Deployment (June 2026)
 
-**Why all three flags?**
-- `SCRIPT_VERIFY_P2SH`: Needed for P2SH redeem script execution (also enables P2SH-wrapped SegWit)
-- `SCRIPT_VERIFY_WITNESS`: Needed for P2WPKH — without it, `VerifyScript` doesn't detect witness programs and P2WPKH bypasses verification
-- `SCRIPT_VERIFY_TAPROOT`: Needed for P2TR — without it, `VerifyWitnessProgram` returns success at line 1920 without checking the Schnorr signature
-
-**Note on `SCRIPT_VERIFY_TAPROOT` here vs §3.11:** Using TAPROOT in `CheckProofOfStake` is different from using it in `MANDATORY_SCRIPT_VERIFY_FLAGS` for mempool/DoS. Here we're verifying a coinstake in a block that's already been accepted — we want to verify all kernel types properly. The TAPROOT flag in the block's `GetBlockScriptFlags()` controls regular transaction verification, which is separate from coinstake kernel verification.
-
-### 3.10 Will This Break Staking? — Definitive Answer
-
-**No. Here's why for each kernel type:**
-
-| Kernel | Will it break? | Why not? |
-|---|---|---|
-| **P2PK** | ❌ No | Script is not a witness program. `OP_CHECKSIG` verifies the signature regardless of flags. Witness is empty/ignored. Identical behavior before and after. |
-| **P2PKH** | ❌ No | Same as P2PK — not a witness program, `OP_CHECKSIG` verifies. Identical behavior. |
-| **P2WPKH** | ❌ No | The staking wallet (`staking.cpp:494-512`) creates coinstakes with **correct witness data** via `SignSignature`/`SignTransaction`. The witness is `[DER-sig, compressed-pubkey]` (2 items). The amount is correctly used during signing. Verification with the fix will produce the **same sighash** as signing did, so the signature will match. |
-| **P2TR** | ❌ No | The staking wallet creates coinstakes with **correct Schnorr witnesses** via `SignTransaction` with the P2TR descriptor. The `PrecomputedTransactionData` is constructed the same way. Verification will match. |
-
-**The only thing that changes:** Coinstakes with **invalid/empty witnesses** (which currently pass due to the bypass) will now be **rejected**. No valid staking operation produces such coinstakes — only an attacker would.
-
-### 3.11 On-Chain Audit (June 2026)
+Because this change tightens rules (invalid witnesses are now rejected), it constitutes a soft fork. Prior to deployment, all coinstake transactions from SegWit activation to the chain tip were audited. 
 
 | Network | SegWit activation | Scanned to | Total coinstakes | Witness kernels | P2WPKH | P2TR | Malformed |
 |---|---|---|---|---|---|---|---|
 | **Testnet** | 2,070,000 | 2,852,570 | 782,417 | 61,196 | 61,196 | 0 | 0 |
 | **Mainnet** | 5,805,000 | 5,928,105 | 123,106 | 3 | 3 | 0 | 0 |
 
-All witness kernels have well-formed `[DER-sig, compressed-pubkey]` data. Zero malformed witnesses. **Zero valid coinstakes will be rejected by the fix.**
+All witness kernels had well-formed `[DER-sig, compressed-pubkey]` data. Zero malformed witnesses existed. The soft fork was safely deployed in v28.4.0 without rejecting any valid existing blocks.
 
-### 3.12 Is This a Soft Fork?
-
-**Yes.** The fix only **tightens** rules:
-- Blocks with valid P2WPKH/P2TR coinstakes (proper witnesses) → still accepted ✅
-- Blocks with invalid P2WPKH/P2TR coinstakes (empty/garbage witnesses) → now rejected (previously accepted) ❌
-
-No block that was invalid before becomes valid after. This is the definition of a soft fork.
-
-**Deployment consideration (Metis review):** All nodes must upgrade before activation, or non-upgraded nodes will accept blocks that upgraded nodes reject (coinstakes with invalid witnesses). This could cause a chain split if not coordinated. Metis recommends using a coordinated activation mechanism (e.g., BIP9-style versionbits or a block-height trigger) with a mandatory upgrade window before enforcement. Cannot deploy as an immediate hard rule change without split risk.
-
-**Note on practical risk:** Since the on-chain audit shows zero malformed P2WPKH witnesses exist on any network, the chain split scenario requires an attacker to deliberately craft a block with an invalid P2WPKH coinstake and broadcast it during the upgrade window. The risk is low but nonzero.
-
-### 3.13 What Does NOT Change
-
-- **`CreateCoinStake`** (`staking.cpp`) — unchanged. The staking wallet already creates correct witnesses.
-- **`SignBlock`** (`miner.cpp`) — unchanged. Block signing uses the OP_RETURN carrier, not the kernel signature.
-- **`CheckBlockSignature`** (`validation.cpp`) — unchanged. Block signature verification is separate from coinstake input verification.
-- **`CheckStakeKernelHash`** (`pos.cpp`) — unchanged. Kernel hash computation doesn't depend on signature verification.
-- **Mempool/DoS flags** (`policy.h`) — unchanged. The `SCRIPT_VERIFY_TAPROOT` in `STANDARD_SCRIPT_VERIFY_FLAGS` placement is separate from this fix.
-
-### 3.14 `SCRIPT_VERIFY_TAPROOT` in MANDATORY — POST-ACTIVATION ONLY
+### 3.4 SCRIPT_VERIFY_TAPROOT in MANDATORY — POST-ACTIVATION ONLY
 
 Separate from the `CheckProofOfStake` fix: moving `SCRIPT_VERIFY_TAPROOT` to `MANDATORY_SCRIPT_VERIFY_FLAGS` (for mempool/DoS) must wait until **after** mainnet Taproot activation.
 
 **Why it must wait:**
-- Before mainnet Taproot activation, `GetBlockScriptFlags()` does NOT add `SCRIPT_VERIFY_TAPROOT` to consensus flags. P2TR is effectively anyone-can-spend at consensus level — a transaction with an empty witness is consensus-valid.
-- If TAPROOT were in `MANDATORY` pre-activation, the two-tier mempool check (`validation.cpp:2230-2242`) would: (1) fail STANDARD check (TAPROOT verifies witness → empty witness fails), (2) re-check without `STANDARD_NOT_MANDATORY` flags — but TAPROOT is MANDATORY so it's still included, (3) re-check also fails → returns `TX_CONSENSUS` → **peer gets banned for a consensus-valid transaction**.
-- After activation, `GetBlockScriptFlags()` adds `SCRIPT_VERIFY_TAPROOT` to consensus flags. P2TR is no longer anyone-can-spend. Moving TAPROOT to `MANDATORY` is then safe — peers sending invalid P2TR genuinely deserve banning.
+- Before mainnet Taproot activation, `GetBlockScriptFlags()` does NOT add `SCRIPT_VERIFY_TAPROOT` to consensus flags. P2TR is effectively anyone-can-spend at consensus level.
+- If TAPROOT were in `MANDATORY` pre-activation, the mempool check would ban peers for relaying consensus-valid (but empty witness) P2TR transactions.
+- After activation, P2TR is no longer anyone-can-spend, and peers sending invalid P2TR genuinely deserve banning.
 
-**Action:** Move `SCRIPT_VERIFY_TAPROOT` to `MANDATORY_SCRIPT_VERIFY_FLAGS` in a **follow-up release after** mainnet Taproot activation completes. Not a bug — this is the correct sequence.
-
-**Note:** Using `SCRIPT_VERIFY_TAPROOT` in the `CheckProofOfStake` fix (§3.9) is **different** from putting it in `MANDATORY_SCRIPT_VERIFY_FLAGS`. The `CheckProofOfStake` fix verifies coinstake signatures in blocks — it's not a mempool/DoS check. Using TAPROOT there is correct because we want to verify P2TR kernel signatures properly, regardless of whether Taproot is active for regular transactions on mainnet yet.
+**Action:** Move `SCRIPT_VERIFY_TAPROOT` to `MANDATORY_SCRIPT_VERIFY_FLAGS` in a **follow-up release after** mainnet Taproot activation completes. This is the correct sequence.
 
 ---
 
@@ -596,17 +436,23 @@ This section compares the Blackcoin More v28.4.0 codebase against its three refe
 
 ### 9.6 CheckProofOfStake Signature Verification
 
+**Before v28.4.0 fix:**
+
 | Codebase | Function Call | Witness Data | Flags | P2PK verified? | P2PKH verified? | P2WPKH verified? | P2TR verified? |
 |---|---|---|---|---|---|---|---|
-| **Blackcoin More** | `VerifySignature(coinPrev, ..., tx, 0, SCRIPT_VERIFY_NONE)` | `nullptr` | `SCRIPT_VERIFY_NONE` | ✅ Yes | ✅ Yes | ❌ No (trivial pass) | ❌ No (trivial pass) |
+| **Blackcoin More (pre-fix)** | `VerifySignature(coinPrev, ..., tx, 0, SCRIPT_VERIFY_NONE)` | `nullptr` | `SCRIPT_VERIFY_NONE` | ✅ Yes | ✅ Yes | ❌ No (trivial pass) | ❌ No (trivial pass) |
 | **Peercoin** | `VerifyScript(..., &witness, SCRIPT_VERIFY_P2SH, ...)` | Real witness | `SCRIPT_VERIFY_P2SH` | ✅ Yes | ✅ Yes | ❌ No (witness not checked — `WITNESS` flag missing) | N/A |
 | **Qtum** | `VerifySignature(..., SCRIPT_VERIFY_NONE)` → `VerifyScript(..., nullptr, 0, ...)` | `nullptr` | `SCRIPT_VERIFY_NONE` | ✅ Yes | ✅ Yes | ❌ No (trivial pass) | ❌ No (trivial pass) |
 
-**Security implication:** All three codebases (Blackcoin More, Peercoin, Qtum) fail to verify P2WPKH kernel signatures at consensus level. Peercoin passes the real witness data and the amount, but uses only `SCRIPT_VERIFY_P2SH` — without `SCRIPT_VERIFY_WITNESS`, `VerifyScript` never enters the witness program detection path (`interpreter.cpp:2035: if (flags & SCRIPT_VERIFY_WITNESS)`). The P2WPKH scriptPubKey `OP_0 <hash>` executes as plain pushes and passes without checking the signature.
+**After v28.4.0 fix (deployed):**
 
-**The correct fix requires `SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_TAPROOT`** (all three flags). Peercoin's `SCRIPT_VERIFY_P2SH`-only approach is **insufficient** for P2WPKH verification — it's structurally better than Blackcoin's approach (passes real witness data and amount) but still doesn't activate the witness verification path.
+| Codebase | Function Call | Witness Data | Flags | P2PK verified? | P2PKH verified? | P2WPKH verified? | P2TR verified? |
+|---|---|---|---|---|---|---|---|
+| **Blackcoin More v28.4.0** | `VerifyScript(scriptSig, scriptPubKey, &scriptWitness, P2SH \| WITNESS \| TAPROOT, checker)` | Real witness | `SCRIPT_VERIFY_P2SH \| WITNESS \| TAPROOT` | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
 
-**Proposed fix for Blackcoin More** (see §3.9 of this review): Change `pos.cpp:157` to call `VerifyScript` directly with real witness data, the actual UTXO amount, `PrecomputedTransactionData`, and `SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_TAPROOT`. This is a safe soft fork — the on-chain audit confirms zero malformed P2WPKH witnesses.
+**Blackcoin More is the only codebase that fully verifies all kernel signature types.** The fix at `pos.cpp:158-177` passes real witness data, the actual UTXO amount via `PrecomputedTransactionData`, and all three verification flags. See §3.2 for details.
+
+**Peercoin and Qtum remain vulnerable.** Peercoin passes real witness data and the amount with `SCRIPT_VERIFY_P2SH`, but without `SCRIPT_VERIFY_WITNESS`, `VerifyScript` never enters the witness program detection path (`interpreter.cpp:2035: if (flags & SCRIPT_VERIFY_WITNESS)`). Qtum uses `SCRIPT_VERIFY_NONE` with `nullptr` witness — both P2WPKH and P2TR kernels trivially pass.
 
 ### 9.7 Block Header Structure
 
@@ -708,23 +554,23 @@ Verified all agent/ markdown files against the actual Blackcoin More source code
 
 | Claim | Source File | Verification |
 |---|---|---|
-| `CheckProofOfStake` at `pos.cpp:130` | `src/pos.cpp` line 130 | ✅ Match |
-| `VerifySignature` with `SCRIPT_VERIFY_NONE` at `pos.cpp:157` | `src/pos.cpp` line 157 | ✅ Match |
-| `CheckBlockSignature` at `validation.cpp:3879` | `src/validation.cpp` line 3879 | ✅ Match |
-| `nStakeTimestampMask = 0xf` in chainparams | `src/kernel/chainparams.cpp` lines 140, 257, 501, 579 | ✅ All set to `0xf` |
+| `CheckProofOfStake` at `pos.cpp:131` | `src/pos.cpp` line 131 | ✅ Match |
+| `VerifyScript` with `P2SH \| WITNESS \| TAPROOT` at `pos.cpp:174` | `src/pos.cpp` line 174 | ✅ Match (old `VerifySignature` replaced by §3.2 fix) |
+| `CheckBlockSignature` at `validation.cpp:3872` | `src/validation.cpp` line 3872 | ✅ Match |
+| `nStakeTimestampMask = 0xf` in chainparams | `src/kernel/chainparams.cpp` lines 140, 258, 503, 581 | ✅ All set to `0xf` |
 | v2 `nTime` stripping at `transaction.h:233-236, 277-278` | `src/primitives/transaction.h` lines 233-236, 277-278 | ✅ Match |
 | `SCRIPT_VERIFY_DERKEY` bit 31 in `interpreter.h:105` | `src/script/interpreter.h` line 105 | ✅ Match |
 | `SCRIPT_VERIFY_DERKEY` in `MANDATORY_SCRIPT_VERIFY_FLAGS` | `src/policy/policy.h` line 92 | ✅ Match |
 | `SCRIPT_VERIFY_LOW_S` in MANDATORY | `src/policy/policy.h` line 94 | ✅ Match |
 | `bMinterKey` removed from staking.cpp and miner.cpp | grep confirms zero matches | ✅ Fully removed |
-| OP_RETURN carrier in `CheckBlockSignature` reads exactly 2 GetOps | `src/validation.cpp` lines 3879-3892 | ✅ Match |
+| OP_RETURN carrier in `CheckBlockSignature` reads exactly 2 GetOps | `src/validation.cpp` lines 3888-3905 | ✅ Match |
 | `Coin.nTime` field exists in `coins.h` | `src/coins.h` | ✅ Present |
 | `Coin.fCoinStake` serialization in MuHash | `src/kernel/coinstats.cpp` | ✅ Present |
 | `AddressPurpose::SIGNKEY` in `types.h` | `src/wallet/types.h` line 65 | ✅ Match |
 | `g_relax_network_mask = true` in `netgroup.cpp` (intentional testing choice) | `src/netgroup.cpp` line 15 | ✅ Confirmed present — intentional, not a bug |
 | `WARN_THRESHOLD` changed to 16s in `timeoffsets.h` | `src/node/timeoffsets.h` | ✅ Match |
 | `MsUntilNextWindow()` implementation matches SafetyBump.md | `src/node/miner.cpp` lines 54-63 | ✅ Match |
-| `SleepStaker()` implementation matches SafetyBump.md | `src/node/miner.cpp` lines 604-630 | ✅ Match |
+| `SleepStaker()` implementation matches SafetyBump.md | `src/node/miner.cpp` lines 609-634 | ✅ Match |
 | Peercoin `CheckBlockSignature` P2PK-only at `validation.cpp:4994` | `/peercoin/src/validation.cpp` line 4994 | ✅ Verified |
 | Peercoin `VerifyScript` with real witness at `kernel.cpp:691` | `/peercoin/src/kernel.cpp` line 691 | ✅ Verified |
 | Qtum `setStakeSeen` at `validation.cpp:127, 6192` | `/qtum/src/validation.cpp` lines 127, 6192 | ✅ Verified |
@@ -834,13 +680,11 @@ The CoinStatsIndex rebuild is slow (same slowness as Bitcoin Core and Qtum). Thi
 
 **Reference**: `agent/staking.md` §"ExtractDestination Hack"
 
-### 12.6 BIP94 not applicable to Blackcoin — should be fully disabled
+### 12.6 BIP94 not applicable to Blackcoin — fully disabled
 
 BIP94 is a timewarp-attack mitigation designed for Bitcoin's fixed-interval difficulty adjustment. Blackcoin uses a per-block exponential moving average (EMA) difficulty adjustment — the difficulty recalculates at every block boundary based on the time between the last two PoS blocks. Because the difficulty changes continuously rather than at fixed period boundaries, the timewarp attack vector that BIP94 protects against does not apply.
 
-The BIP94 code currently exists but is disabled on mainnet and testnet (`enforce_BIP94 = false`). It should **also be disabled on regtest** for consistency, since the EMA difficulty model is used on all networks.
-
-**Action:** Set `enforce_BIP94 = false` on regtest as well. Remove or guard the BIP94-related difficulty calculation at `pow.cpp:78-84` to ensure it never executes on any network.
+The BIP94 code exists but is disabled on **all networks** (`enforce_BIP94 = false` at `chainparams.cpp` lines 116, 234, 339, 478, 561 — mainnet, testnet, testnet4, signet, and regtest respectively). No action needed.
 
 **Reference**: `agent/validations.md` §3, `agent/staking.md` §10
 
@@ -882,126 +726,6 @@ bool PermittedDifficultyTransition(const Consensus::Params& params, int64_t heig
 **Why we leave it as-is:** Removing PRESYNC would require replacing the anti-DoS work threshold mechanism and the hash commitment scheme with an alternative. The 30-minute overhead is a one-time cost during IBD and does not affect steady-state operation. The security model is unchanged — PRESYNC doesn't add Blackcoin-specific validation, and its removal wouldn't remove any protection that matters for Blackcoin's threat model. The complexity of modifying the inherited headersync protocol outweighs the benefit of saving 30 minutes during initial sync.
 
 **Reference**: `agent/validations.md` §2, §3 (header validation flow), `src/pow.cpp:101-105`, `src/headerssync.cpp:178-214` (PRESYNC), `src/headerssync.cpp:216-278` (REDOWNLOAD), `src/net_processing.cpp:3003-3083` (`IsContinuationOfLowWorkHeadersSync`)
-
----
-
-## 13. Implementation Plan: P2WPKH / P2TR Signature Verification Soft-Fork
-
-This implementation plan outlines the fix for the critical consensus vulnerability where `CheckProofOfStake` bypasses signature verification for SegWit and Taproot staking kernels.
-
-### 13.1 Background Context
-Currently, `CheckProofOfStake` passes `SCRIPT_VERIFY_NONE` and an empty witness (`nullptr`) when verifying the coinstake kernel. While this safely checked legacy P2PK and P2PKH (because they require OP_CHECKSIG in the scriptSig execution), it trivially passes P2WPKH and P2TR without verifying the cryptographic signature.
-
-The fix goes beyond Peercoin's approach. Peercoin passes real witness data and the correct amount, but uses only `SCRIPT_VERIFY_P2SH` — missing `SCRIPT_VERIFY_WITNESS`, which means P2WPKH kernels are still not verified in Peercoin either. Blackcoin's fix must include all three flags: `SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_TAPROOT`.
-
-### 13.2 Proposed Changes
-
-#### [MODIFY] [pos.cpp](file:///mnt/data/Development/Blackcoin/blackcoin-more-bdev/src/pos.cpp)
-- **Add Include:** Add `#include <script/interpreter.h>` to access `TransactionSignatureChecker` and `VerifyScript`.
-- **Refactor `CheckProofOfStake` Signature Validation:**
-  Remove the unsafe wrapper call:
-  ```cpp
-  // REMOVE:
-  if (!VerifySignature(coinPrev, txin.prevout.hash, tx, 0, SCRIPT_VERIFY_NONE))
-      return state.Invalid(...);
-  ```
-  Replace it with direct script verification:
-  ```cpp
-  // NEW (FIXED — three things fixed: flags, witness, amount):
-  PrecomputedTransactionData txdata(tx);
-  TransactionSignatureChecker checker(&tx, 0, coinPrev.out.nValue, txdata, MissingDataBehavior::ASSERT_FAIL);
-  if (!VerifyScript(txin.scriptSig, coinPrev.out.scriptPubKey, &txin.scriptWitness,
-      SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_TAPROOT, checker)) {
-      return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "stake-verify-signature-failed",
-          strprintf("CheckProofOfStake(): VerifyScript failed on coinstake %s", tx.GetHash().ToString()));
-  }
-  ```
-
-  **Three things fixed simultaneously:**
-  1. **Flags**: `SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_TAPROOT` — enables witness program detection (WITNESS) and Taproot Schnorr verification (TAPROOT). Without WITNESS, P2WPKH bypasses. Without TAPROOT, P2TR bypasses (VerifyWitnessProgram returns success at line 1920).
-  2. **Witness**: `&txin.scriptWitness` — passes actual witness data instead of `nullptr`.
-  3. **Amount**: `coinPrev.out.nValue` — passes actual UTXO amount for correct BIP143 sighash. The current code passes 0, which would produce wrong sighashes for P2WPKH.
-
-  **Why `SCRIPT_VERIFY_TAPROOT` is safe here (unlike in MANDATORY_SCRIPT_VERIFY_FLAGS):**
-  Using TAPROOT in `CheckProofOfStake` verifies coinstake signatures in blocks — it's not a mempool/DoS check. P2TR coinstakes only exist when Taproot is active on that network. On networks where Taproot is not yet active, no P2TR coinstakes exist, so the flag has no effect. This is separate from putting TAPROOT in `MANDATORY_SCRIPT_VERIFY_FLAGS` (§3.14), which must wait for mainnet activation to avoid false peer bans.
-
-### 13.3 Verification Plan — Phased Deployment
-
-The fix must be tested on regtest and testnet **without BIP-9 deployment** first, before implementing BIP-9-style activation for mainnet. This phased approach allows confidence-building through real-world validation before any consensus change goes live on mainnet.
-
-**The code change is the same for all three phases** — the `pos.cpp:157` fix from §3.9. The only difference is **how and when it's activated**:
-
-- **Phase 1/2**: The fix is applied unconditionally. No BIP-9 gate. All nodes running the binary enforce strict verification immediately.
-- **Phase 3**: The fix is gated by BIP-9 signaling. Nodes only enforce strict verification after BIP-9 activation completes. During the signaling period, the fix is compiled in but not enforced.
-
-This means the initial implementation (Phase 1/2) is simpler — no BIP-9 infrastructure needed. Phase 3 adds the BIP-9 gate later.
-
-#### Phase 1: Regtest Testing (no BIP-9, immediate activation on regtest)
-
-Regtest is a controlled environment — the fix can be activated immediately without BIP-9 coordination. The code change from §3.9 is applied directly to `pos.cpp`. No BIP-9 gate, no versionbits logic. The fix is always active on regtest.
-
-1. **Compile and run** the node with the fix applied to `pos.cpp`
-2. **Verify regtest node syncs** from genesis with the new strict verification
-3. **P2PK staking test**: Create a wallet, fund it with P2PK UTXO, mine blocks, verify coinstakes are accepted
-4. **P2PKH staking test**: Create a wallet, fund it with P2PKH UTXO, mine blocks, verify coinstakes are accepted
-5. **P2WPKH staking test**: Create a wallet, fund it with P2WPKH UTXO, mine blocks, verify coinstakes are accepted (this validates the `amount` parameter fix)
-6. **P2TR staking test**: Create a wallet, fund it with P2TR UTXO, mine blocks, verify coinstakes are accepted (this validates the `SCRIPT_VERIFY_TAPROOT` and `PrecomputedTransactionData` changes)
-7. **Mixed kernel types**: Stake a block with a P2WPKH kernel and a P2PK reward, verify it's accepted
-8. **Run `make check`**: All unit tests pass
-9. **Run `test/pos_tests.cpp`**: All PoS-specific tests pass
-
-#### Phase 2: Testnet Testing (no BIP-9, immediate activation on testnet)
-
-Testnet is a public development network. Apply the same code change from §3.9 directly to `pos.cpp` for the testnet binary. No BIP-9 gate — the fix is always active on testnet. This is safe because testnet is a development network where breaking the chain is acceptable and expected.
-
-1. **Build and release** a testnet binary with the fix
-2. **Deploy to testnet nodes** — the on-chain audit confirms all 61,196 existing P2WPKH testnet coinstakes have valid witnesses, so historical sync should succeed
-3. **Sync verification**: A testnet node running the fix must sync the full chain (782,417 coinstakes including 61,196 P2WPKH) without rejection
-4. **Staking regression**: All four kernel types (P2PK, P2PKH, P2WPKH, P2TR) must successfully stake on testnet
-5. **Monitor for rejections**: If any historical block is rejected, that's a critical bug — investigate before proceeding
-6. **Run testnet for 2+ weeks**: Generate new coinstakes under the new rules, confirm consensus holds
-
-#### Phase 3: Mainnet Deployment (BIP-9 activation)
-
-Only after Phase 1 and Phase 2 succeed without issues. In this phase, the same code change is applied to `pos.cpp`, but **gated by a BIP-9 versionbits flag**. During the signaling period, the fix is compiled in but not enforced — the code checks the BIP-9 activation state and falls back to the old `VerifySignature` call if not yet activated.
-
-```cpp
-// Phase 3: BIP-9 gated version
-if (IsBIP9StrictPOSVerificationActive(pindexPrev)) {
-    // New strict verification (§3.9)
-    PrecomputedTransactionData txdata(tx);
-    TransactionSignatureChecker checker(&tx, 0, coinPrev.out.nValue, txdata, MissingDataBehavior::ASSERT_FAIL);
-    if (!VerifyScript(txin.scriptSig, coinPrev.out.scriptPubKey, &txin.scriptWitness,
-        SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_TAPROOT, checker)) {
-        return state.Invalid(...);
-    }
-} else {
-    // Old behavior during signaling period
-    if (!VerifySignature(coinPrev, txin.prevout.hash, tx, 0, SCRIPT_VERIFY_NONE)) {
-        return state.Invalid(...);
-    }
-}
-```
-
-1. **Implement BIP-9 versionbits deployment** for `CheckProofOfStake` strict verification
-2. **Signal period**: Standard BIP-9 signaling (e.g., 2016-block periods, 1916-block threshold, 4032-block timeout)
-3. **Activation gate**: Only enforce strict verification after BIP-9 activation completes
-4. **Mandatory upgrade window**: Give node operators time to upgrade before activation
-5. **Post-activation monitoring**: Watch for any chain split or consensus issues
-
-#### Regression Tests (to add in Phase 1)
-
-- **Malformed witness rejection**: Test that a coinstake with an empty P2WPKH witness is rejected
-- **Wrong amount rejection**: Test that a P2WPKH coinstake signed with the wrong amount is rejected (validates the `amount=0` bug fix)
-- **Missing P2TR precomputed data**: Test that P2TR without `PrecomputedTransactionData` triggers `ASSERT_FAIL`
-- **P2SH-wrapped SegWit**: Test P2SH(P2WPKH) kernel behavior if any exist
-- **Witness malleability**: Test that non-canonical witness encodings are rejected
-
-#### Automated Tests (Phase 1)
-
-1. `make check` — all unit tests pass
-2. Functional tests — staker successfully generates blocks under new rules
-3. `src/test/pos_tests.cpp` — PoS-specific tests with all four kernel types
 
 ---
 

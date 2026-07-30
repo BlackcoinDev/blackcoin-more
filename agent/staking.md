@@ -9,17 +9,17 @@
 
 ## Staking Flow
 
-### 1. Destination Resolution (PoSMiner, miner.cpp:690-725)
+### 1. Destination Resolution (PoSMiner, miner.cpp:726-746)
 
-1. Look up label `"SignKey"` with `AddressPurpose::SIGNKEY` from address book via `ForEachAddrBookEntry` (lines 696-704)
-2. Self-healing guard (lines 706-709): if a stored `dest` exists but is neither `CNoDestination` nor `PKHash`, delete and reset (handles corrupted/legacy entries)
-3. If not found, call `GetNewDestination(OutputType::LEGACY, label)` to create a new P2PKH address and set `AddressPurpose::SIGNKEY` (lines 711-718)
+1. Look up label `"SignKey"` with `AddressPurpose::SIGNKEY` from address book via `ForEachAddrBookEntry` (lines 726-732)
+2. Self-healing guard (lines 734-737): if a stored `dest` exists but is neither `CNoDestination` nor `PKHash`, delete and reset (handles corrupted/legacy entries)
+3. If not found, call `GetNewDestination(OutputType::LEGACY, label)` to create a new P2PKH address and set `AddressPurpose::SIGNKEY` (lines 739-746)
 4. `dest` is a `CTxDestination` (P2PKH address), only used to create the block template via `CreateNewBlock(GetScriptForDestination(dest), ...)`. The actual reward destination is determined by the kernel type.
 
-### 2. Block Assembly (CreateNewBlock, miner.cpp:140)
+### 2. Block Assembly (CreateNewBlock, miner.cpp:200-250)
 
-- Sets PoS difficulty via `GetNextTargetRequired(..., true)` (line 203)
-- Calls `wallet::CreateCoinStake(*pwallet, pblock->nBits, 1, txCoinStake, nFees, destination)` at line 244
+- Sets PoS difficulty via `GetNextTargetRequired(..., true)` (line 216)
+- Calls `wallet::CreateCoinStake(*pwallet, pblock->nBits, 1, txCoinStake, nFees, destination)` at line 246
 - If coinstake found, inserts it as `vtx[1]` and sets coinbase to empty (lines 247-249)
 
 ### 3. Coin Selection and Kernel Finding (CreateCoinStake, staking.cpp:252-415)
@@ -36,13 +36,13 @@
 |---|---|---|---|
 | **PUBKEY** | `<pubkey> OP_CHECKSIG` | ✅ | ✅ Yes |
 | **PUBKEYHASH** | `OP_DUP OP_HASH160 <hash> OP_EQUALVERIFY OP_CHECKSIG` | ✅ | ✅ Yes |
-| **WITNESS_V0_KEYHASH** | `OP_0 <20-byte-hash>` | ✅ | ❌ No (trivial pass) |
-| **WITNESS_V1_TAPROOT** | `OP_1 <32-byte-key>` | ✅ **Verified on regtest** | ❌ No (trivial pass) |
+| **WITNESS_V0_KEYHASH** | `OP_0 <20-byte-hash>` | ✅ | ✅ Yes |
+| **WITNESS_V1_TAPROOT** | `OP_1 <32-byte-key>` | ✅ | ✅ Yes |
 | **SCRIPTHASH (P2SH)** | `OP_HASH160 <hash> OP_EQUAL` | ❌ | — |
 | **WITNESS_V0_SCRIPTHASH** | `OP_0 <32-byte-hash>` | ❌ | — |
 | **MULTISIG / NULL_DATA / NONSTANDARD** | — | ❌ | — |
 
-The two Witness types can stake, but because `VerifySignature` passes `nullptr` for the witness (sign.cpp:734) and `SCRIPT_VERIFY_NONE` is used, their coinstake signature is never actually checked — security relies entirely on the kernel hash (stake modifier + prevout + timestamp). Only PUBKEY and PUBKEYHASH kernels get a real CHECKSIG verification.
+All four supported kernel types have their signatures fully verified by consensus during block validation (see Section 9 for details on how `VerifyScript` enforces this for SegWit and Taproot).
 
 #### After June 2026 cleanup — unified flow
 
@@ -70,7 +70,7 @@ vout[4]: devfund                         ← if enabled
 - **Legacy**: Uses `SignSignature(*GetLegacyScriptPubKeyMan(), ...)` to sign each coinstake input (line 494)
 - **Descriptor**: Uses `wallet.SignTransaction()` which signs via descriptor providers (line 511). The wallet saves `txNew.nTime` before signing and restores it after (lines 510-512), because `SignTransaction` zeroes `nTime` for v2 transactions — see `agent/SegWitTxv2Coinstake.md` for the txid-collision implications and the OP_RETURN carrier fix.
 
-### 7. Block Signing (SignBlock, miner.cpp:654-696)
+### 7. Block Signing (SignBlock, miner.cpp:650-689)
 
 After the OP_RETURN carrier fix, `vout[1]` is no longer P2PK — it is `OP_RETURN <pubkey> <timestamp>`. `SignBlock` handles both cases:
 
@@ -79,8 +79,8 @@ After the OP_RETURN carrier fix, `vout[1]` is no longer P2PK — it is `OP_RETUR
    - `TxoutType::PUBKEY` (fallback/PoW) — extracts pubkey directly from script
    - `TxoutType::NULL_DATA` (OP_RETURN carrier) — parses 2 GetOps, extracts pubkey from first push
 3. Both paths extract a `CPubKey` and then sign via:
-   - **Legacy path**: `GetLegacyScriptPubKeyMan()->GetKey(...)` → `key.Sign()` (lines 681-688)
-   - **Descriptor path**: `PKHash(pubkey)` → `keystore.SignBlockHash()` (lines 691-694)
+   - **Legacy path**: `GetLegacyScriptPubKeyMan()->GetKey(...)` → `key.Sign()` (lines 680-688)
+   - **Descriptor path**: `PKHash(pubkey)` → `keystore.SignBlockHash()` (line 689)
 
 ### 8. Validation (CheckBlockSignature, validation.cpp:3860-3897)
 
@@ -93,49 +93,31 @@ For PoS blocks:
 ### 9. Proof of Stake Verification (CheckProofOfStake, pos.cpp)
 
 - Verifies the kernel UTXO meets age/value requirements
-- Calls `VerifySignature(coinPrev, txin.prevout.hash, tx, 0, SCRIPT_VERIFY_NONE)` at line 157
-- Ensures coinstake input is properly signed
+- Ensures coinstake input is properly signed using `VerifyScript` (lines 174-175)
 
-#### Why SCRIPT_VERIFY_NONE
+#### Full SegWit/Taproot Kernel Security (The "Peercoin Fix")
 
-`VerifySignature` (sign.cpp:718) passes `nullptr` for the witness parameter:
+In older versions, `CheckProofOfStake` called `VerifySignature` which passed `nullptr` for the witness and used `SCRIPT_VERIFY_NONE`. This meant that P2WPKH and P2TR kernels had **no actual signature verification** — their security relied entirely on the kernel hash.
+
+Blackmore284 has completely fixed this vulnerability by calling `VerifyScript` directly with the actual witness data and mandatory validation flags (`pos.cpp:174-175`):
 
 ```cpp
-return VerifyScript(txin.scriptSig, txout.scriptPubKey, nullptr, flags, checker);
+if (!VerifyScript(txin.scriptSig, coinPrev.out.scriptPubKey, &txin.scriptWitness,
+    SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_TAPROOT, checker)) {
+    return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "stake-verify-signature-failed" ...);
+}
 ```
 
-Inside `VerifyScript` (interpreter.cpp:1973):
-- Line 2006: `if (flags & SCRIPT_VERIFY_WITNESS)` — if **not** set, witness programs are **completely skipped**
-- Line 2023: `if (flags & SCRIPT_VERIFY_P2SH)` — if **not** set, P2SH redeem script execution is **skipped**
+| Kernel type | scriptPubKey | Signature Security with `VerifyScript` |
+|---|---|---|
+| **P2PK** | `<pubkey> OP_CHECKSIG` | ✅ CHECKSIG verifies signature |
+| **P2PKH** | `OP_DUP OP_HASH160 <hash> OP_EQUALVERIFY OP_CHECKSIG` | ✅ CHECKSIG verifies signature |
+| **P2WPKH** | `OP_0 <hash160>` | ✅ `SCRIPT_VERIFY_WITNESS` securely verifies the SegWit signature |
+| **P2TR** | `OP_1 <32-byte-key>` | ✅ `SCRIPT_VERIFY_TAPROOT` securely verifies the Schnorr signature |
 
-| Kernel type | scriptPubKey | With SCRIPT_VERIFY_NONE | With P2SH\|WITNESS |
-|---|---|---|---|
-| **P2PK** | `<pubkey> OP_CHECKSIG` | CHECKSIG verifies signature (proper) | CHECKSIG verifies signature (same) |
-| **P2PKH** | `OP_DUP OP_HASH160 <hash> OP_EQUALVERIFY OP_CHECKSIG` | CHECKSIG verifies signature (proper) | CHECKSIG verifies signature (same) |
-| **P2WPKH** | `OP_0 <hash160>` | Executed as plain script: push 0, push hash — stack top truthy → **passes, no sig check** | Witness program detected → `VerifyWitnessProgram` with empty witness → expects 2 items → **fails** |
-| **P2SH** | `OP_HASH160 <hash> OP_EQUAL` | Just checks hash match — **passes, no redeem script** | Requires valid redeem script in scriptSig → coinstake doesn't have one → **fails** |
-| **P2TR** | `OP_1 <32-byte-key>` | Executed as plain script: push 1, push key — stack top truthy → **passes, no sig check** | Witness v1 program → empty witness → **fails** |
+Because this fix is active on the network, any block containing a coinstake with an invalid SegWit or Taproot signature is instantly rejected. This establishes full cryptographic security for all modern address types.
 
-**Security implication**: P2WPKH / P2SH / P2TR kernels have **no actual signature verification** with `SCRIPT_VERIFY_NONE`. The scriptPubKey executes as a plain script and always succeeds. Security for these kernel types relies entirely on the kernel hash computation. Only P2PK and P2PKH kernels are properly verified through CHECKSIG.
-
-**Cross-codebase comparison:**
-
-| Codebase | `CheckProofOfStake` signature verification | P2WPKH kernel sig verified? | P2TR kernel sig verified? |
-|---|---|---|---|
-| **Blackmore284** | `VerifySignature(..., SCRIPT_VERIFY_NONE)` → `VerifyScript(..., nullptr, 0, ...)` | ❌ No | ❌ No |
-| **Qtum** | `VerifySignature(..., SCRIPT_VERIFY_NONE)` → `VerifyScript(..., NULL, 0, ...)` | ❌ No | ❌ No |
-| **Peercoin** | `VerifyScript(..., &witness, SCRIPT_VERIFY_P2SH, ...)` | ✅ Yes | N/A (P2TR not supported) |
-
-Peercoin fixed this by calling `VerifyScript` directly with the actual witness data and `SCRIPT_VERIFY_P2SH`. Applying the Peercoin fix to Blackmore284 is a **soft fork** (tightening rules: new nodes reject blocks with invalid signatures that old nodes accepted). It is safe if all existing P2WPKH/P2TR coinstakes have valid witness data.
-
-**On-chain audit (June 2026, v28-SEGWIT branch):** Scanned all witness-kernel coinstakes from SegWit activation to tip on both networks. Every witness kernel has well-formed witness data (2-item `[DER-sig, compressed-pubkey]` for P2WPKH, no P2TR kernels found yet). Safe for soft fork.
-
-| Network | SegWit activation block | Scanned to | Total coinstakes | Witness kernels | P2WPKH | P2TR | Malformed |
-|---|---|---|---|---|---|---|---|
-| **Testnet** | 2,070,000 | 2,852,570 | 782,417 | 61,196 | 61,196 | 0 | 0 |
-| **Mainnet** | 5,805,000 | 5,928,105 | 123,106 | 3 | 3 | 0 | 0 |
-
-**Taproot activation status** (as of June 2026): Mainnet BIP9 signaling to start with next release (late 2026). Testnet `locked_in` since block 2,850,000 — activates at block 2,865,000. Regtest `ALWAYS_ACTIVE`. The soft fork does not depend on Taproot activation — it fixes P2WPKH kernels (the only witness type on-chain). When Taproot activates, P2TR kernels will also be covered by the same fix.
+**Taproot activation status** (as of June 2026): Mainnet BIP9 signaling to start with next release (late 2026). Testnet `locked_in` since block 2,850,000 — activates at block 2,865,000. Regtest `ALWAYS_ACTIVE`. The `SCRIPT_VERIFY_TAPROOT` flag in `pos.cpp` ensures Taproot kernels will be fully secured upon activation.
 
 **P2TR signing fix** (June 2026, v28-SEGWIT branch): `SCRIPT_VERIFY_TAPROOT` was missing from `STANDARD_SCRIPT_VERIFY_FLAGS` in `policy.h`, causing P2TR signing to silently fail. Without this flag, `VerifyWitnessProgram` (`interpreter.cpp:1920`) returns `set_success` without checking the witness — the signing test verification at `sign.cpp:572` treated P2TR as a no-op. This caused `::SignTransaction` to return `true` on the first (wrong) `ScriptPubKeyMan` instead of falling through to the correct P2TR descriptor. Fix: added `SCRIPT_VERIFY_TAPROOT` to `STANDARD_SCRIPT_VERIFY_FLAGS` (standard-only, not mandatory). Also added `SCRIPT_VERIFY_WITNESS` and `SCRIPT_VERIFY_CHECKSEQUENCEVERIFY` to `MANDATORY_SCRIPT_VERIFY_FLAGS`. Verified on regtest: P2TR regular sends and P2TR staking. See `agent/P2TRSigningFix.md`.
 
@@ -199,6 +181,19 @@ TxIndex (`index/txindex.cpp`, `node/transaction.cpp:135`) is only needed for:
 - **Backwards wallet lookup**: When a txid is requested that's no longer in `mapWallet`
 
 None of these are on the staking hot path.
+
+### 10.1 The `stakeCache` Optimization (CPU & Tree Traversal Saver)
+
+While `CWalletTx` (`mapWallet`) eliminates disk reads for transaction data, computing the staking hash (`CheckStakeKernelHash`) requires two consensus-level properties for every UTXO:
+1. `amount`: The value of the UTXO.
+2. `blockFromTime`: The exact timestamp of the block that confirmed the UTXO.
+
+To retrieve `blockFromTime` without a cache, the node must query the global UTXO set (`view.GetCoin`) to find the coin's block height, and then traverse the block index skip-list (`GetAncestor`) to find the block object and read its timestamp.
+
+The outer miner thread (`PoSMiner`) wakes up and calls `CreateCoinStake` *every single second* forever. If the node performed a global UTXO lookup and a block tree traversal for thousands of coins *every single second*, it would cause massive CPU overhead and memory-cache thrashing (pointer chasing latency).
+
+To solve this, Blackcoin uses a persistent `std::map<COutPoint, CStakeCache> stakeCache` bound to the `CWallet` object.
+The very first time the wallet attempts to stake a UTXO, it traverses the tree once and populates `amount` and `blockFromTime` into the `stakeCache`. For all subsequent seconds, the fast inner loop instantly pulls these pre-calculated numbers directly from the cache. This completely shields the CPU from repeatedly traversing the global UTXO set and block tree across millions of staking ticks over the node's lifespan.
 
 ## Key Observations
 

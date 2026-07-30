@@ -64,7 +64,7 @@ P(total) ≈ Σ (amount_i * target / 2^256) = total_weight * target / 2^256
 
 ### 3.1 Formula
 
-Implemented in `src/wallet/rpc/staking.cpp:76`:
+Implemented in `src/wallet/rpc/staking.cpp:78`:
 ```cpp
 uint64_t nExpectedTime = staking ? 1.0455 * nTargetSpacing * nNetworkWeight / nWeight : 0;
 ```
@@ -86,7 +86,7 @@ The hardcoded 1.0455 (4.55%) overestimates orphans because it also lumps in netw
 
 ### 3.3 Qt GUI vs RPC
 
-Both use the same formula (`src/qt/bitcoingui.cpp:1599` vs `src/wallet/rpc/staking.cpp:76`): `1.0455 * nTargetSpacing * nNetworkWeight / nWeight`. RPC returns `uint64_t seconds`; GUI formats as human-readable string. Estimates are identical.
+Both use the same formula (`src/qt/bitcoingui.cpp:1597` vs `src/wallet/rpc/staking.cpp:78`): `1.0455 * nTargetSpacing * nNetworkWeight / nWeight`. RPC returns `uint64_t seconds`; GUI formats as human-readable string. Estimates are identical.
 
 ---
 
@@ -118,7 +118,7 @@ static int64_t GetStakeCombineThreshold() { return 250 * COIN; }
 static int64_t GetStakeSplitThreshold() { return 2 * GetStakeCombineThreshold(); }
 ```
 
-The **combine** logic at `src/wallet/staking.cpp:415` stops adding more inputs once `nCredit >= GetStakeCombineThreshold()`. The **split** logic at line 458 uses the split threshold: `if (nCredit >= GetStakeSplitThreshold()) { split reward into 2 outputs }`. So splitting happens at **500 BLK**.
+The **combine** logic at `src/wallet/staking.cpp:420` stops adding more inputs once `nCredit >= GetStakeCombineThreshold()`. The **split** logic at line 463 uses the split threshold: `if (nCredit >= GetStakeSplitThreshold()) { split reward into 2 outputs }`. So splitting happens at **500 BLK**.
 
 Splitting preserves total weight — it doesn't change expected rewards.
 
@@ -136,7 +136,7 @@ if (txNew.vout.size() == 3 && (pcoin.first->tx->vout[pcoin.second].scriptPubKey 
 
 ### 5.2 `optimizeutxoset` RPC
 
-The `optimizeutxoset` RPC (`src/wallet/rpc/spend.cpp:351`) consolidates wallet UTXOs into uniform outputs:
+The `optimizeutxoset` RPC (`src/wallet/rpc/spend.cpp:321`) consolidates wallet UTXOs into uniform outputs:
 
 ```
 optimizeutxoset <address> <amount> [transmit=false] [fromAddress]

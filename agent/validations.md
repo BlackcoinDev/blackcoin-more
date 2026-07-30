@@ -52,7 +52,7 @@ Contextual checks that depend on the previous block's `CBlockIndex`.
 | 5 | Hardened checkpoints pass | `bad-fork-hardened-checkpoint` | 4235 |
 | 6 | Synchronized (rolling) checkpoint passes | `bad-fork-prior-to-synch-checkpoint` | 4242 |
 | 7 | Block timestamp > `pindexPrev->GetMedianTimePast()` | `time-too-old` | 4246 |
-| 8 | Block timestamp ≤ `now + MAX_FUTURE_BLOCK_TIME` | `time-too-new` | 4262 |
+| 8 | Block timestamp ≤ `now + MAX_FUTURE_BLOCK_TIME` | `time-too-new` | 4274 |
 
 **Blackcoin note on MTP:** Since ProtocolV2, `GetMedianTimePast()` simply returns `GetBlockTime()` (the exact previous block timestamp), NOT the median of 11 blocks. This forces strictly monotonically increasing block times.
 
@@ -108,7 +108,8 @@ Contextual checks before connecting to the UTXO set.
 | 2 | Coinbase `scriptSig` starts with serialized block height (BIP34 — always active in Blackcoin) | `bad-cb-height` | 4301 |
 | 3 | `CheckWitnessMalleation()`: if SegWit active and witness commitment exists, coinbase witness stack must be exactly 1 item of 32 bytes, and the witness Merkle root must match the commitment | `bad-witness-nonce-size` / `bad-witness-merkle-match` | 4315 |
 | 4 | `CheckWitnessMalleation()`: if SegWit NOT active (or no commitment), no transaction may contain witness data | `unexpected-witness` | 4315 |
-| 5 | Full block weight (`GetBlockWeight()`) ≤ `MAX_BLOCK_WEIGHT` | `bad-blk-weight` | 4325 |
+| 5 | Full block weight (`GetBlockWeight()`) ≤ `MAX_BLOCK_WEIGHT` | `bad-blk-weight` | 4337 |
+| 6 | Block creates no outputs with unknown witness versions (v > 1) | `bad-unknown-witness-version` | 4357 |
 
 **Blackcoin note on MTP cutoff:** `nLockTimeCutoff` uses `pindexPrev->GetMedianTimePast()` when BIP113 (CSV deployment) is active. Since Blackcoin's MTP just returns the previous block's timestamp, lock time is evaluated against the exact previous block time.
 
@@ -134,12 +135,12 @@ Called from `ConnectBlock` for every non-coinbase transaction.
 | # | Check | Reject reason | Line |
 |---|-------|---------------|------|
 | 1 | All inputs exist and are unspent in the UTXO set | `bad-txns-inputs-missingorspent` | 168 |
-| 2 | If prev output is coinbase or coinstake: must be matured (`nSpendHeight - coin.nHeight ≥ nCoinbaseMaturity`). Maturity is 500 blocks on mainnet, 10 on testnet | `bad-txns-premature-spend-of-coinbase` | 191 |
-| 3 | Each input's coin timestamp ≤ transaction timestamp (`coin.nTime ≤ nTimeTx`) | `bad-txns-time-earlier-than-input` | 196 |
-| 4 | All input values are in valid `MoneyRange` | `bad-txns-inputvalues-outofrange` | 201 |
-| 5 | For non-coinstake: sum of inputs ≥ sum of outputs | `bad-txns-in-belowout` | 210 |
-| 6 | Fee is in valid `MoneyRange` | `bad-txns-fee-outofrange` | 217 |
-| 7 | **Blackcoin (ProtocolV3.1):** Fee ≥ `GetMinFee(tx)` (minimum relay fee enforced at consensus) | `bad-txns-fee-not-enough` | 222 |
+| 2 | If prev output is coinbase or coinstake: must be matured (`nSpendHeight - coin.nHeight ≥ nCoinbaseMaturity`). Maturity is 500 blocks on mainnet, 10 on testnet | `bad-txns-premature-spend-of-coinbase` | 185 |
+| 3 | Each input's coin timestamp ≤ transaction timestamp (`coin.nTime ≤ nTimeTx`) | `bad-txns-time-earlier-than-input` | 191 |
+| 4 | All input values are in valid `MoneyRange` | `bad-txns-inputvalues-outofrange` | 198 |
+| 5 | For non-coinstake: sum of inputs ≥ sum of outputs | `bad-txns-in-belowout` | 206 |
+| 6 | Fee is in valid `MoneyRange` | `bad-txns-fee-outofrange` | 213 |
+| 7 | **Blackcoin (ProtocolV3.1):** Fee ≥ `GetMinFee(tx)` (minimum relay fee enforced at consensus) | `bad-txns-fee-not-enough` | 217 |
 
 **Blackcoin note:** For coinstake transactions, the sum of outputs is allowed to exceed inputs (the difference is the block reward). Fee accounting is skipped for coinstakes.
 

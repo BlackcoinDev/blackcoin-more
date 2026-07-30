@@ -1,6 +1,6 @@
 # Blackcoin More v28.4.0 Release Notes
 
-**Release Date:** 2026-07-05
+**Release Date:** 2026-07-29
 **Base Version:** Bitcoin Core 28.4.0 + Blackcoin extensions
 **Previous Version:** Blackcoin More v262 (June 2026)
 
@@ -154,6 +154,7 @@ This release represents a major architectural upgrade from v262, building on Bit
 3. **P2TR signing:** Added missing `SCRIPT_VERIFY_TAPROOT` in policy flags
 4. **Compact blocks:** Fixed compact block prefill for PoS (1→2 prefilled)
 5. **Staking wake-up:** Fixed staking guard condition to check tip-hash
+6. **Witness kernel verification gap:** Added SegWit/Taproot signature verification to coinstake kernels
 
 ### Performance Fixes
 1. **Staking cache:** Added stake cache to reduce coinstake creation time
@@ -199,10 +200,9 @@ This release represents a major architectural upgrade from v262, building on Bit
 - **Network tests:** Improved network protocol testing
 
 ### Known Issues
-1. **Witness kernel verification gap:** P2WPKH/P2TR kernels have no signature verification (requires soft fork)
-2. **OptimizeUTXO weight check:** Large amounts may produce oversized transactions (batching needed)
-3. **Duplicate staking:** Same wallet on multiple nodes produces different coinstakes (user education needed)
-4. **nSearchInterval edge case:** Low-difficulty PoS may have rejected blocks (all versions affected)
+1. **OptimizeUTXO weight check:** Large amounts may produce oversized transactions (batching needed)
+2. **Duplicate staking:** Same wallet on multiple nodes produces different coinstakes (user education needed)
+3. **nSearchInterval edge case:** Low-difficulty PoS may have rejected blocks (all versions affected)
 
 ---
 
@@ -232,8 +232,7 @@ This release represents a major architectural upgrade from v262, building on Bit
 
 ### Short-term Goals
 1. **Taproot activation:** Complete Taproot deployment and testing
-2. **Witness verification:** Implement proper witness kernel verification
-3. **Performance optimization:** Further optimize staking and validation performance
+2. **Performance optimization:** Further optimize staking and validation performance
 
 ### Long-term Goals
 1. **Protocol modernization:** Continue protocol modernization with Bitcoin Core updates

@@ -38,7 +38,7 @@ int64_t MsUntilNextWindow(const Consensus::Params& consensus, int64_t mtp)
     while (nextBoundary <= mtp)
         nextBoundary += (consensus.nStakeTimestampMask + 1);
 
-    return std::max(0LL, (nextBoundary - now) * 1000);
+    return std::max<int64_t>(0, (nextBoundary - now) * 1000);
 }
 ```
 

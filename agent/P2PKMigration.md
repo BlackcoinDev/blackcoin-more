@@ -42,6 +42,9 @@ Historically, the Blackcoin codebase *forced* all rewards to be converted into P
 
 We solved this by pushing the block-signing public key into a non-spendable `OP_RETURN` carrier in `vout[1]` (visible in JSON). This decoupled the block signature from the reward output, freeing `vout[2]` to inherit whatever script type the staked coin originally was.
 
+**Why is there a `<timestamp>` in the `OP_RETURN` carrier?**
+The 4-byte timestamp is pushed into the `OP_RETURN` carrier directly after the public key to prevent **TxID collisions**. In v2 transactions, `nTime` is completely stripped from serialization and the signature hash. If a node stakes a UTXO, the block gets orphaned, and the wallet retries staking the exact same UTXO, the resulting transaction bytes would be 100% identical (causing a TxID collision). By injecting the current PoS timestamp into the `OP_RETURN` carrier, the transaction outputs physically change every 16 seconds (the PoS window), guaranteeing a unique TxID for every staking attempt. `CheckBlockSignature` safely ignores this extra timestamp data.
+
 ### Current state — OP_RETURN carrier implemented (reward preserves kernel type, except P2PK which upgrades to P2PKH)
 
 | Kernel | Wallet | Reward output | Kernel sig verified? | Block signing | Status |
@@ -50,9 +53,9 @@ We solved this by pushing the block-signing public key into a non-spendable `OP_
 | P2PK | Descriptor | P2PKH (via carrier upgrade) | ✅ Yes | OP_RETURN carrier, `SignBlockHash()` | ✅ Works |
 | P2PKH | Legacy | P2PKH (via carrier) | ✅ Yes | OP_RETURN carrier, `key.Sign()` | ✅ Works |
 | P2PKH | Descriptor | P2PKH (via carrier) | ✅ Yes | OP_RETURN carrier, `SignBlockHash()` | ✅ Works |
-| P2WPKH | Legacy | P2WPKH (via carrier) | ❌ No | OP_RETURN carrier, `SignBlockHash()` | ✅ Works (sig gap) |
-| P2WPKH | Descriptor | P2WPKH (via carrier) | ❌ No | OP_RETURN carrier, `SignBlockHash()` | ✅ **Verified regtest** |
-| P2TR | Descriptor | P2TR (via carrier) | ❌ No | OP_RETURN carrier, `SignBlockHash()` | ✅ **Verified regtest** |
+| P2WPKH | Legacy | P2WPKH (via carrier) | ✅ Yes | OP_RETURN carrier, `SignBlockHash()` | ✅ Works |
+| P2WPKH | Descriptor | P2WPKH (via carrier) | ✅ Yes | OP_RETURN carrier, `SignBlockHash()` | ✅ **Verified regtest** |
+| P2TR | Descriptor | P2TR (via carrier) | ✅ Yes | OP_RETURN carrier, `SignBlockHash()` | ✅ **Verified regtest** |
 | P2TR | Legacy | — | — | — | ❌ P2TR not mineable in legacy wallets |
 | P2SH / P2WSH | Any | — | — | — | ❌ Rejected by CreateCoinStake (staking.cpp:328-332) |
 
@@ -70,13 +73,22 @@ We solved this by pushing the block-signing public key into a non-spendable `OP_
 
 ### Hard fork — native P2PKH/P2WPKH/P2TR in `vout[1]` (no carrier)
 
-Would require `CheckBlockSignature` to accept PUBKEYHASH/WITNESS_V1_TAPROOT directly in `vout[1]`. Old nodes reject non-PUBKEY, non-OP_RETURN scripts in `vout[1]`. **Not recommended** — the carrier approach works with no fork.
+Currently, the consensus rule `CheckBlockSignature` (`validation.cpp:3876-3912`) requires a raw public key to verify the block's ECDSA signature. It only knows how to extract this raw public key from two script types in `vout[1]`:
+1. **P2PK** (`<pubkey> OP_CHECKSIG`)
+2. **OP_RETURN Carrier** (`OP_RETURN <pubkey>`)
+
+If we wanted to put a native P2PKH or P2WPKH reward directly into `vout[1]` without using an `OP_RETURN` carrier, we would hit a massive cryptographic roadblock: **P2PKH and P2WPKH scripts only contain the *hash* of the public key, not the public key itself.** 
+Without the raw public key, `CheckBlockSignature` cannot verify the block signature.
+
+To fix this natively, we would have to rewrite `CheckBlockSignature` to pull the raw public key from somewhere else (like the `scriptSig` or block header). However, if new nodes started generating and accepting blocks using this new logic, **older nodes would instantly reject them** because their old `CheckBlockSignature` code would fail to find a raw public key in `vout[1]`. This would result in a permanent chain split (a Hard Fork). 
+
+**Not recommended** — The `OP_RETURN` carrier approach elegantly bypasses this entire problem without changing consensus rules.
 
 ### Legend
 
 - **Legacy wallet** (`BerkeleyDatabase`, BDB): supports P2PK, P2PKH, P2SH, P2SH-P2WPKH, P2WPKH (bech32). Does **not** support P2TR — `GetReservedDestination` rejects `BECH32M` (scriptpubkeyman.cpp:309), `IsMineInner` returns NO for `WITNESS_V1_TAPROOT` (scriptpubkeyman.cpp:117).
 - **Descriptor wallet** (`SQLite`): supports all output types including P2TR.
-- **Kernel sig verified?**: whether `CheckProofOfStake` → `VerifySignature` actually checks the coinstake input signature. Only P2PK and P2PKH kernels get a real CHECKSIG. P2WPKH/P2TR kernels pass trivially because `SCRIPT_VERIFY_NONE` + `nullptr` witness (see `agent/staking.md` §9).
+- **Kernel sig verified?**: whether `CheckProofOfStake` checks the coinstake input signature. All kernels are securely verified via `VerifyScript` using `SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_TAPROOT` (the "Peercoin Fix" is implemented).
 - **OP_RETURN carrier**: `vout[1]` = `OP_RETURN <33-byte-pubkey> [optional message]`. `CheckBlockSignature` reads 2 `GetOp`s (OP_RETURN + pubkey), ignores trailing bytes. Block signature is ECDSA verified against the recovered pubkey. **This is consensus-valid today** (`validation.cpp:3895-3912`) — no fork needed.
 - **P2SH / P2WSH**: never accepted as kernels (staking.cpp:328-332).
 - **Taproot activation status** (as of June 2026):
@@ -262,57 +274,41 @@ Reward is always at `vout[2]`:
 
 ---
 
-## 6. On-Chain Audit: P2WPKH/P2TR Kernel Witness Data Integrity
+## 6. On-Chain Audit & The "Peercoin Fix"
 
 **Date:** June 2026
-**Purpose:** Determine whether applying the Peercoin fix (passing real witness data + `SCRIPT_VERIFY_P2SH` to `VerifyScript` in `CheckProofOfStake`) is safe as a soft fork.
+**Status:** Implemented in v28.4.0
 
-### Methodology
+### Background
 
-Scanned all coinstake transactions from SegWit activation to the chain tip on both testnet and mainnet. Checked whether the kernel input (`vin[0]`) has witness data (`txinwitness`), and validated the witness format:
-- P2WPKH: 2 witness items `[DER-signature, compressed-pubkey]`
-- P2TR: 1 witness item `[Schnorr-signature, 64 or 65 bytes]`
+In older versions of Blackcoin, `CheckProofOfStake` called `VerifySignature` which passed `nullptr` for the witness and used `SCRIPT_VERIFY_NONE`. This meant that P2WPKH and P2TR kernels had **no actual signature verification** — their security relied entirely on the kernel hash.
 
-DER signatures checked: starts with `0x30`, total length 70-73 bytes. Pubkeys checked: starts with `02`/`03` (compressed, 33 bytes) or `04` (uncompressed, 65 bytes).
+Peercoin fixed this vulnerability by calling `VerifyScript` directly with the actual witness data and `SCRIPT_VERIFY_P2SH`.
 
-### Results
+### The Fix
+
+Blackmore284 has completely implemented this fix. In `pos.cpp:174-175`:
+
+```cpp
+TransactionSignatureChecker checker(&tx, 0, coinPrev.out.nValue, txdata, MissingDataBehavior::ASSERT_FAIL);
+if (!VerifyScript(txin.scriptSig, coinPrev.out.scriptPubKey, &txin.scriptWitness,
+    SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_TAPROOT, checker)) {
+    return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "stake-verify-signature-failed" ...);
+}
+```
+
+This ensures full cryptographic security for all modern address types.
+
+### On-Chain Audit
+
+Prior to enforcing this soft fork, we scanned all coinstake transactions from SegWit activation to the chain tip on both testnet and mainnet to ensure no existing blocks would be rejected.
 
 | Network | SegWit activation | Scanned to | Total coinstakes | Witness kernels | P2WPKH | P2TR | Malformed |
 |---|---|---|---|---|---|---|---|
 | **Testnet** | 2,070,000 | 2,852,570 | 782,417 | 61,196 | 61,196 | 0 | 0 |
 | **Mainnet** | 5,805,000 | 5,928,105 | 123,106 | 3 | 3 | 0 | 0 |
 
-All witness kernels are P2WPKH with well-formed `[DER-sig, compressed-pubkey]` witness stacks. No P2TR kernels found on either network. No malformed witness data. The soft fork is **safe** — no existing block would be rejected.
-
-### The Peercoin fix (reference)
-
-Peercoin's `CheckProofOfStake` (`../peercoin/src/kernel.cpp:686-692`):
-```cpp
-if (!VerifyScript(tx->vin[nIn].scriptSig, prevOut.scriptPubKey, &(tx->vin[nIn].scriptWitness), SCRIPT_VERIFY_P2SH, checker, nullptr))
-    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "invalid-pos-script", ...);
-```
-
-Key differences from Blackmore284's current code:
-1. Calls `VerifyScript` directly (not the `VerifySignature` wrapper that passes `nullptr` for witness)
-2. Passes `&(tx->vin[nIn].scriptWitness)` — the **actual witness data** from the transaction
-3. Uses `SCRIPT_VERIFY_P2SH` (not `SCRIPT_VERIFY_NONE`)
-
-### Applying the fix
-
-The fix would change `pos.cpp:157` from:
-```cpp
-if (!VerifySignature(coinPrev, txin.prevout.hash, tx, 0, SCRIPT_VERIFY_NONE))
-```
-To:
-```cpp
-TransactionSignatureChecker checker(&tx, 0, coinPrev.out.nValue, MissingDataBehavior::FAIL);
-if (!VerifyScript(txin.scriptSig, coinPrev.out.scriptPubKey, &txin.scriptWitness, SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS, checker))
-    return state.Invalid(...);
-```
-
-This is a **soft fork** — new nodes tighten the rules (reject blocks with invalid signatures that old nodes accepted). The audit confirms no existing block would be rejected.
-
-**Note:** `SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS` also enables P2SH redeem script execution. P2SH kernels are currently rejected by `CreateCoinStake` (staking.cpp:328-332), so no P2SH coinstakes exist on-chain.
+All witness kernels were P2WPKH with well-formed `[DER-sig, compressed-pubkey]` witness stacks. The soft fork was safely deployed.
 
 ---
 
@@ -333,8 +329,7 @@ This is a **soft fork** — new nodes tighten the rules (reject blocks with inva
 - `src/key.cpp:272-` — `CKey::SignSchnorr()` (BIP340 Schnorr)
 
 ### Kernel verification
-- `src/pos.cpp:130-164` — `CheckProofOfStake()` (uses `VerifySignature` with `SCRIPT_VERIFY_NONE`)
-- `src/script/sign.cpp:718-735` — `VerifySignature()` (passes `nullptr` witness)
+- `src/pos.cpp:130-180` — `CheckProofOfStake()` (uses `VerifyScript` with full flags)
 
 ### v2 txid collision fix
 - `src/primitives/transaction.h:232-236, 274-277` — nTime stripped for v2

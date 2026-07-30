@@ -268,10 +268,10 @@ When wallet locked / no peers / IBD / not synced: thread stays alive (blocked in
 
 ## 17. Known Bugs
 
-### Bug #2 — PoSMiner keypool exit leaves `m_enabled_staking=true`
+### Bug #2 — PoSMiner keypool exit leaves `m_enabled_staking=true` (Fixed in v28.4.0)
 
-**File:** `miner.cpp:830`
+**File:** `miner.cpp:830` (in v26.2.0)
 
-When the keypool is exhausted, `PoSMiner` does a plain `return`. But `m_enabled_staking` stays `true` and the `ThreadStakeMiner` retry loop only catches exceptions — a bare `return` exits the thread permanently. The wallet UI shows staking as enabled but no thread is running.
+When the keypool is exhausted, v26.x `PoSMiner` does a plain `return`. But `m_enabled_staking` stays `true` and the `ThreadStakeMiner` retry loop only catches exceptions — a bare `return` exits the thread permanently. The wallet UI shows staking as enabled but no thread is running.
 
-**To fix:** either set `m_enabled_staking=false` before returning, or convert the `return` to a `throw` so the retry loop catches it.
+**Fix (v28.4.0):** The codebase now correctly sets `pwallet->m_enabled_staking = false;` (at `miner.cpp:828`) before returning, so the wallet UI correctly updates.

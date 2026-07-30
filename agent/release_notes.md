@@ -155,12 +155,17 @@ This release represents a major architectural upgrade from v262, building on Bit
 4. **Compact blocks:** Fixed compact block prefill for PoS (1→2 prefilled)
 5. **Staking wake-up:** Fixed staking guard condition to check tip-hash
 6. **Witness kernel verification gap:** Added SegWit/Taproot signature verification to coinstake kernels
+7. **GetAncestor Assertion:** Replaced strict upstream `assert(pindexWalk->pprev)` with safe pointer handling in `src/chain.cpp` to prevent node crashes on unlinked/orphan headers.
+8. **GetTxDepthInMainChain Assertion:** Updated `src/wallet/wallet.cpp` to safely return depth 0 for orphaned coinstakes with negative heights.
+9. **LoadToWallet Memory Leak:** Erased corrupted v2 coinstakes from `mapWallet` on failure, preventing artificially inflated balances.
+10. **AbandonOrphanedCoinstakes Assertion:** Gracefully skip corrupted map entries instead of hitting upstream hash-matching assertions.
 
 ### Performance Fixes
 1. **Staking cache:** Added stake cache to reduce coinstake creation time
 2. **Header spam:** Added header spam protection to prevent resource exhaustion
 3. **Network grouping:** Fixed network grouping for anti-sybil protection
 4. **Script verification:** Optimized script verification with cached data
+5. **Descriptor Staking:** Short-circuited expensive `InferDescriptor()->IsSolvable()` checks and removed dead P2SH script fetching in `AvailableCoinsForStaking`.
 
 ### UI Fixes
 1. **Currency display:** Fixed currency selector to show BLK only

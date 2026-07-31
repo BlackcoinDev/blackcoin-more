@@ -168,11 +168,11 @@ jobs:
           aarch64-linux-gnu-gcc --version
 
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: SDK cache
         if: ${{ matrix.sdk }}
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         env:
           cache-name: sdk
         with:
@@ -188,7 +188,7 @@ jobs:
           tar -C depends/SDKs -xzvf depends/sdk-sources/Xcode-${{ matrix.sdk }}-extracted-SDK-with-libcxx-headers.tar.gz
 
       - name: Dependency cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         env:
           cache-name: depends
         with:
@@ -200,7 +200,7 @@ jobs:
         run: |
           make -j $MAKEJOBS -C depends HOST=${{ matrix.host }} ${{ matrix.dep-opts }}
 
-      - name: Build Blackcoin
+      - name: Build Blackcoin More
         run: |
           ./autogen.sh
           ./configure --prefix=`pwd`/depends/${{ matrix.host }} ${{ matrix.config-opts }} --enable-reduce-exports || ( cat config.log && false)
@@ -215,7 +215,7 @@ jobs:
         run: make -C src check-symbols
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: blackmore-${{ github.sha }}-${{ matrix.name }}
           path: |
@@ -225,6 +225,6 @@ jobs:
           retention-days: 7
 
       - name: Download artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: blackmore-${{ github.sha }}-${{ matrix.name }}

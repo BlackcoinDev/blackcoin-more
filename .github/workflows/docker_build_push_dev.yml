@@ -118,6 +118,6 @@ jobs:
 
           # C. Minimal Image Manifest
           docker buildx imagetools create \
-            -t ${DHU}/blackcoin-more-minimal-v28x:${BRANCH} \
+            -t ${DHU}/blackcoin-more-28.4.0-minimal:${BRANCH} \
             ${GHCR_PREFIX}/blackcoin-more-28.4.0-minimal:${BRANCH}-amd64 \
             ${GHCR_PREFIX}/blackcoin-more-28.4.0-minimal:${BRANCH}-arm64

@@ -4,6 +4,17 @@ All validation checks traced directly from the Blackcoin More v28 source code.
 
 ---
 
+## 0. P2P Network Ingestion & Pre-Filters (`src/net_processing.cpp`)
+
+Pre-checks performed when receiving block messages over P2P before submitting to consensus processing.
+
+| # | Check | Action / Reject reason | Line |
+|---|-------|------------------------|------|
+| 1 | **Canonical Block Signature Encoding:** `CheckCanonicalBlockSignature(pblock)` passes | `bad-signature-encoding` | 1895 |
+| 2 | **Block Mutation Check:** `IsBlockMutated(block, check_witness_root)` passes | `Misbehaving` ("mutated block") | 5306 |
+
+---
+
 ## 1. Transaction Validation (`CheckTransaction` in `src/consensus/tx_check.cpp`)
 
 Context-free checks applied to every transaction.
@@ -88,13 +99,14 @@ Context-free checks on the full block (header + transactions).
 | 14 | Each tx timestamp: `block.GetBlockTime()` ≥ `tx.nTime` (if `tx.nTime` is set) | `bad-tx-time` | 4081 |
 | 15 | Legacy SigOps × `WITNESS_SCALE_FACTOR` ≤ `MAX_BLOCK_SIGOPS_COST` | `bad-blk-sigops` | 4089 |
 
-### `CheckBlockSignature` (`src/validation.cpp:3860`)
+### `CheckBlockSignature` (`src/validation.cpp:3860`) & `CheckCanonicalBlockSignature` (`src/validation.cpp:4778`)
 
-| Block type | Rule |
-|---|---|
-| **PoW** | `vchBlockSig` must be **empty** (PoW blocks have no signature) |
-| **PoS with P2PK `vout[1]`** | Extract pubkey from `vout[1]` P2PK script, verify `CPubKey.Verify(block.GetHash(), vchBlockSig)` |
-| **PoS with OP_RETURN `vout[1]`** | Parse the first push after `OP_RETURN`, verify it is a valid compressed/uncompressed pubkey, verify `CPubKey.Verify(block.GetHash(), vchBlockSig)` |
+| Block type | Rule | Line |
+|---|---|---|
+| **PoW** | `vchBlockSig` must be **empty** (PoW blocks have no signature) | 3865 |
+| **PoS with P2PK `vout[1]`** | Extract pubkey from `vout[1]` P2PK script, verify `CPubKey.Verify(block.GetHash(), vchBlockSig)` | 3878 |
+| **PoS with OP_RETURN `vout[1]`** | Parse the first push after `OP_RETURN`, verify it is a valid compressed/uncompressed pubkey, verify `CPubKey.Verify(block.GetHash(), vchBlockSig)` | 3887 |
+| **All PoS blocks** | `CheckCanonicalBlockSignature()` verifies `vchBlockSig` adheres strictly to **DER encoding** (`IsDERSignature`) AND **Low-S encoding** (`IsLowDERSignature`) | 4778 |
 
 ---
 
@@ -154,17 +166,18 @@ The final step: applying the block to the UTXO set.
 
 | # | Check | Reject reason | Line |
 |---|-------|---------------|------|
-| 1 | `CheckBlock()` passes (re-run inside ConnectBlock) | *(propagated)* | 2484 |
-| 2 | **PoS (ProtocolV3):** `CheckProofOfStake()` passes (see below) | *(propagated)* | 2505 |
-| 3 | BIP30: no existing unspent outputs with same txid | `bad-txns-BIP30` | 2561 |
-| 4 | `Consensus::CheckTxInputs()` passes for every non-coinbase tx | *(propagated)* | 2610 |
-| 5 | Accumulated fees remain in `MoneyRange` | `bad-txns-accumulated-fee-outofrange` | 2620 |
-| 6 | BIP68 sequence locks satisfied | `bad-txns-nonfinal` | 2631 |
-| 7 | `GetTransactionSigOpCost()` (legacy + P2SH + witness) ≤ `MAX_BLOCK_SIGOPS_COST` | `bad-blk-sigops` | 2642 |
-| 8 | **PoW:** `vtx[0]->GetValueOut()` ≤ `nFees + GetBlockSubsidy(false)` | `bad-cb-amount` | 2684 |
-| 9 | **PoS (ProtocolV3):** coinstake net reward ≤ `nFees + GetBlockSubsidy(true)` | `bad-cs-amount` | 2692 |
-| 10 | Script verification passes (`CheckInputScripts`) for all non-coinbase tx | `block-validation-failed` | 2657 |
-| 11 | Stake modifier computed: `ComputeStakeModifier(pindexPrev, kernel_or_blockhash)` | *(no reject — stored)* | 2711 |
+| 1 | Hardened checkpoints re-verified (`CheckHardened`) | `bad-fork-hardened-checkpoint` | 2479 |
+| 2 | `CheckBlock()` passes (re-run inside ConnectBlock) | *(propagated)* | 2496 |
+| 3 | **PoS (ProtocolV3):** `CheckProofOfStake()` passes (see below) | *(propagated)* | 2517 |
+| 4 | BIP30: no existing unspent outputs with same txid | `bad-txns-BIP30` | 2573 |
+| 5 | `Consensus::CheckTxInputs()` passes for every non-coinbase tx | *(propagated)* | 2622 |
+| 6 | Accumulated fees remain in `MoneyRange` | `bad-txns-accumulated-fee-outofrange` | 2630 |
+| 7 | BIP68 sequence locks satisfied | `bad-txns-nonfinal` | 2642 |
+| 8 | `GetTransactionSigOpCost()` (legacy + P2SH + witness) ≤ `MAX_BLOCK_SIGOPS_COST` | `bad-blk-sigops` | 2652 |
+| 9 | **PoW:** `vtx[0]->GetValueOut()` ≤ `nFees + GetBlockSubsidy(false)` | `bad-cb-amount` | 2694 |
+| 10 | **PoS (ProtocolV3):** coinstake net reward ≤ `nFees + GetBlockSubsidy(true)` | `bad-cs-amount` | 2702 |
+| 11 | Script verification passes (`CheckInputScripts`) for all non-coinbase tx | `block-validation-failed` | 2667 |
+| 12 | Stake modifier computed: `ComputeStakeModifier(pindexPrev, kernel_or_blockhash)` | *(no reject — stored)* | 2721 |
 
 **Blackcoin note on block subsidy:**
 - PoW: `GetProofOfWorkSubsidy()` = 10,000 BLK

@@ -25,24 +25,10 @@ on:
         required: true
         type: boolean
         default: true
-  push:
-    branches:
-      - "**"
-    tags:
-      - "*"
-    paths-ignore:
-      - "doc/**"
-      - "contrib/**"
-      - "**/*.md"
-  pull_request:
-    paths-ignore:
-      - "doc/**"
-      - "contrib/**"
-      - "**/*.md"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 
 jobs:
   build:

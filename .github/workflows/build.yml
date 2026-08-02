@@ -226,8 +226,11 @@ jobs:
     needs: build
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout
+      - name: Checkout Dockerfiles
         uses: actions/checkout@v7.0.1
+        with:
+          repository: BlackcoinDev/docker-blk
+          ref: main
 
       - name: Download AMD64 Artifacts
         uses: actions/download-artifact@v8.0.1

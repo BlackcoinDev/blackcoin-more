@@ -4,33 +4,22 @@ All validation checks traced directly from the Blackcoin More v28 source code.
 
 ---
 
-## 0. P2P Network Ingestion & Pre-Filters (`src/net_processing.cpp`)
-
-Pre-checks performed when receiving block messages over P2P before submitting to consensus processing.
-
-| # | Check | Action / Reject reason | Line |
-|---|-------|------------------------|------|
-| 1 | **Canonical Block Signature Encoding:** `CheckCanonicalBlockSignature(pblock)` passes | `bad-signature-encoding` | 1895 |
-| 2 | **Block Mutation Check:** `IsBlockMutated(block, check_witness_root)` passes | `Misbehaving` ("mutated block") | 5306 |
-
----
-
 ## 1. Transaction Validation (`CheckTransaction` in `src/consensus/tx_check.cpp`)
 
 Context-free checks applied to every transaction.
 
 | # | Check | Reject reason | Line |
 |---|-------|---------------|------|
-| 1 | `vin` is not empty | `bad-txns-vin-empty` | 15 |
-| 2 | `vout` is not empty | `bad-txns-vout-empty` | 17 |
-| 3 | Non-witness serialized size × `WITNESS_SCALE_FACTOR` ≤ `MAX_BLOCK_WEIGHT` | `bad-txns-oversize` | 20 |
-| 4 | Empty outputs (`txout.IsEmpty()`) forbidden unless tx is coinbase or coinstake | `bad-txns-vout-empty` | 28 |
-| 5 | Each `txout.nValue` ≥ 0 | `bad-txns-vout-negative` | 30 |
-| 6 | Each `txout.nValue` ≤ `MAX_MONEY` (`int64_t::max()` in Blackcoin) | `bad-txns-vout-toolarge` | 32 |
-| 7 | Cumulative sum of all output values ≤ `MAX_MONEY` | `bad-txns-txouttotal-toolarge` | 35 |
-| 8 | No duplicate inputs (same `COutPoint`) | `bad-txns-inputs-duplicate` | 46 |
-| 9 | If coinbase: `scriptSig` size must be 2–100 bytes | `bad-cb-length` | 52 |
-| 10 | If non-coinbase: no input may have a null `prevout` | `bad-txns-prevout-null` | 58 |
+| 1 | `vin` is not empty | `bad-txns-vin-empty` | 14 |
+| 2 | `vout` is not empty | `bad-txns-vout-empty` | 16 |
+| 3 | Non-witness serialized size × `WITNESS_SCALE_FACTOR` ≤ `MAX_BLOCK_WEIGHT` | `bad-txns-oversize` | 19 |
+| 4 | Empty outputs (`txout.IsEmpty()`) forbidden unless tx is coinbase or coinstake | `bad-txns-vout-empty` | 27 |
+| 5 | Each `txout.nValue` ≥ 0 | `bad-txns-vout-negative` | 29 |
+| 6 | Each `txout.nValue` ≤ `MAX_MONEY` (`int64_t::max()` in Blackcoin) | `bad-txns-vout-toolarge` | 31 |
+| 7 | Cumulative sum of all output values ≤ `MAX_MONEY` | `bad-txns-txouttotal-toolarge` | 34 |
+| 8 | No duplicate inputs (same `COutPoint`) | `bad-txns-inputs-duplicate` | 45 |
+| 9 | If coinbase: `scriptSig` size must be 2–100 bytes | `bad-cb-length` | 51 |
+| 10 | If non-coinbase: no input may have a null `prevout` | `bad-txns-prevout-null` | 57 |
 
 ---
 
@@ -63,7 +52,7 @@ Contextual checks that depend on the previous block's `CBlockIndex`.
 | 5 | Hardened checkpoints pass | `bad-fork-hardened-checkpoint` | 4235 |
 | 6 | Synchronized (rolling) checkpoint passes | `bad-fork-prior-to-synch-checkpoint` | 4242 |
 | 7 | Block timestamp > `pindexPrev->GetMedianTimePast()` | `time-too-old` | 4246 |
-| 8 | Block timestamp ≤ `now + MAX_FUTURE_BLOCK_TIME` | `time-too-new` | 4274 |
+| 8 | Block timestamp ≤ `now + MAX_FUTURE_BLOCK_TIME` | `time-too-new` | 4262 |
 
 **Blackcoin note on MTP:** Since ProtocolV2, `GetMedianTimePast()` simply returns `GetBlockTime()` (the exact previous block timestamp), NOT the median of 11 blocks. This forces strictly monotonically increasing block times.
 
@@ -99,14 +88,13 @@ Context-free checks on the full block (header + transactions).
 | 14 | Each tx timestamp: `block.GetBlockTime()` ≥ `tx.nTime` (if `tx.nTime` is set) | `bad-tx-time` | 4081 |
 | 15 | Legacy SigOps × `WITNESS_SCALE_FACTOR` ≤ `MAX_BLOCK_SIGOPS_COST` | `bad-blk-sigops` | 4089 |
 
-### `CheckBlockSignature` (`src/validation.cpp:3860`) & `CheckCanonicalBlockSignature` (`src/validation.cpp:4778`)
+### `CheckBlockSignature` (`src/validation.cpp:3860`)
 
-| Block type | Rule | Line |
-|---|---|---|
-| **PoW** | `vchBlockSig` must be **empty** (PoW blocks have no signature) | 3865 |
-| **PoS with P2PK `vout[1]`** | Extract pubkey from `vout[1]` P2PK script, verify `CPubKey.Verify(block.GetHash(), vchBlockSig)` | 3878 |
-| **PoS with OP_RETURN `vout[1]`** | Parse the first push after `OP_RETURN`, verify it is a valid compressed/uncompressed pubkey, verify `CPubKey.Verify(block.GetHash(), vchBlockSig)` | 3887 |
-| **All PoS blocks** | `CheckCanonicalBlockSignature()` verifies `vchBlockSig` adheres strictly to **DER encoding** (`IsDERSignature`) AND **Low-S encoding** (`IsLowDERSignature`) | 4778 |
+| Block type | Rule |
+|---|---|
+| **PoW** | `vchBlockSig` must be **empty** (PoW blocks have no signature) |
+| **PoS with P2PK `vout[1]`** | Extract pubkey from `vout[1]` P2PK script, verify `CPubKey.Verify(block.GetHash(), vchBlockSig)` |
+| **PoS with OP_RETURN `vout[1]`** | Parse the first push after `OP_RETURN`, verify it is a valid compressed/uncompressed pubkey, verify `CPubKey.Verify(block.GetHash(), vchBlockSig)` |
 
 ---
 
@@ -120,8 +108,7 @@ Contextual checks before connecting to the UTXO set.
 | 2 | Coinbase `scriptSig` starts with serialized block height (BIP34 — always active in Blackcoin) | `bad-cb-height` | 4301 |
 | 3 | `CheckWitnessMalleation()`: if SegWit active and witness commitment exists, coinbase witness stack must be exactly 1 item of 32 bytes, and the witness Merkle root must match the commitment | `bad-witness-nonce-size` / `bad-witness-merkle-match` | 4315 |
 | 4 | `CheckWitnessMalleation()`: if SegWit NOT active (or no commitment), no transaction may contain witness data | `unexpected-witness` | 4315 |
-| 5 | Full block weight (`GetBlockWeight()`) ≤ `MAX_BLOCK_WEIGHT` | `bad-blk-weight` | 4337 |
-| 6 | Block creates no outputs with unknown witness versions (v > 1) | `bad-unknown-witness-version` | 4357 |
+| 5 | Full block weight (`GetBlockWeight()`) ≤ `MAX_BLOCK_WEIGHT` | `bad-blk-weight` | 4325 |
 
 **Blackcoin note on MTP cutoff:** `nLockTimeCutoff` uses `pindexPrev->GetMedianTimePast()` when BIP113 (CSV deployment) is active. Since Blackcoin's MTP just returns the previous block's timestamp, lock time is evaluated against the exact previous block time.
 
@@ -149,10 +136,10 @@ Called from `ConnectBlock` for every non-coinbase transaction.
 | 1 | All inputs exist and are unspent in the UTXO set | `bad-txns-inputs-missingorspent` | 168 |
 | 2 | If prev output is coinbase or coinstake: must be matured (`nSpendHeight - coin.nHeight ≥ nCoinbaseMaturity`). Maturity is 500 blocks on mainnet, 10 on testnet | `bad-txns-premature-spend-of-coinbase` | 185 |
 | 3 | Each input's coin timestamp ≤ transaction timestamp (`coin.nTime ≤ nTimeTx`) | `bad-txns-time-earlier-than-input` | 191 |
-| 4 | All input values are in valid `MoneyRange` | `bad-txns-inputvalues-outofrange` | 198 |
-| 5 | For non-coinstake: sum of inputs ≥ sum of outputs | `bad-txns-in-belowout` | 206 |
-| 6 | Fee is in valid `MoneyRange` | `bad-txns-fee-outofrange` | 213 |
-| 7 | **Blackcoin (ProtocolV3.1):** Fee ≥ `GetMinFee(tx)` (minimum relay fee enforced at consensus) | `bad-txns-fee-not-enough` | 217 |
+| 4 | All input values are in valid `MoneyRange` | `bad-txns-inputvalues-outofrange` | 196 |
+| 5 | For non-coinstake: sum of inputs ≥ sum of outputs | `bad-txns-in-belowout` | 204 |
+| 6 | Fee is in valid `MoneyRange` | `bad-txns-fee-outofrange` | 211 |
+| 7 | **Blackcoin (ProtocolV3.1):** Fee ≥ `GetMinFee(tx)` (minimum relay fee enforced at consensus) | `bad-txns-fee-not-enough` | 216 |
 
 **Blackcoin note:** For coinstake transactions, the sum of outputs is allowed to exceed inputs (the difference is the block reward). Fee accounting is skipped for coinstakes.
 
@@ -166,18 +153,17 @@ The final step: applying the block to the UTXO set.
 
 | # | Check | Reject reason | Line |
 |---|-------|---------------|------|
-| 1 | Hardened checkpoints re-verified (`CheckHardened`) | `bad-fork-hardened-checkpoint` | 2479 |
-| 2 | `CheckBlock()` passes (re-run inside ConnectBlock) | *(propagated)* | 2496 |
-| 3 | **PoS (ProtocolV3):** `CheckProofOfStake()` passes (see below) | *(propagated)* | 2517 |
-| 4 | BIP30: no existing unspent outputs with same txid | `bad-txns-BIP30` | 2573 |
-| 5 | `Consensus::CheckTxInputs()` passes for every non-coinbase tx | *(propagated)* | 2622 |
-| 6 | Accumulated fees remain in `MoneyRange` | `bad-txns-accumulated-fee-outofrange` | 2630 |
-| 7 | BIP68 sequence locks satisfied | `bad-txns-nonfinal` | 2642 |
-| 8 | `GetTransactionSigOpCost()` (legacy + P2SH + witness) ≤ `MAX_BLOCK_SIGOPS_COST` | `bad-blk-sigops` | 2652 |
-| 9 | **PoW:** `vtx[0]->GetValueOut()` ≤ `nFees + GetBlockSubsidy(false)` | `bad-cb-amount` | 2694 |
-| 10 | **PoS (ProtocolV3):** coinstake net reward ≤ `nFees + GetBlockSubsidy(true)` | `bad-cs-amount` | 2702 |
-| 11 | Script verification passes (`CheckInputScripts`) for all non-coinbase tx | `block-validation-failed` | 2667 |
-| 12 | Stake modifier computed: `ComputeStakeModifier(pindexPrev, kernel_or_blockhash)` | *(no reject — stored)* | 2721 |
+| 1 | `CheckBlock()` passes (re-run inside ConnectBlock) | *(propagated)* | 2484 |
+| 2 | **PoS (ProtocolV3):** `CheckProofOfStake()` passes (see below) | *(propagated)* | 2505 |
+| 3 | BIP30: no existing unspent outputs with same txid | `bad-txns-BIP30` | 2561 |
+| 4 | `Consensus::CheckTxInputs()` passes for every non-coinbase tx | *(propagated)* | 2610 |
+| 5 | Accumulated fees remain in `MoneyRange` | `bad-txns-accumulated-fee-outofrange` | 2620 |
+| 6 | BIP68 sequence locks satisfied | `bad-txns-nonfinal` | 2631 |
+| 7 | `GetTransactionSigOpCost()` (legacy + P2SH + witness) ≤ `MAX_BLOCK_SIGOPS_COST` | `bad-blk-sigops` | 2642 |
+| 8 | **PoW:** `vtx[0]->GetValueOut()` ≤ `nFees + GetBlockSubsidy(false)` | `bad-cb-amount` | 2684 |
+| 9 | **PoS (ProtocolV3):** coinstake net reward ≤ `nFees + GetBlockSubsidy(true)` | `bad-cs-amount` | 2692 |
+| 10 | Script verification passes (`CheckInputScripts`) for all non-coinbase tx | `block-validation-failed` | 2657 |
+| 11 | Stake modifier computed: `ComputeStakeModifier(pindexPrev, kernel_or_blockhash)` | *(no reject — stored)* | 2711 |
 
 **Blackcoin note on block subsidy:**
 - PoW: `GetProofOfWorkSubsidy()` = 10,000 BLK

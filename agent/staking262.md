@@ -1,6 +1,6 @@
 # Blackcoin More v26.2.0 Staking Walkthrough
 
-Historical reference for the staking design in v26.2.0. v28.4.0 changes are noted where applicable.
+Historical reference for the staking design in v26.2.0. v28-CORE changes are noted where applicable.
 
 ---
 
@@ -181,8 +181,8 @@ Protocol V2+ (active since 2014): block nTime must equal coinstake nTime, both w
 
 ## 12. ProcessBlockFound (`miner.cpp:786-803`)
 
-Checks `CheckProofOfStake`, then submits via `chainman.ProcessNewBlock`.
-*(Note: In v26.x there was a stale check `hashPrevBlock != activeTip` here which caused the counterattack-window problem, where honest nodes self-rejected valid blocks if a competitor arrived first. This was removed in v28.4.0 to allow the node to properly submit competing forks).*
+Checks `CheckProofOfStake`, then submits via `chainman.ProcessNewBlock`. 
+*(Note: In v26.x there was a stale check `hashPrevBlock != activeTip` here which caused the counterattack-window problem, where honest nodes self-rejected valid blocks if a competitor arrived first. This was removed in v28-CORE to allow the node to properly submit competing forks).*
 
 ---
 
@@ -195,9 +195,9 @@ Checks `CheckProofOfStake`, then submits via `chainman.ProcessNewBlock`.
 
 ---
 
-## 14. v28.4.0 vs 26.x Differences
+## 14. v28-CORE vs 26.x Differences
 
-| Feature | 26.x | v28.4.0 |
+| Feature | 26.x | v28-CORE |
 |---|---|---|
 | Timer guard scope | `static` local (global) | Per-wallet `m_last_coin_stake_search_time` |
 | `nSearchTime` init | Garbage | `GetAdjustedTimeSeconds()` |
@@ -210,7 +210,7 @@ Checks `CheckProofOfStake`, then submits via `chainman.ProcessNewBlock`.
 | Input combining guard | `GetHash() != prevout.hash` (buggy) | `COutPoint(...) != prevout` (fixed June 29) |
 | Compact block prefill | 1 prefilled (coinbase only) | 2 prefilled for PoS (marker + coinstake), July 2 |
 
-**Difficulty adjustment note:** Both v26.x and v28.4.0 use the same per-block exponential moving average (EMA) formula in `CalculateNextTargetRequired` (`pow.cpp:54`). The difficulty is recalculated at every block boundary, not at 15-block interval boundaries. `nTargetTimespan = 16 * 60` (16 minutes) defines the smoothing window for the EMA, not a fixed adjustment interval. The formula: `bnNew *= ((nInterval-1)*nTargetSpacing + nActualSpacing*2) / ((nInterval+1)*nTargetSpacing)` where `nInterval = 15` and `nActualSpacing` is the time between the last two PoS blocks.
+**Difficulty adjustment note:** Both v26.x and v28-CORE use the same per-block exponential moving average (EMA) formula in `CalculateNextTargetRequired` (`pow.cpp:54`). The difficulty is recalculated at every block boundary, not at 15-block interval boundaries. `nTargetTimespan = 16 * 60` (16 minutes) defines the smoothing window for the EMA, not a fixed adjustment interval. The formula: `bnNew *= ((nInterval-1)*nTargetSpacing + nActualSpacing*2) / ((nInterval+1)*nTargetSpacing)` where `nInterval = 15` and `nActualSpacing` is the time between the last two PoS blocks.
 
 ---
 
@@ -222,7 +222,7 @@ v26.x is **CPU-light but latency-heavy**:
 - `AvailableCoinsForStaking` scans entire `mapWallet` per `CreateCoinStake` call
 - Static guard serializes multi-wallet
 
-v28.4.0 improves with wake-on-block, per-wallet guard, and precise boundary-aligned sleeps.
+v28-CORE improves with wake-on-block, per-wallet guard, and precise boundary-aligned sleeps.
 
 ### Timer guard timing
 
@@ -268,10 +268,10 @@ When wallet locked / no peers / IBD / not synced: thread stays alive (blocked in
 
 ## 17. Known Bugs
 
-### Bug #2 — PoSMiner keypool exit leaves `m_enabled_staking=true` (Fixed in v28.4.0)
+### Bug #2 — PoSMiner keypool exit leaves `m_enabled_staking=true`
 
-**File:** `miner.cpp:830` (in v26.2.0)
+**File:** `miner.cpp:830`
 
-When the keypool is exhausted, v26.x `PoSMiner` does a plain `return`. But `m_enabled_staking` stays `true` and the `ThreadStakeMiner` retry loop only catches exceptions — a bare `return` exits the thread permanently. The wallet UI shows staking as enabled but no thread is running.
+When the keypool is exhausted, `PoSMiner` does a plain `return`. But `m_enabled_staking` stays `true` and the `ThreadStakeMiner` retry loop only catches exceptions — a bare `return` exits the thread permanently. The wallet UI shows staking as enabled but no thread is running.
 
-**Fix (v28.4.0):** The codebase now correctly sets `pwallet->m_enabled_staking = false;` (at `miner.cpp:828`) before returning, so the wallet UI correctly updates.
+**To fix:** either set `m_enabled_staking=false` before returning, or convert the `return` to a `throw` so the retry loop catches it.

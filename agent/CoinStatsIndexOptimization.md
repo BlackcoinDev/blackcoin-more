@@ -1,141 +1,49 @@
-# CoinStatsIndex — Blackcoin Coinstake Awareness Specification
+# CoinStatsIndex — Performance Optimization
 
-## Overview
+## History of Changes
 
-Blackcoin's `CoinStatsIndex` extends Bitcoin Core's index to be fully coinstake-aware for Proof-of-Stake (PoS). It tracks `fCoinStake` alongside `fCoinBase` in both the MuHash calculation and UTXO stats, without modifying consensus rules or introducing non-deterministic elements into the hash.
+The CoinStatsIndex bug was a chain of interconnected issues stemming from one root cause: **v2 transactions don't serialize `nTime`**, but the `Coin` object and MuHash depend on it.
 
----
+### Commit 1: `5bb1305` — Add `fCoinStake` and `nTime` to MuHash
 
-## Technical Implementation
+**What**: Changed `TxOutSer()` in `kernel/coinstats.cpp` to encode `fCoinStake` and `nTime` into the MuHash serialization.
 
-### 1. MuHash Encoding (`kernel/coinstats.cpp`)
+**Why**: Without these fields, the MuHash couldn't distinguish coinstake outputs from regular outputs, and couldn't track per-UTXO timestamps. This was needed for accurate UTXO set hashing.
 
-`TxOutSer` encodes `fCoinBase` in bit 0 and `fCoinStake` in bit 1, with `nHeight` shifted left by 2 bits:
+**Consequence**: MuHash now depends on correct `nTime` values. But `coin.nTime` was always `0` for v2 txs (deserialization artifact), so the MuHash was computed from wrong data. This didn't cause a crash initially — it just silently produced incorrect hashes.
 
-```cpp
-ss << static_cast<uint32_t>((coin.nHeight << 2) | (coin.fCoinBase ? 1u : 0u) | (coin.fCoinStake ? 2u : 0u));
-```
+### Commit 2: `8430495` — Fix nTime for new-output paths in CoinStatsIndex
 
-**Key Design Properties:**
-- **No `nTime` in MuHash:** `nTime` is excluded from the MuHash calculation. This ensures the hash remains strictly deterministic regardless of whether transaction inputs are read from memory, active chain state, or disk undo data (`rev*.dat`).
-- **Structural Properties Only:** `fCoinStake` is a structural property derived from the transaction (`tx->IsCoinStake()`), making it immutable and consistent across all nodes.
-- **Bit Allocation:**
-  - Bit 0: `fCoinBase`
-  - Bit 1: `fCoinStake`
-  - Bits 2+: `nHeight`
+**What**: In `CustomAppend` and `ReverseBlock`, fixed the `Coin` construction for **new outputs** (from `tx->vout`) to use `block.nTime` instead of `tx.nTime` for v2 coinstakes.
 
----
+**Why**: The new outputs were being added to MuHash with correct `nTime` (from our fix: `block.nTime`), but the undo-data paths still read `nTime = 0` from disk. This created a mismatch: insert used `block.nTime`, remove used `0` → MuHash drifted → **assertion crash on reorg** when `ReverseBlock` called `Finalize()` and compared against the DB value.
 
-### 2. UTXO Statistics Tracking
+**Consequence**: The assertion started firing every time your node staked a block and it got orphaned.
 
-#### Data Structures
+### Applied to working tree: `AddCoins` root-cause fix + CoinStatsIndex fallback
 
-`CCoinsStats` (`kernel/coinstats.h`) and `CoinStatsIndex` (`index/coinstatsindex.h`) track coinstake rewards separately from coinbase:
+**What**: Three changes applied to the v28-CORE working tree:
 
-| Location | Field / Member | Type | Purpose |
-|---|---|---|---|
-| `kernel/coinstats.h` | `total_coinstake_amount` | `std::optional<CAmount>` | Cumulative gross coinstake output value (`std::optional` for overflow safety) |
-| `kernel/coinstats.h` | `total_coinstake_input_amount` | `std::optional<CAmount>` | Cumulative value of inputs spent by coinstake transactions |
-| `index/coinstatsindex.h` | `m_total_coinstake_amount` | `CAmount` | Running total of coinstake outputs in index |
-| `index/coinstatsindex.h` | `m_total_coinstake_input_amount` | `CAmount` | Running total of spent coinstake inputs in index |
-| `index/coinstatsindex.cpp` | `DBVal::total_coinstake_amount` | `CAmount` | Persistent database record |
-| `index/coinstatsindex.cpp` | `DBVal::total_coinstake_input_amount` | `CAmount` | Persistent database record |
+1. **`AddCoins` fix** (coins.cpp, coins.h): Added `nBlockTime` parameter. For v2 txs, stores `nTime = block.nTime` instead of `tx.nTime = 0` in the `Coin`. This fixes: UTXO cache, undo data, `tx_verify.cpp:191` temporal check — everything downstream.
 
-#### Transaction Categorization (`CustomAppend` & `ReverseBlock`)
+2. **CoinStatsIndex fallback** (coinstatsindex.cpp): In both `CustomAppend` and `ReverseBlock`, when reading coins from undo data, if `nTime == 0 && coin.nHeight > 0`, reconstruct `nTime` from the creation block via `pindex->GetAncestor(coin.nHeight)->nTime`. This handles old undo data written before the fix without requiring a full `-reindex`.
 
-During block processing, outputs are split into three explicit categories:
-1. `tx->IsCoinBase()` → Coinbase output (`m_total_coinbase_amount`)
-2. `tx->IsCoinStake()` → Coinstake reward output (`m_total_coinstake_amount`)
-3. Regular transaction → New output (`m_total_new_outputs_ex_coinbase_amount`)
+3. **Validation.cpp plumbing**: `UpdateCoins` and `ConnectBlock` now pass `block.nTime` through to `AddCoins`.
 
-Inputs spent by coinstake transactions are accumulated in `m_total_coinstake_input_amount`.
+**Why**: The earlier fix (commit 2) only fixed half the problem — new outputs but not undo data. This fixes the source (`AddCoins`), so every consumer gets correct `nTime` automatically.
+
+### Related: SegWitTxv2Coinstake.md
+
+**What**: Document analyzing a txid collision edge case for v2 segwit coinstakes on reorg.
+
+**Why**: The same root cause (v2 drops `nTime` from serialization) means a segwit coinstake's non-witness bytes are identical across retries with the same UTXO and outputs. Not a fork, but a correctness concern. Qtum protects against this with `setStakeSeen`. Documented for future reference.
+
+**Fix found**: the collision can be solved with no fork by embedding the in-memory `txNew.nTime` (masked 16s boundary) as a 3rd push in the `vout[1]` OP_RETURN carrier. `CheckBlockSignature` reads only 2 `GetOp`s and ignores the 3rd, so the timestamp varies the txid per window without affecting consensus. See `agent/SegWitTxv2Coinstake.md` §Option E and `agent/P2PKMigration.md` §6.
 
 ---
 
-### 3. Subsidy Accounting & Unclaimed Rewards
+## Current State
 
-#### Pre-PoSv3 Subsidy Calculation
+The CoinStatsIndex assertion crash is fixed. The index is rebuilding. But it's **very slow** — same slowness as Bitcoin Core and Qtum. Here's why:
 
-Pre-PoSv3 PoS blocks used coin-age rewards rather than fixed protocol subsidies. For these blocks, `CustomAppend` calculates effective block subsidy dynamically based on coinstake deltas:
 
-```cpp
-CAmount effective_subsidy;
-if (block.is_pos && !Params().GetConsensus().IsProtocolV3(block.data->nTime)) {
-    effective_subsidy = (m_total_coinstake_amount - coinstake_before) -
-                        (m_total_coinstake_input_amount - coinstake_input_before);
-} else {
-    effective_subsidy = block_subsidy;
-}
-m_total_subsidy += effective_subsidy;
-```
-
-For PoW blocks and PoSv3+ blocks, standard protocol `block_subsidy` is used directly.
-
-#### Genesis Block Handling
-
-Blackcoin's genesis coinbase output is 0 BLK. Rather than adding theoretical subsidy to unspendable metrics, `CustomAppend` walks genesis outputs directly to count unspendable scripts.
-
----
-
-### 4. Direct Path vs Index Path
-
-- **CoinStatsIndex Path (`LookUpStats`)**: Supplies all extended metrics (`total_coinstake_amount`, `total_coinstake_input_amount`, `total_subsidy`, `total_unspendable_amount`).
-- **Direct UTXO Scan (`ComputeUTXOStats`)**: Evaluates `total_coinstake_amount` using `ApplyStats` and the per-coin `fCoinStake` flag. `total_coinstake_input_amount` is unavailable in direct scans as it requires historical block undo records.
-
----
-
-### 5. RPC Integration (`rpc/blockchain.cpp`)
-
-The `gettxoutsetinfo` RPC exposes net coinstake rewards under `block_info.coinstake`:
-
-```json
-{
-  "block_info": {
-    "prevout_spent": "...",
-    "coinbase": "...",
-    "coinstake": "(coinstake output delta) - (coinstake input delta)",
-    "new_outputs_ex_coinbase": "...",
-    "unspendable": "...",
-    "unspendables": {
-      "genesis_block": "...",
-      "scripts": "...",
-      "unclaimed_rewards": "..."
-    }
-  }
-}
-```
-
-The net reward per block is defined as: `(coinstake_output_delta) - (coinstake_input_delta)`.
-
----
-
-### 6. Testing (`test/coinstatsindex_tests.cpp`)
-
-`coinstatsindex_coinstake_awareness` unit test verifies:
-- 2-bit flag encoding (`fCoinBase` = bit 0, `fCoinStake` = bit 1, height = bits 2+).
-- Distinct hash codes for coinbase, coinstake, and regular outputs at identical heights.
-- Correct behavior at block height 0.
-- `GetBogoSize` output consistency (4 bytes allocated for height + flags).
-
----
-
-## Comparison with Bitcoin Core Upstream (v28.4.0)
-
-| Feature | Bitcoin Core v28.4 | Blackcoin bdev |
-|---|---|---|
-| `Coin` has `fCoinStake`? | No | **Yes** |
-| `Coin` has `nTime`? | No | **Yes** |
-| MuHash Height Encoding | `(height << 1) \| fCoinBase` | `(height << 2) \| fCoinBase \| (fCoinStake << 1)` |
-| MuHash Compatibility | Upstream standard | **Custom** (2 flag bits) |
-| Coinstake Reward Stats | N/A | **Tracked** (output & input totals) |
-| Pre-PoSv3 Reward Calculation | N/A | **Dynamic coin-age subsidy calculation** |
-| BIP30 Unspendables Tracked | Yes | **No** (omitted; no BIP30 collisions) |
-
----
-
-## Downstream Maintenance Strategy
-
-Blackcoin maintains compatibility with Bitcoin Core upstream releases via downstream merging/rebasing.
-
-- **Upstream Rebase Isolation:** All PoS coinstake customizations (`fCoinStake` flag in `TxOutSer`, `effective_subsidy`, coinstake stats tracking, genesis output walk) are isolated in `coinstatsindex` and `kernel/coinstats`.
-- **Forward-Porting Awareness:** When upgrading to future Bitcoin Core versions (e.g., Core 29/30+ where `BlockInfo` interface and `CustomOptions` are introduced), the customized PoS encoding (`<< 2`) and stats fields will need to be re-applied on top of the newer upstream index framework.

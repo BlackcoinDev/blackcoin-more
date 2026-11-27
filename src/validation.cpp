@@ -361,7 +361,7 @@ void Chainstate::MaybeUpdateMempoolForReorg(
             }
         }
 
-        // If the transaction spends any coinbase outputs, it must be mature.
+        // If the transaction spends any coinbase or coinstake outputs, it must be mature.
         if (it->GetSpendsCoinbase()) {
             for (const CTxIn& txin : tx.vin) {
                 auto it2 = m_mempool->mapTx.find(txin.prevout.hash);
@@ -370,7 +370,7 @@ void Chainstate::MaybeUpdateMempoolForReorg(
                 const Coin& coin{CoinsTip().AccessCoin(txin.prevout)};
                 assert(!coin.IsSpent());
                 const auto mempool_spend_height{m_chain.Tip()->nHeight + 1};
-                if (coin.IsCoinBase() && mempool_spend_height - coin.nHeight < Params().GetConsensus().nCoinbaseMaturity) {
+                if ((coin.IsCoinBase() || coin.IsCoinStake()) && mempool_spend_height - coin.nHeight < Params().GetConsensus().nCoinbaseMaturity) {
                     return true;
                 }
             }
@@ -817,8 +817,12 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         return state.Invalid(TxValidationResult::TX_PREMATURE_SPEND, "non-BIP68-final");
     }
 
-    // The mempool holds txs for the next block, so pass height+1 to CheckTxInputs
-    if (!Consensus::CheckTxInputs(tx, state, m_view, m_active_chainstate.m_chain.Height() + 1, ws.m_base_fees)) {
+    // The mempool holds txs for the next block (whose timestamp must be > tip->GetBlockTime()
+    // and is normally >= now), so avoid rejecting v2 txs spending unconfirmed v1 parents.
+    const CBlockIndex* const tip = m_active_chainstate.m_chain.Tip();
+    const int64_t nMempoolBlockTime = tip ? std::max<int64_t>(tip->GetBlockTime() + 1, GetAdjustedTimeSeconds())
+                                          : GetAdjustedTimeSeconds();
+    if (!Consensus::CheckTxInputs(tx, state, m_view, m_active_chainstate.m_chain.Height() + 1, ws.m_base_fees, nMempoolBlockTime)) {
         return false; // state filled in by CheckTxInputs
     }
 
@@ -2145,6 +2149,16 @@ static unsigned int GetBlockScriptFlags(const CBlockIndex& block_index, const Ch
         flags |= SCRIPT_VERIFY_TAPROOT;
     }
 
+    // Protocol V3.2: reject spending outputs with upgradable/unknown witness
+    // versions (v > 1, and v1 before Taproot activates). Without this flag the
+    // interpreter treats unknown witness versions as anyone-can-spend. Once
+    // SCRIPT_VERIFY_TAPROOT is active (testnet, regtest, or mainnet after BIP-9
+    // activation), v1 is handled before this flag is checked in interpreter.cpp.
+    // Creation of v > 1 outputs is blocked at the same gate in ContextualCheckBlock.
+    if (consensusparams.IsProtocolV3_2(block_index.GetBlockTime())) {
+        flags |= SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM;
+    }
+
     return flags;
 }
 
@@ -2207,7 +2221,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     assert(hashPrevBlock == view.GetBestBlock());
 
     // Check proof-of-stake
-    if (block.IsProofOfStake() && params.GetConsensus().IsProtocolV3(block.GetBlockTime()) && !CheckProofOfStake(pindex->pprev, *block.vtx[1], block.nBits, state, view, block.vtx[1]->nTime ? block.vtx[1]->nTime : block.nTime)) {
+    if (block.IsProofOfStake() && params.GetConsensus().IsProtocolV3(block.GetBlockTime()) && !CheckProofOfStake(pindex->pprev, *block.vtx[1], block.nBits, state, view, block.vtx[1]->nTime ? block.vtx[1]->nTime : block.nTime, m_chainman)) {
         LogPrintf("WARNING: %s: check proof-of-stake failed for block %s\n", __func__, block.GetHash().ToString());
         return false; // do not error here as we expect this during initial block download
     }
@@ -2299,6 +2313,8 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     std::vector<int> prevheights;
     CAmount nFees = 0;
     CAmount nActualStakeReward = 0;
+    arith_uint256 total_block_in{0};
+    arith_uint256 total_block_out{0};
     int nInputs = 0;
     int64_t nSigOpsCost = 0;
     blockundo.vtxundo.reserve(block.vtx.size() - 1);
@@ -2312,7 +2328,9 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
         {
             CAmount txfee = 0;
             TxValidationState tx_state;
-            if (!Consensus::CheckTxInputs(tx, tx_state, view, pindex->nHeight, txfee)) {
+            // Use deterministic block time for v2+ inputs starting at Protocol V3.2
+            const int64_t nBlockTime = params.GetConsensus().IsProtocolV3_2(block.GetBlockTime()) ? pindex->GetBlockTime() : 0;
+            if (!Consensus::CheckTxInputs(tx, tx_state, view, pindex->nHeight, txfee, nBlockTime)) {
                 // Any transaction validation failure in ConnectBlock is a block consensus failure
                 state.Invalid(BlockValidationResult::BLOCK_CONSENSUS,
                             tx_state.GetRejectReason(), tx_state.GetDebugMessage());
@@ -2351,10 +2369,16 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
 
         if (!tx.IsCoinBase())
         {
-            if (tx.IsCoinStake())
+            if (tx.IsCoinStake()) {
                 nActualStakeReward = tx.GetValueOut()-view.GetValueIn(tx);
-            else if (!params.GetConsensus().IsProtocolV3_2(block.GetBlockTime()))
-                nFees += view.GetValueIn(tx)-tx.GetValueOut();
+            } else if (!params.GetConsensus().IsProtocolV3_2(block.GetBlockTime())) {
+                const CAmount extra_fee = view.GetValueIn(tx) - tx.GetValueOut();
+                if (!MoneyRange(extra_fee) || extra_fee > MAX_MONEY - nFees) {
+                    LogPrintf("ERROR: %s: accumulated fee in the block out of range.\n", __func__);
+                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-txns-accumulated-fee-outofrange");
+                }
+                nFees += extra_fee;
+            }
 
             std::vector<CScriptCheck> vChecks;
             bool fCacheResults = fJustCheck; /* Don't cache results if we're actually connecting blocks (still consult the cache, though) */
@@ -2367,6 +2391,12 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
                     tx.GetHash().ToString(), state.ToString());
             }
             control.Add(std::move(vChecks));
+        }
+
+        // Track block-wide inputs and outputs before UpdateCoins spends inputs (used for V3.2 inflation invariant)
+        total_block_out += arith_uint256(static_cast<uint64_t>(tx.GetValueOut()));
+        if (!tx.IsCoinBase()) {
+            total_block_in += arith_uint256(static_cast<uint64_t>(view.GetValueIn(tx)));
         }
 
         CTxUndo undoDummy;
@@ -2384,7 +2414,12 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
              Ticks<MillisecondsDouble>(time_connect) / num_blocks_total);
 
     if (block.IsProofOfWork()) {
-        CAmount blockReward = nFees + GetBlockSubsidy(pindex->nHeight, params.GetConsensus(), false);
+        const CAmount subsidy = GetBlockSubsidy(pindex->nHeight, params.GetConsensus(), false);
+        // Check before adding to avoid signed integer overflow UB (MAX_MONEY == INT64_MAX)
+        if (nFees > MAX_MONEY - subsidy) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-txns-accumulated-fee-outofrange");
+        }
+        const CAmount blockReward = nFees + subsidy;
         if (block.vtx[0]->GetValueOut() > blockReward) {
             LogPrintf("ERROR: ConnectBlock(): coinbase pays too much (actual=%d vs limit=%d)\n", block.vtx[0]->GetValueOut(), blockReward);
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-amount");
@@ -2392,10 +2427,25 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     }
 
     if (block.IsProofOfStake() && params.GetConsensus().IsProtocolV3(block.GetBlockTime())) {
-        CAmount blockReward = nFees + GetBlockSubsidy(pindex->nHeight, params.GetConsensus(), true);
+        const CAmount subsidy = GetBlockSubsidy(pindex->nHeight, params.GetConsensus(), true);
+        // Check before adding to avoid signed integer overflow UB (MAX_MONEY == INT64_MAX)
+        if (nFees > MAX_MONEY - subsidy) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-txns-accumulated-fee-outofrange");
+        }
+        const CAmount blockReward = nFees + subsidy;
         if (nActualStakeReward > blockReward) {
             LogPrintf("ERROR: ConnectBlock(): coinstake pays too much (actual=%d vs limit=%d)\n", nActualStakeReward, blockReward);
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cs-amount");
+        }
+    }
+
+    // Protocol V3.2: block-level conservation-of-money invariant (independent of nFees / IsCoinStake).
+    // Net new coins created across the entire block can never exceed the block subsidy.
+    if (params.GetConsensus().IsProtocolV3_2(block.GetBlockTime())) {
+        const CAmount subsidy = GetBlockSubsidy(pindex->nHeight, params.GetConsensus(), block.IsProofOfStake());
+        if (total_block_out > total_block_in + arith_uint256(static_cast<uint64_t>(subsidy))) {
+            LogPrintf("ERROR: ConnectBlock(): block net emission exceeds subsidy\n");
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-blk-inflation");
         }
     }
 
@@ -3728,13 +3778,15 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-not-empty", "coinbase output not empty for proof-of-stake block");
         }
 
-        // Second transaction must be coinstake, the rest must not be
+        // Second transaction must be coinstake
         if (block.vtx.size() < 2 || !block.vtx[1]->IsCoinStake())
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cs-missing", "second tx is not coinstake");
-        for (unsigned int i = 2; i < block.vtx.size(); i++)
-            if (block.vtx[i]->IsCoinStake())
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cs-multiple", "more than one coinstake");
     }
+
+    // No transaction at index >= 2 may be a coinstake (in either PoS or PoW blocks)
+    for (unsigned int i = 2; i < block.vtx.size(); i++)
+        if (block.vtx[i]->IsCoinStake())
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cs-multiple", "more than one coinstake");
 
     // Check proof-of-stake block signature
     if (fCheckSig && !CheckBlockSignature(block))
@@ -3750,11 +3802,11 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
             assert(tx_state.GetResult() == TxValidationResult::TX_CONSENSUS);
             return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, tx_state.GetRejectReason(),
                                  strprintf("Transaction check failed (tx hash %s) %s", tx->GetHash().ToString(), tx_state.GetDebugMessage()));
-
-            // Check transaction timestamp
-            if (block.GetBlockTime() < (tx->nTime ? (int64_t)tx->nTime : block.GetBlockTime()))
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-tx-time", strprintf("%s : block timestamp earlier than transaction timestamp", __func__));
         }
+
+        // Check transaction timestamp (gated on Protocol V3.2 so 26.2 and 28.4 stay aligned before activation)
+        if (consensusParams.IsProtocolV3_2(block.GetBlockTime()) && tx->nTime && block.GetBlockTime() < (int64_t)tx->nTime)
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-tx-time", strprintf("%s : block timestamp earlier than transaction timestamp", __func__));
     }
     unsigned int nSigOps = 0;
     for (const auto& tx : block.vtx)
@@ -3764,7 +3816,8 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
     if (nSigOps * WITNESS_SCALE_FACTOR > MAX_BLOCK_SIGOPS_COST)
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-blk-sigops", "out-of-bounds SigOpCount");
 
-    if (fCheckPOW && fCheckMerkleRoot)
+    // Only cache fChecked when block signature was also verified (prevents submitblock from bypassing CheckBlockSignature)
+    if (fCheckPOW && fCheckMerkleRoot && fCheckSig)
         block.fChecked = true;
 
     return true;
@@ -3988,6 +4041,24 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
     // failed).
     if (GetBlockWeight(block) > MAX_BLOCK_WEIGHT) {
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-blk-weight", strprintf("%s : weight limit failed", __func__));
+    }
+
+    // Protocol V3.2: reject blocks creating outputs with unknown witness versions (v > 1).
+    // Known witness versions are 0 (SegWit) and 1 (Taproot). Gating on Protocol V3.2
+    // keeps historical testnet blocks (e.g. v16 outputs around height ~2,864,xxx) valid
+    // while blocking unknown witness outputs on all networks after activation without
+    // waiting for BIP-9 Taproot activation.
+    if (consensusParams.IsProtocolV3_2(block.GetBlockTime())) {
+        for (const auto& tx : block.vtx) {
+            for (const auto& txout : tx->vout) {
+                int witness_version = 0;
+                std::vector<unsigned char> witness_program;
+                if (txout.scriptPubKey.IsWitnessProgram(witness_version, witness_program) && witness_version > 1) {
+                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-unknown-witness-version",
+                        strprintf("%s : block contains output with unknown witness version %d", __func__, witness_version));
+                }
+            }
+        }
     }
 
     return true;
@@ -4256,7 +4327,8 @@ bool ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock,
 
     // Header is valid/has work, merkle tree and segwit merkle tree are good...RELAY NOW
     // (but if it does not build on our best tip, let the SendMessages loop relay it)
-    if (!IsInitialBlockDownload() && ActiveTip() == pindex->pprev)
+    // Blackcoin: only fast-relay PoW blocks before ConnectBlock; PoS kernels are validated in ConnectBlock()
+    if (!IsInitialBlockDownload() && ActiveTip() == pindex->pprev && block.IsProofOfWork())
         GetMainSignals().NewPoWValidBlock(pindex, pblock);
 
     // Write block to history file
